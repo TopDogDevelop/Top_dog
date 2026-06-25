@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+  <ui:Style src="AppStyles.uss" />
+  <ui:Style src="JoinLan.uss" />
+  <ui:VisualElement class="display-shell">
+    <ui:VisualElement class="viewport-frame">
+      <ui:VisualElement name="root" class="join-lan-root screen-root-layered">
+        <ui:VisualElement name="art-screen-bg" class="art-layer art-slot-screen-bg" />
+        <ui:Label text="加入他人游戏" class="join-lan-title" />
+        <ui:Label name="lbl-status" text="正在搜索局域网房间…" class="join-lan-status" />
+        <ui:ScrollView name="room-list" class="join-lan-room-scroll" />
+        <ui:VisualElement class="join-lan-actions">
+          <ui:Button name="btn-refresh" text="刷新" class="menu-button join-lan-action-btn" />
+          <ui:Button name="btn-join" text="加入" class="menu-button join-lan-action-btn" />
+          <ui:Button name="btn-back" text="返回" class="menu-button join-lan-action-btn join-lan-action-btn-last" />
+        </ui:VisualElement>
+      </ui:VisualElement>
+    </ui:VisualElement>
+  </ui:VisualElement>
+</ui:UXML>

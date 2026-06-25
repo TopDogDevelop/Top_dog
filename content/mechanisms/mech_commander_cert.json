@@ -1,0 +1,22 @@
+{
+  "mechanismId": "commander_cert",
+  "displayNameZh": "团长之证",
+  "triggers": [
+    {
+      "id": "resolve_post_ops",
+      "when": "trait.resolution",
+      "if": {
+        "mechanismId": "commander_cert",
+        "resolutionPhase": "post_ops_pre_combat"
+      },
+      "then": {
+        "actions": [
+          {
+            "type": "alert.push",
+            "message": "团长之证：{identity} 战前窗口（占位）"
+          }
+        ]
+      }
+    }
+  ]
+}

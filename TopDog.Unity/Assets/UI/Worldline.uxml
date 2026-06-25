@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+  <ui:Style src="AppStyles.uss" />
+  <ui:VisualElement class="display-shell">
+    <ui:VisualElement class="viewport-frame">
+      <ui:VisualElement name="root" class="safe-area screen-root screen-root-layered">
+        <ui:VisualElement name="art-screen-bg" class="art-layer art-slot-screen-bg" />
+        <ui:VisualElement class="menu-stack">
+          <ui:Label text="选择世界线" class="screen-title" />
+          <ui:Button name="btn-story" text="剧情线" class="menu-button-wide" />
+          <ui:Button name="btn-custom" text="自定义战役（房主）" class="menu-button-wide" />
+          <ui:Button name="btn-join" text="加入他人游戏" class="menu-button-wide" />
+          <ui:Button name="btn-sandbox" text="沙盒" class="menu-button-wide" />
+          <ui:Button name="btn-back" text="返回主菜单" class="menu-button" />
+        </ui:VisualElement>
+      </ui:VisualElement>
+    </ui:VisualElement>
+  </ui:VisualElement>
+</ui:UXML>

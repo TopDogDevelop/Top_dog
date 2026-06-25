@@ -1,0 +1,174 @@
+{
+  "schemaVersion": "1.0",
+  "id": "combat_ship_detail_hud",
+  "displayName": "战斗阶段舰船详情 HUD",
+  "doc": "docs/COMBAT_SHIP_DETAIL_HUD.md",
+  "referenceArt": {
+    "wireframe": "docs/assets/combat_ship_detail_hud_wireframe.png",
+    "sizePx": [123, 152],
+    "anchorPixel": [50, 77],
+    "anchorNote": "与 battleship_32 质心重合"
+  },
+  "coordinateSystem": {
+    "origin": "battleship_icon_centroid",
+    "originIcon": "battleship_32.png",
+    "iconSizePx": [32, 32],
+    "iconCentroidPx": [15.39, 15.27],
+    "xAxis": "right",
+    "yAxis": "down",
+    "unit": "px",
+    "absoluteOffset": [50, 77]
+  },
+  "displayPolicy": {
+    "numericDisplay": "percent_bar_only",
+    "percentPrecision": 1,
+    "percentFormula": "round(clamp01(value/max)*100)",
+    "barHighValue": 100,
+    "forbidBarText": true,
+    "forbidProgressBarTitle": true,
+    "allowedTextRegions": ["name_legion_row", "speed_panel"],
+    "buffDisplay": "icons_only_no_labels"
+  },
+  "regions": [
+    {
+      "id": "shield_bar",
+      "labelZh": "护盾",
+      "labelEn": "Shield",
+      "role": "percent_bar",
+      "display": { "showText": false, "precisionPct": 1 },
+      "rect": { "x0": -26, "y0": -50, "w": 60, "h": 5 },
+      "bind": { "value": "unit.shieldHp", "max": "unit.shieldMax" },
+      "styleClass": "rtcombat-hud-bar-shield"
+    },
+    {
+      "id": "armor_bar",
+      "labelZh": "装甲",
+      "labelEn": "Armor",
+      "role": "percent_bar",
+      "display": { "showText": false, "precisionPct": 1 },
+      "rect": { "x0": -26, "y0": -45, "w": 60, "h": 5 },
+      "bind": { "value": "unit.armorHp", "max": "unit.armorMax" },
+      "styleClass": "rtcombat-hud-bar-armor"
+    },
+    {
+      "id": "structure_bar",
+      "labelZh": "结构",
+      "labelEn": "Structure",
+      "role": "percent_bar",
+      "display": { "showText": false, "precisionPct": 1 },
+      "rect": { "x0": -26, "y0": -40, "w": 68, "h": 5 },
+      "bind": { "value": "unit.structureHp", "max": "unit.structureMax" },
+      "styleClass": "rtcombat-hud-bar-structure"
+    },
+    {
+      "id": "buff_rail",
+      "labelZh": "Buff 图标列",
+      "labelEn": "Buff Rail",
+      "role": "icon_stack",
+      "display": { "showText": false },
+      "layout": "vertical",
+      "iconSizePx": 12,
+      "maxIcons": 6,
+      "rect": { "x0": -40, "y0": -35, "w": 14, "h": 71 },
+      "bind": { "source": "unit.buffIcons" }
+    },
+    {
+      "id": "ship_icon_slot",
+      "labelZh": "舰型图标",
+      "labelEn": "Ship Icon",
+      "role": "ship_glyph",
+      "rect": { "x0": -16, "y0": -16, "w": 32, "h": 32 },
+      "bind": {
+        "texture": "TacticalIconCatalog.ResolveShipIcon(unit.tonnageClass)",
+        "rotate": "unit.facingRad"
+      }
+    },
+    {
+      "id": "heading_chevron",
+      "labelZh": "艏向",
+      "labelEn": "Heading",
+      "role": "decoration",
+      "rect": { "x0": -5, "y0": -16, "w": 10, "h": 12 },
+      "bind": { "rotate": "unit.facingRad" },
+      "optional": true
+    },
+    {
+      "id": "capacitor_bar",
+      "labelZh": "电容",
+      "labelEn": "Capacitor",
+      "role": "percent_bar",
+      "display": { "showText": false, "precisionPct": 1 },
+      "side": "right_inner",
+      "rect": { "x0": 26, "y0": -40, "w": 7, "h": 51 },
+      "bind": { "value": "fit.capacitorPct", "max": "1" },
+      "styleClass": "rtcombat-hud-bar-capacitor"
+    },
+    {
+      "id": "implant_bar",
+      "labelZh": "植入体能量",
+      "labelEn": "Implant Energy",
+      "role": "percent_bar",
+      "display": { "showText": false, "precisionPct": 1 },
+      "side": "right_outer",
+      "rect": { "x0": 33, "y0": -40, "w": 8, "h": 75 },
+      "bind": { "value": "fit.implantEnergyPct", "max": "1" },
+      "styleClass": "rtcombat-hud-bar-implant"
+    },
+    {
+      "id": "name_legion_row",
+      "labelZh": "团员名 · 军团",
+      "labelEn": "Member · Legion",
+      "role": "text_row",
+      "display": { "showText": true },
+      "rect": { "x0": -40, "y0": 16, "w": 82, "h": 19 },
+      "bind": {
+        "primary": "unit.displayName",
+        "secondary": "legion.displayName"
+      },
+      "format": "{primary} · {secondary}"
+    },
+    {
+      "id": "speed_panel",
+      "labelZh": "速度",
+      "labelEn": "Speed",
+      "role": "metric_text",
+      "display": { "showText": true },
+      "rect": { "x0": -30, "y0": 35, "w": 61, "h": 20 },
+      "bind": { "value": "unit.SpeedMps()" },
+      "format": "{value:0} m/s"
+    }
+  ],
+  "corners": [
+    { "id": "P01", "rel": [-40, -50], "abs": [10, 27], "note": "外框左上" },
+    { "id": "P02", "rel": [26, -50], "abs": [76, 27], "note": "盾条右端" },
+    { "id": "P03", "rel": [-26, -45], "abs": [24, 32], "note": "甲条左" },
+    { "id": "P04", "rel": [33, -45], "abs": [83, 32], "note": "甲条右" },
+    { "id": "P05", "rel": [-26, -40], "abs": [24, 37], "note": "结构条左" },
+    { "id": "P06", "rel": [26, -40], "abs": [76, 37], "note": "结构内右/电容顶" },
+    { "id": "P07", "rel": [33, -40], "abs": [83, 37], "note": "植入条顶" },
+    { "id": "P08", "rel": [41, -40], "abs": [91, 37], "note": "结构最外右" },
+    { "id": "P09", "rel": [-26, -35], "abs": [24, 42], "note": "主体内左上" },
+    { "id": "P10", "rel": [26, -35], "abs": [76, 42], "note": "主体内右上" },
+    { "id": "P11", "rel": [33, -35], "abs": [83, 42], "note": "植入内上" },
+    { "id": "P12", "rel": [41, -35], "abs": [91, 42], "note": "外框右上" },
+    { "id": "P13", "rel": [-40, 16], "abs": [10, 93], "note": "名条顶左" },
+    { "id": "P14", "rel": [41, 16], "abs": [91, 93], "note": "名条顶右" },
+    { "id": "P15", "rel": [-40, 35], "abs": [10, 112], "note": "速度区顶左" },
+    { "id": "P16", "rel": [41, 35], "abs": [91, 112], "note": "速度区顶右" },
+    { "id": "P17", "rel": [-30, 55], "abs": [20, 132], "note": "速度舌左下" },
+    { "id": "P18", "rel": [30, 55], "abs": [80, 132], "note": "速度舌右下" }
+  ],
+  "visibility": {
+    "default": "selected_target_only",
+    "building": {
+      "show": ["structure_bar", "name_legion_row", "speed_panel", "ship_icon_slot"],
+      "hide": ["shield_bar", "armor_bar", "capacitor_bar", "implant_bar", "buff_rail", "heading_chevron"]
+    }
+  },
+  "implementation": {
+    "uxml": "TopDog.Unity/Assets/UI/CombatShipDetailHud.template.uxml",
+    "layout": "TopDog.Unity/Assets/Scripts/Client/Tactical/CombatShipDetailHudLayout.cs",
+    "loader": "TopDog.Unity/Assets/Scripts/Client/Tactical/CombatShipDetailHudTemplate.cs",
+    "widget": "TopDog.Unity/Assets/Scripts/Client/Tactical/UnitOrbitHudWidget.cs"
+  }
+}

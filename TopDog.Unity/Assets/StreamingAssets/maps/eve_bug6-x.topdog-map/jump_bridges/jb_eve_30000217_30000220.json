@@ -1,0 +1,6 @@
+{
+  "bridgeId": "jb_eve_30000217_30000220",
+  "fromSystemId": "sys_eve_30000217",
+  "toSystemId": "sys_eve_30000220",
+  "garrisonTemplateId": "npc_garrison_default"
+}

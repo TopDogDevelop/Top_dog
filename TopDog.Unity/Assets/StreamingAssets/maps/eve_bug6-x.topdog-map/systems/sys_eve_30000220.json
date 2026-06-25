@@ -1,0 +1,30 @@
+{
+  "solarSystemId": "sys_eve_30000220",
+  "name": "Y0-BVN",
+  "constellationId": "con_bug6_x",
+  "regionId": "reg_eve_10000003",
+  "starMapPositionLy": [
+    -0.725,
+    0.236,
+    0.975
+  ],
+  "resourceAffluenceIndex": 50,
+  "developmentDifficulty": 50,
+  "securityLevel": 0.0,
+  "eventRegions": [
+    {
+      "eventRegionId": "er_sys_eve_30000220_star",
+      "kind": "star",
+      "name": "Y0-BVN Star",
+      "radiusKm": 1000000,
+      "anchorAu": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "jumpBridgeIds": [
+    "jb_eve_30000217_30000220"
+  ]
+}

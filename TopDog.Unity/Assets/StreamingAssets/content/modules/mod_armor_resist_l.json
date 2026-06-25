@@ -1,0 +1,8 @@
+{
+  "moduleId": "mod_armor_resist_l",
+  "displayName": "甲抗模块 L",
+  "displayNameEn": "Armor Resist L",
+  "slotCategory": "DEFENSE",
+  "moduleSize": "LARGE",
+  "armorResistPct": 15
+}

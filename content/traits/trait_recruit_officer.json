@@ -1,0 +1,1 @@
+{"traitId": "trait_recruit_officer", "displayNameZh": "招新官", "displayNameEn": "Recruit Officer", "mechanismId": "recruit_officer", "resolutionPhase": "post_combat_pre_ops", "presentationTags": ["ui_positive"], "recruitPool": false}

@@ -1,0 +1,22 @@
+{
+  "bands": [
+    {
+      "id": "HIGHSEC",
+      "minSecurity": 0.5,
+      "maxSecurity": 1.0,
+      "uiColor": "#4a9eff"
+    },
+    {
+      "id": "LOWSEC",
+      "minSecurity": 0.01,
+      "maxSecurity": 0.49,
+      "uiColor": "#e6a817"
+    },
+    {
+      "id": "NULL",
+      "minSecurity": -1.0,
+      "maxSecurity": 0.0,
+      "uiColor": "#ff4444"
+    }
+  ]
+}

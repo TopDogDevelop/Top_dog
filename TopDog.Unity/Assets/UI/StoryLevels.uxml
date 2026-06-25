@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+  <ui:Style src="AppStyles.uss" />
+  <ui:Style src="StoryLevels.uss" />
+  <ui:VisualElement class="display-shell">
+    <ui:VisualElement class="viewport-frame">
+      <ui:VisualElement name="root" class="story-levels-root screen-root-layered">
+        <ui:VisualElement name="art-screen-bg" class="art-layer art-slot-screen-bg" />
+        <ui:Label text="剧情线 · 选择关卡" class="story-levels-title" />
+        <ui:Label name="lbl-status" text="选择关卡后按「开始」" class="story-levels-status" />
+        <ui:ScrollView name="level-list" class="story-levels-scroll" />
+        <ui:VisualElement class="story-levels-actions">
+          <ui:Button name="btn-start" text="开始" class="menu-button story-levels-action-btn" />
+          <ui:Button name="btn-back" text="返回" class="menu-button story-levels-action-btn story-levels-action-btn-last" />
+        </ui:VisualElement>
+      </ui:VisualElement>
+    </ui:VisualElement>
+  </ui:VisualElement>
+</ui:UXML>

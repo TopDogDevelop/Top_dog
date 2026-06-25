@@ -1,0 +1,27 @@
+{
+  "solarSystemId": "sys_pirate",
+  "name": "Pirate Lurk",
+  "constellationId": "con_belt",
+  "regionId": "reg_tutorial",
+  "starMapPositionLy": [12.0, 1.0, -4.0],
+  "resourceAffluenceIndex": 40,
+  "developmentDifficulty": 60,
+  "securityLevel": 0.05,
+  "eventRegions": [
+    {
+      "eventRegionId": "er_sys_pirate_star",
+      "kind": "star",
+      "name": "Pirate Star",
+      "radiusKm": 1000000,
+      "anchorAu": [0.0, 0.0, 0.0]
+    },
+    {
+      "eventRegionId": "er_sys_pirate_rally",
+      "kind": "pirateRally",
+      "name": "Rally Point",
+      "radiusKm": 1000000,
+      "anchorAu": [0.5, 0.0, -1.0]
+    }
+  ],
+  "jumpBridgeIds": ["jb_mine_to_pirate"]
+}

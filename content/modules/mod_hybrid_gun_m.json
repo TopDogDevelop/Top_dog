@@ -1,0 +1,8 @@
+{
+  "moduleId": "mod_hybrid_gun_m",
+  "displayName": "混合炮 M",
+  "displayNameEn": "Hybrid Gun M",
+  "slotCategory": "ATTACK",
+  "moduleSize": "MEDIUM",
+  "damagePerTick": 85
+}

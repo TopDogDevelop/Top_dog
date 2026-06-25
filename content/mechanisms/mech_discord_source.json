@@ -1,0 +1,58 @@
+{
+
+  "mechanismId": "discord_source",
+
+  "displayNameZh": "不和之源",
+
+  "triggers": [
+
+    {
+
+      "id": "resolve_post_ops",
+
+      "when": "trait.resolution",
+
+      "if": {
+
+        "mechanismId": "discord_source",
+
+        "resolutionPhase": "post_ops_pre_combat"
+
+      },
+
+      "then": {
+
+        "actions": [
+
+          {
+
+            "type": "legion.members.stat.add.random",
+
+            "stat": "legionBelonging",
+
+            "amount": -1,
+
+            "count": 5,
+
+            "scope": "legion"
+
+          },
+
+          {
+
+            "type": "alert.push",
+
+            "message": "不和之源：{identity} 导致军团 5 名成员归属感-1"
+
+          }
+
+        ]
+
+      }
+
+    }
+
+  ]
+
+}
+

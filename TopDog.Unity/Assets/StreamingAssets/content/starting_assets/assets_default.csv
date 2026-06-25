@@ -1,0 +1,2 @@
+assetTemplateId,displayName,startSolarSystemId,anchorMode,placementEventRegionIds,placementRadiusKm,spawnableBuildingIds,npcBuildingEventRegionIds,legionTreasuryFunds,legionInventory,worldlines,narrativeNotes
+assets_default,默认首包开局,sys_hub,PLAYER_SPAWN,er_sys_hub_station,500,bld_outpost_s,,1000,hull_bc_spear:2|hull_dread_ironcoffin:2|hull_carrier_crispy:2|hull_carrier_stellar_collector:1|strike_wing_a:6|mod_ore_mining_beam_s:10|mod_propulsion_m:10|res_inorganic:10000,ALL,First pack default stock

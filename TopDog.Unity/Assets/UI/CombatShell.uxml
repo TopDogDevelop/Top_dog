@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+  <ui:Style src="AppStyles.uss" />
+  <ui:Style src="CombatShell.uss" />
+  <ui:VisualElement class="display-shell">
+    <ui:VisualElement class="viewport-frame">
+      <ui:VisualElement name="root" class="combat-root screen-root-layered">
+        <ui:VisualElement name="art-screen-bg" class="art-layer art-slot-screen-bg" />
+        <ui:VisualElement name="combat-ui-layer" class="combat-ui-layer">
+          <ui:Label name="lbl-phase" text="交战" class="combat-title" />
+          <ui:Label name="lbl-queue" text="" class="combat-subtitle" />
+          <ui:Label name="lbl-body" text="" class="combat-body" />
+          <ui:VisualElement class="combat-actions">
+            <ui:Button name="btn-auto" text="自动交战" class="menu-button-wide" />
+            <ui:Button name="btn-realtime" text="实时指挥" class="menu-button-wide" />
+            <ui:Button name="btn-engage" text="参与战斗" class="menu-button-wide" />
+            <ui:Button name="btn-retreat" text="舰队撤退" class="menu-button-wide" />
+            <ui:Button name="btn-back-ops" text="返回运营（调试）" class="menu-button" />
+          </ui:VisualElement>
+          <ui:Label name="lbl-status" text="" class="combat-status" />
+        </ui:VisualElement>
+      </ui:VisualElement>
+    </ui:VisualElement>
+  </ui:VisualElement>
+</ui:UXML>

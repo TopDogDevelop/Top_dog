@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+  <ui:Style src="AppStyles.uss" />
+  <ui:Style src="CampaignShell.uss" />
+  <ui:VisualElement class="display-shell">
+    <ui:VisualElement class="viewport-frame">
+      <ui:VisualElement name="root" class="campaign-shell-root screen-root-layered">
+        <ui:VisualElement name="art-screen-bg" class="art-layer art-slot-screen-bg" />
+        <ui:VisualElement class="ops-top-bar art-slot-top-bar-bg">
+          <ui:VisualElement class="ops-top-nav-scroll">
+            <ui:Button name="btn-trade" text="交易" class="ops-top-btn" />
+            <ui:Button name="btn-craft" text="制造" class="ops-top-btn" />
+            <ui:Button name="btn-legion-assets" text="军团资产" class="ops-top-btn" />
+            <ui:Button name="btn-codex" text="团员图鉴" class="ops-top-btn" />
+            <ui:Button name="btn-trait-codex" text="词条图鉴" class="ops-top-btn" />
+            <ui:Button name="btn-hostile" text="敌对" class="ops-top-btn" />
+            <ui:Button name="btn-friendly" text="友好" class="ops-top-btn" />
+            <ui:Button name="btn-diplomacy" text="外交" class="ops-top-btn" />
+          </ui:VisualElement>
+          <ui:VisualElement class="ops-timer-cluster">
+            <ui:Label name="lbl-timer" text="03:00" class="ops-timer-main" />
+            <ui:Label name="lbl-date" text="Y1 第1周" class="ops-timer-date" />
+            <ui:Button name="btn-combat-prep" text="自动交战" class="ops-combat-prep-btn" style="display: none;" />
+          </ui:VisualElement>
+          <ui:Label text="ESC" class="ops-top-hint" />
+        </ui:VisualElement>
+
+        <ui:VisualElement class="ops-body-row">
+          <ui:VisualElement class="ops-left-events">
+            <ui:Label text="事件" class="ops-panel-caption" />
+            <ui:ScrollView name="event-scroll" class="ops-event-scroll">
+              <ui:Label name="lbl-event-feed" text="" class="ops-event-feed" />
+            </ui:ScrollView>
+          </ui:VisualElement>
+
+          <ui:VisualElement class="ops-center-column">
+            <ui:VisualElement class="ops-legion-header">
+              <ui:Label text="军团" class="ops-legion-caption" />
+              <ui:TextField name="field-legion-name" value="军团" class="ops-legion-name-field" />
+              <ui:Button name="btn-legion-details" text="军团详情 ▼" class="ops-legion-toggle" />
+            </ui:VisualElement>
+            <ui:VisualElement name="legion-details" class="ops-legion-details" style="display: none;">
+              <ui:Label name="lbl-legion-stats" text="团员 — · 编队 —" />
+              <ui:Label name="lbl-legion-buildings" text="建筑 — · 回合 —" />
+              <ui:Label name="lbl-legion-stock" text="舰库存 — · 装备库存 —" />
+              <ui:Label name="lbl-legion-location" text="出生/当前: —" />
+            </ui:VisualElement>
+            <ui:VisualElement name="star-map-host" class="ops-star-map art-viewport-host">
+              <ui:VisualElement name="art-viewport-bg" class="art-layer art-slot-viewport-bg" />
+              <ui:VisualElement name="star-map-input-overlay" class="ops-star-map-input-overlay" />
+              <ui:VisualElement name="star-map-bridges-ui" class="ops-star-map-bridges-ui" />
+              <ui:VisualElement name="star-map-markers" class="ops-star-map-markers" />
+              <ui:VisualElement name="star-map-mode-bar" class="ops-star-map-mode-bar">
+                <ui:Button name="btn-enter-system" text="进入星系" class="ops-star-map-mode-btn" />
+                <ui:Button name="btn-exit-system" text="返回星图" class="ops-star-map-mode-btn" style="display: none;" />
+              </ui:VisualElement>
+              <ui:Label name="lbl-dispatch-target" text="派遣目标: (点击星系)" class="ops-star-map-target" />
+              <ui:VisualElement name="viewport-controls" class="ops-viewport-controls ops-viewport-controls-front">
+                <ui:Button name="btn-vp-orbit-left" text="◀" class="ops-vp-btn" tooltip="环绕左" />
+                <ui:Button name="btn-vp-orbit-right" text="▶" class="ops-vp-btn" tooltip="环绕右" />
+                <ui:Button name="btn-vp-orbit-up" text="▲" class="ops-vp-btn" tooltip="俯仰上（高度轴）" />
+                <ui:Button name="btn-vp-orbit-down" text="▼" class="ops-vp-btn" tooltip="俯仰下（高度轴）" />
+                <ui:Button name="btn-vp-zoom-in" text="+" class="ops-vp-btn" tooltip="放大" />
+                <ui:Button name="btn-vp-zoom-out" text="−" class="ops-vp-btn" tooltip="缩小" />
+                <ui:Button name="btn-vp-reset" text="归零" class="ops-vp-btn ops-vp-btn-wide" tooltip="以星系绝对坐标均值为中心俯视" />
+                <ui:Button name="btn-vp-frame" text="全图" class="ops-vp-btn ops-vp-btn-wide" tooltip="适配全图俯视" />
+              </ui:VisualElement>
+            </ui:VisualElement>
+          </ui:VisualElement>
+
+          <ui:VisualElement class="ops-member-detail">
+            <ui:Label text="团员详情" class="ops-panel-caption" />
+            <ui:ScrollView name="member-detail-scroll" class="ops-detail-scroll">
+              <ui:Label name="lbl-member-detail" text="请从右侧选择团员" class="ops-detail-body" />
+            </ui:ScrollView>
+            <ui:Button name="btn-fitting" text="配船" class="ops-detail-action-btn" />
+          </ui:VisualElement>
+
+          <ui:VisualElement class="ops-right-rail">
+            <ui:Label text="团员总览" class="ops-panel-caption" />
+            <ui:ScrollView name="member-scroll" class="ops-member-scroll">
+              <ui:VisualElement name="member-list" class="ops-member-list" />
+            </ui:ScrollView>
+          </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:VisualElement class="ops-bottom-bar">
+          <ui:VisualElement class="ops-bottom-main-row">
+            <ui:VisualElement class="ops-command-block">
+              <ui:Label text="命令" class="ops-panel-caption" />
+              <ui:TextField name="field-command" class="ops-command-field" />
+              <ui:VisualElement class="ops-command-shortcuts">
+                <ui:Label text="快捷" class="ops-command-shortcut-caption" />
+                <ui:Label name="cmd-link-help" text="帮助" class="ops-cmd-link" />
+                <ui:Label text=" · " class="ops-cmd-sep" />
+                <ui:Label name="cmd-link-status" text="状态" class="ops-cmd-link" />
+                <ui:Label text=" · " class="ops-cmd-sep" />
+                <ui:Label name="cmd-link-continue" text="继续" class="ops-cmd-link" />
+              </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:Label name="lbl-toast" text="" class="ops-toast" />
+          </ui:VisualElement>
+          <ui:VisualElement class="ops-bottom-actions-row">
+            <ui:Label text="快捷指令" class="ops-bottom-actions-caption" />
+            <ui:VisualElement class="ops-bottom-shortcuts">
+              <ui:Button name="btn-formation" text="编队" class="ops-shortcut-btn" />
+              <ui:Button name="btn-formation-confirm" text="确认编队" class="ops-shortcut-btn" style="display: none;" />
+              <ui:Button name="btn-formation-dissolve" text="解散编队" class="ops-shortcut-btn" style="display: none;" />
+              <ui:Button name="btn-dispatch-mining" text="采矿" class="ops-shortcut-btn" />
+              <ui:Button name="btn-dispatch-bounty" text="赏金" class="ops-shortcut-btn" />
+              <ui:Button name="btn-dispatch-guard" text="守卫" class="ops-shortcut-btn" />
+              <ui:Button name="btn-dispatch-ambush" text="伏击" class="ops-shortcut-btn" />
+              <ui:Button name="btn-dispatch-harvest" text="收割" class="ops-shortcut-btn" />
+              <ui:Button name="btn-dispatch-anchor" text="锚定军堡" class="ops-shortcut-btn ops-shortcut-btn-wide" />
+              <ui:Button name="btn-attack-buildings" text="攻击该星系建筑" class="ops-shortcut-btn ops-shortcut-btn-wide" />
+            </ui:VisualElement>
+            <ui:Label name="lbl-dispatch-hint" text="派遣目标: (点击星系)" class="ops-dispatch-hint-bottom" />
+            <ui:Label name="lbl-formation-hint" text="" class="ops-formation-hint" style="display: none;" />
+            <ui:Button name="btn-recruit" text="招新" class="ops-recruit-btn" />
+          </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="overlay-layer" class="ops-overlay-layer" picking-mode="Position">
+          <ui:VisualElement name="overlay-panel" class="ops-overlay-panel art-slot-overlay-panel">
+            <ui:Label name="overlay-title" text="" class="ops-overlay-title" />
+            <ui:ScrollView name="overlay-scroll" class="ops-overlay-scroll">
+              <ui:Label name="overlay-body" text="" class="ops-overlay-body" />
+            </ui:ScrollView>
+            <ui:Button name="overlay-close" text="关闭" class="ops-overlay-close" />
+          </ui:VisualElement>
+          <ui:VisualElement name="module-picker-popup" class="ops-module-picker-popup" style="display: none;" />
+        </ui:VisualElement>
+      </ui:VisualElement>
+    </ui:VisualElement>
+  </ui:VisualElement>
+</ui:UXML>

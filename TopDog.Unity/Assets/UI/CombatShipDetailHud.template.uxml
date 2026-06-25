@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+  <ui:Style src="CombatRealtime.uss" />
+  <ui:VisualElement name="ship-detail-hud-root" class="rtcombat-ship-detail-hud" picking-mode="Ignore">
+    <ui:VisualElement name="bar-shield" class="rtcombat-hud-bar rtcombat-hud-bar-hp rtcombat-ship-detail-bar-horizontal" />
+    <ui:VisualElement name="bar-armor" class="rtcombat-hud-bar rtcombat-hud-bar-hp rtcombat-ship-detail-bar-horizontal" />
+    <ui:VisualElement name="bar-structure" class="rtcombat-hud-bar rtcombat-hud-bar-hp rtcombat-ship-detail-bar-horizontal" />
+    <ui:VisualElement name="buff-rail" class="rtcombat-ship-detail-buff-rail" picking-mode="Ignore" />
+    <ui:VisualElement name="bar-capacitor" class="rtcombat-hud-bar rtcombat-hud-bar-capacitor rtcombat-ship-detail-bar-vertical" />
+    <ui:VisualElement name="bar-implant" class="rtcombat-hud-bar rtcombat-hud-bar-implant rtcombat-ship-detail-bar-vertical" />
+    <ui:Label name="lbl-name-legion" class="rtcombat-ship-detail-name-legion" picking-mode="Ignore" />
+    <ui:Label name="lbl-speed" class="rtcombat-ship-detail-speed" picking-mode="Ignore" />
+  </ui:VisualElement>
+</ui:UXML>

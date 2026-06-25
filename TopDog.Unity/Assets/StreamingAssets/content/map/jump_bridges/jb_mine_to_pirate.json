@@ -1,0 +1,6 @@
+{
+  "bridgeId": "jb_mine_to_pirate",
+  "fromSystemId": "sys_mine",
+  "toSystemId": "sys_pirate",
+  "garrisonTemplateId": "npc_garrison_default"
+}

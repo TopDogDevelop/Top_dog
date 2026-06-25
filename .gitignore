@@ -1,0 +1,48 @@
+# Unity generated
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+/Packages/
+/ProjectSettings/
+TopDog.Unity/Library/
+TopDog.Unity/Logs/
+TopDog.Unity/Temp/
+TopDog.Unity/UserSettings/
+*.csproj
+*.sln.DotSettings.user
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# .NET
+bin/
+obj/
+TestResults/
+
+# IDE / OS
+.vs/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# Local logs & scratch
+*.log
+unity-*.log
+1.txt
+
+# Design docs (kept out of this archive by policy)
+docs/
+
+# Cursor / local tooling
+.cursor/
+.codegraph/

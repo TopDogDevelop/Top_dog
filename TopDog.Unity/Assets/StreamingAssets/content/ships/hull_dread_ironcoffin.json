@@ -1,0 +1,22 @@
+{
+  "hullId": "hull_dread_ironcoffin",
+  "displayName": "铁棺级",
+  "displayNameEn": "Iron Coffin Dread",
+  "tonnageClass": "DREADNOUGHT",
+  "shieldHp": 5000,
+  "armorHp": 30000,
+  "structureHp": 10000,
+  "baseSpeedMps": 100,
+  "baseAccelMps2": 20,
+  "transitSpeedLyPerHour": 1.0,
+  "warpScramResist": 1,
+  "attackSlots": 4,
+  "functionSlots": 3,
+  "defenseSlots": 6,
+  "passiveSlots": 2,
+  "launchTubeSlots": 0,
+  "defaultSlotSize": "LARGE",
+  "maxOverslots": 2,
+  "underslotTradeConsume": 1,
+  "underslotTradeGrant": 1
+}

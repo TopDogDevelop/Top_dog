@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+  <ui:Style src="AppStyles.uss" />
+  <ui:Style src="MainMenu.uss" />
+  <ui:VisualElement class="display-shell">
+    <ui:VisualElement class="viewport-frame">
+      <ui:VisualElement name="root" class="safe-area screen-root screen-root-layered">
+        <ui:VisualElement name="art-screen-bg" class="art-layer art-slot-screen-bg" />
+        <ui:VisualElement class="menu-stack">
+          <ui:Label text="Top Dog" class="title screen-title" />
+          <ui:Label text="Unity 6 · UI Toolkit" class="screen-subtitle" />
+          <ui:Button name="btn-start" text="开始游戏" class="menu-button" />
+          <ui:Button name="btn-load" text="读档" class="menu-button" />
+          <ui:Button name="btn-settings" text="设置" class="menu-button" />
+          <ui:Button name="btn-mod" text="Mod" class="menu-button" />
+          <ui:Button name="btn-import-export" text="导入/导出" class="menu-button" />
+          <ui:Label name="lbl-status" text="" class="screen-subtitle menu-status" />
+        </ui:VisualElement>
+      </ui:VisualElement>
+    </ui:VisualElement>
+  </ui:VisualElement>
+</ui:UXML>

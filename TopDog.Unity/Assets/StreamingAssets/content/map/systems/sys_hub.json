@@ -1,0 +1,27 @@
+{
+  "solarSystemId": "sys_hub",
+  "name": "Hub Prime",
+  "constellationId": "con_hub",
+  "regionId": "reg_tutorial",
+  "starMapPositionLy": [0.0, 0.0, 0.0],
+  "resourceAffluenceIndex": 55,
+  "developmentDifficulty": 30,
+  "securityLevel": 0.8,
+  "eventRegions": [
+    {
+      "eventRegionId": "er_sys_hub_main",
+      "kind": "star",
+      "name": "Hub Star",
+      "radiusKm": 1000000,
+      "anchorAu": [0.0, 0.0, 0.0]
+    },
+    {
+      "eventRegionId": "er_sys_hub_station",
+      "kind": "planet",
+      "name": "Station Orbit",
+      "radiusKm": 1000000,
+      "anchorAu": [1.2, 0.0, 0.3]
+    }
+  ],
+  "jumpBridgeIds": ["jb_hub_to_mine"]
+}

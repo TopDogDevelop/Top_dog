@@ -1,0 +1,337 @@
+using System;
+using System.Collections.Generic;
+using TopDog.App;
+using TopDog.Sim.Member;
+using TopDog.Sim.State;
+using UnityEngine.UIElements;
+
+namespace TopDog.Client;
+
+/// <summary>
+/// 团员列表：排序（标签→词条数→现实人名 A–Z）、索引栏、图鉴双栏。
+/// </summary>
+public static class MemberListView
+{
+    public enum Presentation
+    {
+        SidebarOverview,
+        CodexList,
+    }
+
+    public sealed class Options
+    {
+        public Presentation Style = Presentation.SidebarOverview;
+        public bool FormationEditMode;
+        public string? SelectedKey;
+        public HashSet<string>? FormationPickedKeys;
+        public Action<MemberState, string>? OnRowActivated;
+        public SimulationCore? Core;
+        public ScrollView? ScrollHost;
+        /// <summary>本地军团 id；名册经 <see cref="MemberRosterSort.RosterForLegion"/> 读取。</summary>
+        public string? LocalLegionId;
+    }
+
+    public static void Populate(VisualElement container, GameState state, Options options)
+    {
+        container.Clear();
+        var roster = string.IsNullOrWhiteSpace(options.LocalLegionId)
+            ? MemberRosterSort.Order(state.members)
+            : MemberRosterSort.RosterForLegion(state, options.LocalLegionId);
+        if (roster.Count == 0)
+        {
+            container.Add(MakeEmptyLabel(options.Style));
+            return;
+        }
+
+        var sorted = roster;
+        var indexEntries = MemberRosterSort.BuildIndex(sorted);
+        var rowByKey = new Dictionary<string, VisualElement>(StringComparer.Ordinal);
+
+        var shell = new VisualElement();
+        shell.AddToClassList("ops-member-list-shell");
+        shell.style.flexGrow = 1;
+        shell.style.width = Length.Percent(100);
+
+        var listHost = new VisualElement();
+        listHost.AddToClassList(options.Style == Presentation.CodexList
+            ? "ops-codex-member-grid"
+            : "ops-member-list");
+        listHost.style.flexGrow = 1;
+        listHost.style.flexShrink = 1;
+        listHost.style.minWidth = 0;
+        listHost.style.width = Length.Percent(100);
+
+        for (var i = 0; i < sorted.Count; i++)
+        {
+            var member = sorted[i];
+            var key = MemberSelectionKeys.For(member);
+            var selected = options.FormationEditMode
+                ? MemberSelectionKeys.IsFormationPicked(key, options.FormationPickedKeys ?? EmptySet)
+                : MemberSelectionKeys.IsSelected(key, options.SelectedKey);
+
+            var row = options.Style == Presentation.CodexList
+                ? BuildCodexRow(state, member, key, selected, options)
+                : BuildSidebarRow(state, member, key, i, selected, options);
+
+            row.userData = string.IsNullOrWhiteSpace(key) ? i : key;
+            if (!string.IsNullOrWhiteSpace(key))
+            {
+                rowByKey[key] = row;
+            }
+            listHost.Add(row);
+        }
+
+        shell.Add(listHost);
+        shell.Add(BuildIndexRail(indexEntries, sorted, rowByKey, options.ScrollHost));
+        container.Add(shell);
+    }
+
+    private static readonly HashSet<string> EmptySet = new();
+
+    private static VisualElement BuildIndexRail(
+        IReadOnlyList<MemberRosterSort.IndexEntry> entries,
+        IReadOnlyList<MemberState> sorted,
+        IReadOnlyDictionary<string, VisualElement> rowByKey,
+        ScrollView? scrollHost)
+    {
+        var rail = new VisualElement();
+        rail.AddToClassList("ops-member-index-rail");
+
+        var caption = new Label("索引");
+        caption.AddToClassList("ops-member-index-caption");
+        rail.Add(caption);
+
+        foreach (var entry in entries)
+        {
+            var btn = new Button { text = entry.Letter };
+            btn.AddToClassList("ops-member-index-btn");
+            btn.clicked += () =>
+            {
+                if (entry.MemberIndex < 0 || entry.MemberIndex >= sorted.Count)
+                {
+                    return;
+                }
+                var key = MemberSelectionKeys.For(sorted[entry.MemberIndex]);
+                if (key != null && rowByKey.TryGetValue(key, out var row))
+                {
+                    scrollHost?.ScrollTo(row);
+                }
+            };
+            rail.Add(btn);
+        }
+        return rail;
+    }
+
+    private static VisualElement BuildCodexRow(
+        GameState state,
+        MemberState member,
+        string? key,
+        bool selected,
+        Options options)
+    {
+        var row = new VisualElement();
+        row.AddToClassList("ops-codex-member-btn");
+        row.pickingMode = PickingMode.Position;
+        row.focusable = true;
+        if (!string.IsNullOrWhiteSpace(key))
+        {
+            row.viewDataKey = "codex-" + key;
+            row.userData = key;
+        }
+        ApplyCodexSelected(row, selected);
+
+        var realName = MemberRosterSort.RealPersonName(member);
+        var line1 = MemberDisplayName(member) + " · " + DisplayRarity(member);
+        if (MemberRosterSort.HasLabels(member))
+        {
+            line1 += " · " + string.Join("/", member.labels);
+        }
+
+        var line2 = realName;
+        if (member.traitIds.Count > 0)
+        {
+            line2 += $" · {member.traitIds.Count}词条";
+        }
+        if (LegionCommanderService.IsCommanderMember(state, member))
+        {
+            line2 += " · 军团长";
+        }
+
+        var lines = new VisualElement();
+        lines.AddToClassList("ops-codex-member-lines");
+        var top = new Label(line1);
+        top.AddToClassList("ops-codex-line1");
+        top.pickingMode = PickingMode.Ignore;
+        lines.Add(top);
+        var bottom = new Label(line2);
+        bottom.AddToClassList("ops-codex-line2");
+        bottom.pickingMode = PickingMode.Ignore;
+        lines.Add(bottom);
+        row.Add(lines);
+
+        if (key != null)
+        {
+            var memberKey = key;
+            row.RegisterCallback<ClickEvent>(evt =>
+            {
+                evt.StopImmediatePropagation();
+                options.OnRowActivated?.Invoke(member, memberKey);
+            });
+        }
+        return row;
+    }
+
+    private static VisualElement BuildSidebarRow(
+        GameState state,
+        MemberState member,
+        string? key,
+        int index,
+        bool selected,
+        Options options)
+    {
+        var card = new VisualElement { name = $"member-{index}" };
+        card.AddToClassList("ops-member-card");
+        card.pickingMode = PickingMode.Position;
+        card.focusable = true;
+        if (!string.IsNullOrWhiteSpace(key))
+        {
+            card.viewDataKey = "sidebar-" + key;
+            card.userData = key;
+        }
+        if (options.FormationEditMode)
+        {
+            card.AddToClassList("ops-member-card-formation");
+        }
+        ApplySidebarSelected(card, selected);
+
+        if (options.FormationEditMode)
+        {
+            var mark = new Label(selected ? "☑" : "☐");
+            mark.AddToClassList("ops-member-pick-mark");
+            mark.pickingMode = PickingMode.Ignore;
+            card.Add(mark);
+        }
+
+        var body = new VisualElement();
+        body.AddToClassList("ops-member-card-body");
+        body.pickingMode = PickingMode.Ignore;
+
+        var display = MemberDisplayName(member);
+        var realName = MemberRosterSort.RealPersonName(member);
+        var nameRow = new VisualElement();
+        nameRow.AddToClassList("ops-member-name-row");
+        var nameLabel = new Label(display);
+        nameLabel.AddToClassList("ops-member-name");
+        nameRow.Add(nameLabel);
+        if (!string.Equals(display, realName, StringComparison.OrdinalIgnoreCase))
+        {
+            var realLabel = new Label(realName);
+            realLabel.AddToClassList("ops-member-real-inline");
+            nameRow.Add(realLabel);
+        }
+        body.Add(nameRow);
+
+        var hull = string.IsNullOrEmpty(member.equippedHullId) ? "无舰" : member.equippedHullId;
+        var task = string.IsNullOrEmpty(member.assignedTask) ? "待命" : member.assignedTask;
+        var loc = SystemName(state, member.currentSolarSystemId);
+        var rarity = !member.appraised && member.rarity == "U" ? "U" : member.rarity;
+        var meta = $"舰 {hull} · {rarity} · {task} @ {loc}";
+        if (member.traitIds.Count > 0)
+        {
+            meta += $" · {member.traitIds.Count}词条";
+        }
+        if (MemberRosterSort.HasLabels(member))
+        {
+            meta += " · " + string.Join("/", member.labels);
+        }
+        var metaLabel = new Label(meta);
+        metaLabel.AddToClassList("ops-member-meta");
+        body.Add(metaLabel);
+
+        if (options.FormationEditMode)
+        {
+            var hint = new Label(selected ? "[✓] 已在编队" : "[ ] 点击多选");
+            hint.AddToClassList("ops-member-sub");
+            body.Add(hint);
+        }
+
+        if (member.formationId != null)
+        {
+            var formLabel = new Label($"编队 {member.formationId}");
+            formLabel.AddToClassList("ops-member-sub");
+            body.Add(formLabel);
+        }
+
+        card.Add(body);
+
+        if (key != null)
+        {
+            var memberKey = key;
+            card.RegisterCallback<ClickEvent>(evt =>
+            {
+                evt.StopImmediatePropagation();
+                options.OnRowActivated?.Invoke(member, memberKey);
+            });
+        }
+        return card;
+    }
+
+    public static void ApplySidebarSelected(VisualElement row, bool selected)
+    {
+        if (selected)
+        {
+            row.AddToClassList("ops-member-card-selected");
+        }
+        else
+        {
+            row.RemoveFromClassList("ops-member-card-selected");
+        }
+    }
+
+    public static void ApplyCodexSelected(VisualElement row, bool selected)
+    {
+        if (selected)
+        {
+            row.AddToClassList("ops-codex-member-btn-selected");
+        }
+        else
+        {
+            row.RemoveFromClassList("ops-codex-member-btn-selected");
+        }
+    }
+
+    private static Label MakeEmptyLabel(Presentation style)
+    {
+        var empty = new Label(style == Presentation.CodexList ? "（暂无团员）" : "暂无团员");
+        empty.AddToClassList("ops-member-sub");
+        return empty;
+    }
+
+    private static string DisplayRarity(MemberState m) =>
+        m.rarity == "U" && !m.appraised ? "U(待鉴定)" : m.rarity ?? "?";
+
+    private static string MemberDisplayName(MemberState m) =>
+        !string.IsNullOrEmpty(m.name) ? m.name
+        : !string.IsNullOrEmpty(m.accountName) ? m.accountName
+        : m.memberId ?? "团员";
+
+    private static string SystemName(GameState s, string? systemId)
+    {
+        if (string.IsNullOrEmpty(systemId))
+        {
+            return "—";
+        }
+        var map = s.map?.Project;
+        if (map?.systems != null)
+        {
+            foreach (var sys in map.systems)
+            {
+                if (systemId.Equals(sys.solarSystemId, StringComparison.Ordinal))
+                {
+                    return !string.IsNullOrEmpty(sys.name) ? sys.name : systemId;
+                }
+            }
+        }
+        return systemId;
+    }
+}

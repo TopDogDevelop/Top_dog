@@ -1,0 +1,20 @@
+{
+  "hullId": "hull_carrier_crispy",
+  "displayName": "脆鸡级",
+  "displayNameEn": "Crispy Carrier",
+  "tonnageClass": "CARRIER",
+  "shieldHp": 40000,
+  "armorHp": 1000,
+  "structureHp": 10000,
+  "baseSpeedMps": 100,
+  "baseAccelMps2": 20,
+  "transitSpeedLyPerHour": 1.0,
+  "warpScramResist": 1,
+  "attackSlots": 0,
+  "functionSlots": 4,
+  "launchTubeSlots": 4,
+  "defenseSlots": 5,
+  "passiveSlots": 2,
+  "defaultSlotSize": "LARGE",
+  "maxOverslots": 1
+}

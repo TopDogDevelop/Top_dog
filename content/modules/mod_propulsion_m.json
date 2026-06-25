@@ -1,0 +1,10 @@
+{
+  "moduleId": "mod_propulsion_m",
+  "displayName": "推进器 M",
+  "displayNameEn": "Propulsion M",
+  "slotCategory": "FUNCTION",
+  "moduleSize": "MEDIUM",
+  "speedBonusMps": 40,
+  "speedBonusPctWhenEnabled": 0.12,
+  "appliesToPropulsion": true
+}

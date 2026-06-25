@@ -1,0 +1,70 @@
+.join-lan-root {
+    flex-grow: 1;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    background-color: rgb(12, 14, 18);
+    color: rgb(255, 255, 255);
+    padding: 16px;
+}
+
+.join-lan-title {
+    font-size: 28px;
+    margin-bottom: 8px;
+    color: rgb(255, 255, 255);
+}
+
+.join-lan-status {
+    font-size: 13px;
+    margin-bottom: 10px;
+    white-space: normal;
+    color: rgb(180, 210, 255);
+}
+
+.join-lan-room-scroll {
+    flex-grow: 1;
+    min-height: 200px;
+    margin-bottom: 12px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.15);
+    background-color: rgba(0, 0, 0, 0.25);
+}
+
+.join-lan-room-btn {
+    min-height: 40px;
+    margin-bottom: 4px;
+    font-size: 14px;
+    -unity-text-align: middle-left;
+    padding-left: 10px;
+    color: rgb(255, 255, 255);
+    background-color: rgba(255, 255, 255, 0.06);
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.join-lan-room-btn-selected {
+    background-color: rgba(115, 190, 255, 0.28);
+    border-color: rgba(115, 190, 255, 0.75);
+}
+
+.join-lan-room-empty {
+    font-size: 13px;
+    padding: 12px;
+    white-space: normal;
+    color: rgb(140, 145, 155);
+}
+
+.join-lan-actions {
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.join-lan-action-btn {
+    flex-grow: 1;
+    margin-right: 8px;
+    min-height: 40px;
+}
+
+.join-lan-action-btn-last {
+    margin-right: 0;
+}

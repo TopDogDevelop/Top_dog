@@ -1,0 +1,21 @@
+{
+  "hullId": "hull_bc_spear",
+  "displayName": "基础矛级",
+  "displayNameEn": "Spear-class BC",
+  "tonnageClass": "BATTLECRUISER",
+  "shieldHp": 5000,
+  "armorHp": 5000,
+  "structureHp": 3000,
+  "baseSpeedMps": 500,
+  "baseAccelMps2": 300,
+  "transitSpeedLyPerHour": 5.0,
+  "warpScramResist": 1,
+  "attackSlots": 2,
+  "functionSlots": 4,
+  "defenseSlots": 3,
+  "passiveSlots": 2,
+  "launchTubeSlots": 0,
+  "defaultSlotSize": "MEDIUM",
+  "maxOverslots": 1,
+  "overslotAttackOnly": true
+}

@@ -1,0 +1,31 @@
+{
+  "solarSystemId": "sys_eve_30000221",
+  "name": "X97D-W",
+  "constellationId": "con_bug6_x",
+  "regionId": "reg_eve_10000003",
+  "starMapPositionLy": [
+    0.093,
+    0.42,
+    0.308
+  ],
+  "resourceAffluenceIndex": 50,
+  "developmentDifficulty": 50,
+  "securityLevel": 0.0,
+  "eventRegions": [
+    {
+      "eventRegionId": "er_sys_eve_30000221_star",
+      "kind": "star",
+      "name": "X97D-W Star",
+      "radiusKm": 1000000,
+      "anchorAu": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "jumpBridgeIds": [
+    "jb_eve_30000216_30000221",
+    "jb_eve_30000217_30000221"
+  ]
+}

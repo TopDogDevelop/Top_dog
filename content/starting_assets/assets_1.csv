@@ -1,0 +1,2 @@
+﻿assetTemplateId,displayName,startSolarSystemId,anchorMode,placementEventRegionIds,placementRadiusKm,spawnableBuildingIds,npcBuildingEventRegionIds,legionTreasuryFunds,legionInventory,worldlines,narrativeNotes
+assets_1,灰烬联合·摇篮,sys_hub,PLAYER_CHOICE,er_sys_hub_station,500,bld_outpost_s,,800,,ALL,占位；spawnable/npc 建筑 id 待 content/buildings 注册

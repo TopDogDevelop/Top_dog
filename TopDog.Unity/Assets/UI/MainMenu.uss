@@ -1,0 +1,18 @@
+.main-menu-root {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+}
+
+.title {
+    font-size: 32px;
+    margin-bottom: 24px;
+    -unity-text-align: middle-center;
+    color: rgb(255, 255, 255);
+}
+
+.menu-button {
+    min-width: 200px;
+    min-height: 40px;
+    margin-bottom: 8px;
+}

@@ -1,0 +1,27 @@
+{
+  "solarSystemId": "sys_mine",
+  "name": "Mine Field",
+  "constellationId": "con_belt",
+  "regionId": "reg_tutorial",
+  "starMapPositionLy": [8.0, 0.0, 2.0],
+  "resourceAffluenceIndex": 72,
+  "developmentDifficulty": 45,
+  "securityLevel": 0.3,
+  "eventRegions": [
+    {
+      "eventRegionId": "er_sys_mine_star",
+      "kind": "star",
+      "name": "Mine Star",
+      "radiusKm": 1000000,
+      "anchorAu": [0.0, 0.0, 0.0]
+    },
+    {
+      "eventRegionId": "er_sys_mine_belt",
+      "kind": "oreBelt",
+      "name": "Alpha Belt",
+      "radiusKm": 1000000,
+      "anchorAu": [2.4, 0.1, 0.0]
+    }
+  ],
+  "jumpBridgeIds": ["jb_hub_to_mine", "jb_mine_to_pirate"]
+}

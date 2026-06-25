@@ -1,0 +1,8 @@
+{
+  "moduleId": "mod_shield_regen_m",
+  "displayName": "盾回模块 M",
+  "displayNameEn": "Shield Regen M",
+  "slotCategory": "DEFENSE",
+  "moduleSize": "MEDIUM",
+  "shieldRegenPerSec": 35
+}

@@ -1,0 +1,1 @@
+{"traitId": "trait_rookie_instructor", "displayNameZh": "新手教官", "displayNameEn": "Rookie Instructor", "mechanismId": "rookie_instructor", "resolutionPhase": "post_combat_pre_ops", "presentationTags": ["ui_positive"], "recruitPool": false}

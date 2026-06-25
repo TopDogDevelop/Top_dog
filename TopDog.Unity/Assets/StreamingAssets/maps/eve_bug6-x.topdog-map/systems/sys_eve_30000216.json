@@ -1,0 +1,32 @@
+{
+  "solarSystemId": "sys_eve_30000216",
+  "name": "05R-7A",
+  "constellationId": "con_bug6_x",
+  "regionId": "reg_eve_10000003",
+  "starMapPositionLy": [
+    0.328,
+    0.47,
+    -0.123
+  ],
+  "resourceAffluenceIndex": 50,
+  "developmentDifficulty": 50,
+  "securityLevel": 0.3081,
+  "eventRegions": [
+    {
+      "eventRegionId": "er_sys_eve_30000216_star",
+      "kind": "star",
+      "name": "05R-7A Star",
+      "radiusKm": 1000000,
+      "anchorAu": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "jumpBridgeIds": [
+    "jb_eve_30000215_30000216",
+    "jb_eve_30000216_30000219",
+    "jb_eve_30000216_30000221"
+  ]
+}

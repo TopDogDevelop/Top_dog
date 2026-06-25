@@ -1,0 +1,1 @@
+{"traitId": "trait_commander_cert_sheep", "displayNameZh": "团长之证-羊", "displayNameEn": "Commander Cert (Sheep)", "mechanismId": "commander_cert_sheep", "resolutionPhase": "post_combat_pre_ops", "presentationTags": ["ui_negative"], "recruitPool": false}

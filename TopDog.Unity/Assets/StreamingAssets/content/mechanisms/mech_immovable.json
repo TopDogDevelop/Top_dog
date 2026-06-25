@@ -1,0 +1,22 @@
+{
+  "mechanismId": "immovable",
+  "displayNameZh": "岿然不动",
+  "triggers": [
+    {
+      "id": "resolve_post_ops",
+      "when": "trait.resolution",
+      "if": {
+        "mechanismId": "immovable",
+        "resolutionPhase": "post_ops_pre_combat"
+      },
+      "then": {
+        "actions": [
+          {
+            "type": "alert.push",
+            "message": "岿然不动：{identity} 部署锚定增强（占位）"
+          }
+        ]
+      }
+    }
+  ]
+}

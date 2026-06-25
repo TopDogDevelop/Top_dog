@@ -1,0 +1,12 @@
+{
+  "name": "EVE BUG6-X",
+  "version": 1,
+  "editorMetadata": {
+    "source": "EEVVEE",
+    "eveDataDir": "E:/sg/eve/EEVVEE/eve-server-2014_01_18/evemu/mysql/data/evemu",
+    "eveConstellationId": 20000031,
+    "eveConstellationName": "BUG6-X",
+    "eveRegionId": 10000003,
+    "eveRegionName": "Vale of the Silent"
+  }
+}
