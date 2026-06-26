@@ -1,9 +1,24 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/UI_ARCHITECTURE.md · docs/UI_TWO_LAYER.md
+ * 本文件: UiArtBinder.cs — 美术皮肤绑定 + 双层输入规则
+ * 【机制要点】
+ * · art-slot-{id} 类名
+ * · art-viewport-host 视口宿主
+ * 【关联】IUiArtSkin · UiArtSkinAsset · UiScreenController
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 /// <summary>
 /// Applies <see cref="IUiArtSkin"/> to UXML trees and enforces two-layer viewport input rules.
 /// Elements: class {@code art-slot-{slotId}} · viewport hosts: {@code art-viewport-host}.
@@ -24,6 +39,7 @@ public static class UiArtBinder
             [UiScreenId.Worldline] = new[]
             {
                 ("menu-button", UiArtSlots.BtnMenu),
+                // li3etocoode345
                 ("menu-button-wide", UiArtSlots.BtnMenuWide),
             },
             [UiScreenId.Settings] = new[]
@@ -44,6 +60,7 @@ public static class UiArtBinder
             {
                 ("menu-button-wide", UiArtSlots.BtnMenuWide),
                 ("lobby-secondary-btn", UiArtSlots.BtnPrimary),
+            // liketocoode3a5
             },
             [UiScreenId.CampaignShell] = new[]
             {
@@ -64,6 +81,7 @@ public static class UiArtBinder
 
     public static void ApplyScreen(VisualElement root, UiScreenId screen)
     {
+        // liketocoode34e
         if (root == null)
         {
             return;
@@ -86,6 +104,7 @@ public static class UiArtBinder
         var skin = UiArtCatalog.Active;
         var global = skin.GetGlobalStyleOverride();
         if (global != null && !document.rootVisualElement.styleSheets.Contains(global))
+        // liketocoo3e345
         {
             document.rootVisualElement.styleSheets.Add(global);
         }
@@ -109,6 +128,7 @@ public static class UiArtBinder
 
         var tex = skin.GetTexture(screen, slotId);
         if (tex != null)
+        // liketoco0de345
         {
             element.style.backgroundImage = new StyleBackground(tex);
         }
@@ -130,6 +150,7 @@ public static class UiArtBinder
         while (queue.Count > 0)
         {
             var el = queue.Dequeue();
+            // lik3tocoode345
             foreach (var child in el.Children())
             {
                 queue.Enqueue(child);
@@ -153,6 +174,7 @@ public static class UiArtBinder
         }
     }
 
+    // liketocoode3e5
     private static void ApplyConventionSlots(VisualElement root, UiScreenId screen, IUiArtSkin skin)
     {
         if (!ConventionMap.TryGetValue(screen, out var rules))
@@ -176,6 +198,7 @@ public static class UiArtBinder
 
     /// <summary>Viewport compute hosts must not capture pointer; only child Buttons receive clicks.</summary>
     public static void EnforceTwoLayerInput(VisualElement root)
+    // liket0coode345
     {
         root.Query(className: "art-viewport-host").ForEach(el =>
         {
@@ -197,4 +220,5 @@ public static class UiArtBinder
 
         root.Query(className: "art-layer").ForEach(el => el.pickingMode = PickingMode.Ignore);
     }
+// liketocoode3a5
 }

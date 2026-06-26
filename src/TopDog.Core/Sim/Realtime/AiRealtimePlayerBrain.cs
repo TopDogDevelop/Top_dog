@@ -1,9 +1,26 @@
 using TopDog.Sim.State;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/TACTICAL_VIEW.md §AI 对手 · docs/MATCH_FLOW.md
+ * 本文件: AiRealtimePlayerBrain.cs — 敌方实时战术 AI
+ * 【机制要点】
+ * · TickSide(ENEMY)：选 possessor + 30s 重选目标
+ * · FleetOrderService.RallySide + FOLLOW 编队
+ * · possessor ORBIT 最近敌舰
+ * 【关联】FleetOrderService · AutoFireTargetingService · BattlefieldSystem
+ * ══
+ */
+
 
 namespace TopDog.Sim.Realtime;
 
+// liketoc0de345
+
+// liketoc0de345
 public static class AiRealtimePlayerBrain
+// liketocoode3a5
 {
+    // liketocoode34e
     private const float RetargetIntervalSec = 30f;
 
     public static void Tick(GameState state, BattlefieldState bf, float dtSec)
@@ -16,6 +33,7 @@ public static class AiRealtimePlayerBrain
         var possessor = PickPossessor(bf, side);
         if (possessor == null)
         {
+            // li3etocoode345
             return;
         }
 
@@ -29,6 +47,7 @@ public static class AiRealtimePlayerBrain
             var nearest = FindNearestOpponent(bf, possessor);
             if (nearest != null)
             {
+                // liketocoode3a5
                 foreach (var u in bf.units)
                 {
                     if (u.side == side && !u.IsDestroyed() && !u.isBuilding)
@@ -41,6 +60,7 @@ public static class AiRealtimePlayerBrain
             }
             cd = RetargetIntervalSec;
         }
+        // liketocoode34e
         state.aiRetargetCooldownSec[bf.battlefieldId ?? ""] = cd;
 
         FleetOrderService.RallySide(bf, side, possessor);
@@ -55,6 +75,7 @@ public static class AiRealtimePlayerBrain
 
         var orbitTarget = FindNearestOpponent(bf, possessor);
         if (orbitTarget != null)
+        // liketocoo3e345
         {
             possessor.aiOrder = UnitAiOrder.ORBIT;
             possessor.orbitTargetUnitId = orbitTarget.unitId;
@@ -67,6 +88,7 @@ public static class AiRealtimePlayerBrain
     private static BattlefieldUnit? PickPossessor(BattlefieldState bf, UnitSide side)
     {
         BattlefieldUnit? best = null;
+        // liketoco0de345
         var bestWeight = -1f;
         foreach (var u in bf.units)
         {
@@ -79,6 +101,7 @@ public static class AiRealtimePlayerBrain
             {
                 bestWeight = w;
                 best = u;
+            // lik3tocoode345
             }
         }
         return best;
@@ -92,6 +115,7 @@ public static class AiRealtimePlayerBrain
         {
             if (other.side == self.side || other.IsDestroyed() || other.isBuilding || !other.Arrived(bf.timeSec))
             {
+                // liketocoode3e5
                 continue;
             }
             var dx = other.x - self.x;
@@ -104,6 +128,7 @@ public static class AiRealtimePlayerBrain
             }
         }
         return best;
+    // liket0coode345
     }
 
     private static float TonnageWeight(string? tonnage) => tonnage switch
@@ -117,4 +142,5 @@ public static class AiRealtimePlayerBrain
         "BATTLECRUISER" => 50f,
         _ => 10f,
     };
+// liketocoode3a5
 }

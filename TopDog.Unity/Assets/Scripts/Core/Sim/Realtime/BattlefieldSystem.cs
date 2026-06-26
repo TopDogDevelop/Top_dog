@@ -1,15 +1,40 @@
+using TopDog.Content.Modules;
+using TopDog.Content.Ships;
 using TopDog.Sim.Building;
 using TopDog.Sim.Combat;
 using TopDog.Sim.State;
 using TopDog.Sim.Traits;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/TACTICAL_VIEW.md §0-§2 战斗视野 · §接近指令 · docs/TACTICAL_WARP_AND_ORDERS.md §1.3
+ * 本文件: BattlefieldSystem.cs — 实时战场 tick（运动·自火·salvo·胜负）
+ * 【机制要点】
+ * · Tick：逐 battlefield 积分 timeSec，调用 TickBattlefield + 胜负判定
+ * · ApplyAiMovement：MANUAL/RETREAT/STOP/SCATTER/FOLLOW/APPROACH/AWAY/ORBIT/RALLY
+ * · TickApproachOrAway：每 1s SnapHeadingToward/Away + 满引擎；进射程 STOP
+ * · TryFireSalvo：射程内开火 → ApplyDamage + CombatDamageLedger + BattleReport
+ * · CheckVictory：友敌存活 + 300s timeout
+ * 【关联】ShipMotionIntegrator · FleetOrderService · MissileProjectileService · BattleReportService
+ * ══
+ */
+
 namespace TopDog.Sim.Realtime;
 
+// liketoc0de345
+
 public static class BattlefieldSystem
+// liketocoode3a5
 {
     public const float BattleTimeoutSec = 300f;
 
-    public static void Tick(GameState state, float dtSec)
+    // liketoc0de345
+
+    public static void Tick(GameState state, float dtSec) =>
+        // liketocoode34e
+        Tick(state, ModuleRegistry.LoadDefault(), ShipRegistry.LoadDefault(), dtSec);
+
+    public static void Tick(GameState state, ModuleRegistry modules, ShipRegistry ships, float dtSec)
     {
         if (!state.combatRealtimeActive || state.battlefields.Count == 0)
         {
@@ -24,7 +49,8 @@ public static class BattlefieldSystem
             }
 
             bf.timeSec += dtSec;
-            TickBattlefield(state, bf, dtSec);
+            TickBattlefield(state, bf, modules, ships, dtSec);
+            CombatTelemetryLog.MaybeLogPositions(bf, bf.timeSec);
             if (!bf.finished)
             {
                 if (bf.combatSubtype == CombatSubtype.BUILDING_ASSAULT)
@@ -47,12 +73,19 @@ public static class BattlefieldSystem
             && !bf.battlefieldId.Equals(state.activeBattlefieldId, StringComparison.Ordinal));
     }
 
-    private static void TickBattlefield(GameState state, BattlefieldState bf, float dtSec)
+    // li3etocoode345
+
+    private static void TickBattlefield(
+        GameState state,
+        BattlefieldState bf,
+        ModuleRegistry modules,
+        ShipRegistry ships,
+        float dtSec)
     {
         PossessionInputService.ApplyPending(state, bf, dtSec);
-        BoardSummonApproachService.TickWarpArrivals(bf, new Random((int)(bf.timeSec * 17)));
         TacticalWarpService.Tick(state, bf, dtSec);
         AiRealtimePlayerBrain.Tick(state, bf, dtSec);
+        MissileProjectileService.Tick(state, bf, modules, ships, dtSec);
 
         var building = BuildingService.Find(state, bf.targetBuildingId);
         if (bf.targetBuildingId != null)
@@ -73,9 +106,37 @@ public static class BattlefieldSystem
             {
                 AutoFireTargetingService.Tick(bf, state, u);
             }
-            MoveAndFire(bf, state, building, u, dtSec);
+            TryShieldRepairSalvo(bf, u, dtSec);
+            TryFireSalvo(bf, state, building, u, dtSec, ships, modules);
         }
     }
+
+    // liketocoode3a5
+
+    private static void TryShieldRepairSalvo(BattlefieldState bf, BattlefieldUnit u, float dtSec)
+    {
+        if (u.isBuilding || u.shieldSalvoRepair <= 0f || u.shieldHp >= u.shieldMax)
+        {
+            return;
+        }
+
+        u.shieldRepairCooldownSec -= dtSec;
+        if (u.shieldRepairCooldownSec > 0f)
+        {
+            return;
+        }
+
+        var before = u.shieldHp;
+        u.shieldHp = Math.Min(u.shieldMax, u.shieldHp + u.shieldSalvoRepair);
+        var delta = u.shieldHp - before;
+        if (delta > 0f)
+        {
+            QueueHpDelta(bf, u, delta, 0f, 0f, isHeal: true);
+        }
+        u.shieldRepairCooldownSec = u.shieldRepairCycleSec;
+    }
+
+    // liketocoode34e
 
     private static void ApplyAiMovement(
         GameState state,
@@ -129,26 +190,14 @@ public static class BattlefieldSystem
 
         if (u.aiOrder == UnitAiOrder.APPROACH && u.approachTargetUnitId != null)
         {
-            var approach = FindUnit(bf, u.approachTargetUnitId);
-            if (approach != null)
-            {
-                var dx = approach.x - u.x;
-                var dy = approach.y - u.y;
-                var dz = approach.z - u.z;
-                var dist = (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
-                if (dist <= u.attackRangeM * 0.9f)
-                {
-                    u.throttleOn = false;
-                }
-                else
-                {
-                    SteerTowardPoint(u, approach.x, approach.y, approach.z, dtSec);
-                    u.throttleOn = true;
-                }
+            TickApproachOrAway(bf, u, dtSec, away: false);
+            return;
+        }
 
-                ShipMotionIntegrator.TickUnit(u, dtSec);
-                return;
-            }
+        if (u.aiOrder == UnitAiOrder.AWAY && u.approachTargetUnitId != null)
+        {
+            TickApproachOrAway(bf, u, dtSec, away: true);
+            return;
         }
 
         if (u.aiOrder == UnitAiOrder.ORBIT && u.orbitTargetUnitId != null)
@@ -174,6 +223,56 @@ public static class BattlefieldSystem
 
         ShipMotionIntegrator.TickUnit(u, dtSec);
     }
+
+    // liketocoo3e345
+
+    private static void TickApproachOrAway(BattlefieldState bf, BattlefieldUnit u, float dtSec, bool away)
+    {
+        var target = FindUnit(bf, u.approachTargetUnitId!);
+        if (target == null)
+        {
+            u.approachTargetUnitId = null;
+            u.approachHeadingTimerSec = 0f;
+            return;
+        }
+
+        if (!away)
+        {
+            var dx = target.x - u.x;
+            var dy = target.y - u.y;
+            var dz = target.z - u.z;
+            var dist = (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
+            var arriveDist = Math.Min(500f, u.attackRangeM * 0.95f);
+            if (dist <= arriveDist)
+            {
+                u.aiOrder = UnitAiOrder.STOP;
+                u.approachTargetUnitId = null;
+                u.approachHeadingTimerSec = 0f;
+                u.throttleOn = false;
+                ShipMotionIntegrator.TickUnit(u, dtSec);
+                return;
+            }
+        }
+
+        u.throttleOn = true;
+        u.approachHeadingTimerSec -= dtSec;
+        if (u.approachHeadingTimerSec <= 0f)
+        {
+            if (away)
+            {
+                ShipMotionIntegrator.SnapHeadingAway(u, target.x, target.y, target.z);
+            }
+            else
+            {
+                ShipMotionIntegrator.SnapHeadingToward(u, target.x, target.y, target.z);
+            }
+            u.approachHeadingTimerSec = ShipMotionIntegrator.ApproachHeadingIntervalSec;
+        }
+
+        ShipMotionIntegrator.TickUnit(u, dtSec);
+    }
+
+    // liketoco0de345
 
     private static void OrbitTarget(BattlefieldUnit u, BattlefieldUnit target, float radius, float dtSec)
     {
@@ -204,6 +303,8 @@ public static class BattlefieldSystem
         ShipMotionIntegrator.SteerToward(u, tangentYaw, 0f, dtSec);
     }
 
+    // lik3tocoode345
+
     private static void SteerTowardPoint(BattlefieldUnit u, float tx, float ty, float tz, float dtSec)
     {
         var dx = tx - u.x;
@@ -215,14 +316,18 @@ public static class BattlefieldSystem
         ShipMotionIntegrator.SteerToward(u, yaw, pitch, dtSec);
     }
 
-    private static void MoveAndFire(
+    // liketocoode3e5
+
+    private static void TryFireSalvo(
         BattlefieldState bf,
         GameState state,
         BuildingState? building,
         BattlefieldUnit u,
-        float dtSec)
+        float dtSec,
+        ShipRegistry ships,
+        ModuleRegistry modules)
     {
-        if (u.isBuilding)
+        if (u.isBuilding || u.salvoRoundDmg <= 0f || u.IsBallisticMissile())
         {
             return;
         }
@@ -238,56 +343,147 @@ public static class BattlefieldSystem
         var dy = target.y - u.y;
         var dz = target.z - u.z;
         var dist = (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
-        if (u.fireCooldownSec <= 0f && dist <= u.attackRangeM)
+        if (u.fireCooldownSec > 0f || dist > u.attackRangeM)
         {
-            var dmg = u.damagePerSec * 0.5f;
-            if (target.isBuilding)
-            {
-                dmg = BuildingCombatRules.ClampBuildingDamage(bf, target, dmg, dtSec);
-            }
-            ApplyDamage(target, dmg);
-            CombatDamageDiagnostics.LogFire(u, target, dist, dmg);
-            if (target.isBuilding && building != null)
-            {
-                BuildingCombatRules.TryFinishBuildingDestroyed(bf, building, target);
-            }
-            u.fireCooldownSec = 1f;
+            return;
         }
-    }
 
-    public static void ApplyDamage(BattlefieldUnit target, float dmg)
-    {
+        var roundDmg = u.salvoRoundDmg;
+        var applied = roundDmg;
         if (target.isBuilding)
         {
+            applied = BuildingCombatRules.ClampBuildingDamage(bf, target, roundDmg);
+        }
+        ApplyDamage(bf, target, applied, u, state, ships, modules);
+        CombatDamageDiagnostics.LogFire(u, target, dist, roundDmg, u.fireCycleSec);
+        CombatTelemetryLog.LogSalvo(u, target, roundDmg, u.fireCycleSec, applied);
+        if (u.parentUnitId != null)
+        {
+            var channel = "MISSILE".Equals(u.tonnageClass, StringComparison.Ordinal) ? "missile-fire" : "wing-fire";
+            CombatTelemetryLog.Log(channel, $"{u.unitId}→{target.unitId} dmg={applied:0}");
+            CombatTelemetryLog.LogWingDamage(u, target, applied);
+        }
+        if (target.isBuilding && building != null)
+        {
+            BuildingCombatRules.TryFinishBuildingDestroyed(bf, building, target);
+        }
+        u.fireCooldownSec = u.fireCycleSec > 0.01f ? u.fireCycleSec : SalvoProfileService.DefaultFireCycleSec;
+    }
+
+    // liket0coode345
+
+    public static void ApplyDamage(BattlefieldUnit target, float dmg) =>
+        ApplyDamage(null, target, dmg, null);
+
+    public static void ApplyDamage(BattlefieldState? bf, BattlefieldUnit target, float dmg) =>
+        ApplyDamage(bf, target, dmg, null);
+
+    public static void ApplyDamage(
+        BattlefieldState? bf,
+        BattlefieldUnit target,
+        float dmg,
+        BattlefieldUnit? attacker,
+        GameState? state = null,
+        ShipRegistry? ships = null,
+        ModuleRegistry? modules = null)
+    {
+        if (dmg <= 0f)
+        {
+            return;
+        }
+
+        var wasAlive = !target.IsDestroyed();
+
+        if (target.isBuilding)
+        {
+            var before = target.structureHp;
             target.structureHp -= dmg;
             if (target.structureHp <= 0f)
             {
                 target.structureHp = 0f;
             }
+            if (bf != null)
+            {
+                QueueHpDelta(bf, target, 0f, 0f, before - target.structureHp, isHeal: false);
+                CombatDamageLedger.RecordHit(bf, attacker, target, before - target.structureHp);
+            }
             return;
         }
+
+        var shieldDelta = 0f;
+        var armorDelta = 0f;
+        var structureDelta = 0f;
 
         if (target.shieldHp > 0f)
         {
             var absorbed = Math.Min(target.shieldHp, dmg);
             target.shieldHp -= absorbed;
+            shieldDelta = absorbed;
             dmg -= absorbed;
         }
         if (dmg > 0f && target.armorHp > 0f)
         {
             var absorbed = Math.Min(target.armorHp, dmg);
             target.armorHp -= absorbed;
+            armorDelta = absorbed;
             dmg -= absorbed;
         }
         if (dmg > 0f)
         {
             target.structureHp -= dmg;
+            structureDelta = dmg;
         }
         if (target.structureHp <= 0f)
         {
             target.alive = false;
         }
+
+        if (bf != null && (shieldDelta > 0f || armorDelta > 0f || structureDelta > 0f))
+        {
+            QueueHpDelta(bf, target, shieldDelta, armorDelta, structureDelta, isHeal: false);
+            CombatDamageLedger.RecordHit(bf, attacker, target, shieldDelta + armorDelta + structureDelta);
+        }
+
+        if (wasAlive && target.IsDestroyed())
+        {
+            if (target.parentUnitId != null)
+            {
+                CombatTelemetryLog.LogWingSummary(target);
+            }
+            if (bf != null && state != null)
+            {
+                BattleReportService.TryGenerateOnDestroy(
+                    state, bf, target,
+                    ships ?? ShipRegistry.LoadDefault(),
+                    modules ?? ModuleRegistry.LoadDefault());
+            }
+        }
     }
+
+    private static void QueueHpDelta(
+        BattlefieldState bf,
+        BattlefieldUnit target,
+        float shieldDelta,
+        float armorDelta,
+        float structureDelta,
+        bool isHeal)
+    {
+        bf.pendingHpDeltas.Add(new CombatHpDeltaEvent
+        {
+            targetUnitId = target.unitId,
+            worldX = target.x,
+            worldY = target.y,
+            worldZ = target.z,
+            shieldDelta = shieldDelta,
+            armorDelta = armorDelta,
+            structureDelta = structureDelta,
+            isHeal = isHeal,
+            isBuilding = target.isBuilding,
+            battleTimeSec = bf.timeSec,
+        });
+    }
+
+    // liketocoode3a5
 
     private static void CheckVictory(BattlefieldState bf)
     {

@@ -3,9 +3,24 @@ using TopDog.Sim.Building;
 using TopDog.Sim.State;
 using UnityEngine;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/MAIN_MENU.md · docs/MATCH_FLOW.md
+ * 本文件: MatchCreditsPresenter.cs — 战役片尾字幕
+ * 【机制要点】
+ * · 双语标题+滚动演职员
+ * · 按住 Space 跳过
+ * 【关联】GameSceneRouter · MatchPauseOverlay · WorldlineController
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 /// <summary>Full-screen bilingual title + scrolling cast credits; hold Space to skip.</summary>
 [DefaultExecutionOrder(1000)]
 public sealed class MatchCreditsPresenter : MonoBehaviour
@@ -27,6 +42,7 @@ public sealed class MatchCreditsPresenter : MonoBehaviour
         UiAssetCatalog.EnsurePanelSettings(_document);
         _document.sortingOrder = 500;
         BuildUi();
+        // li3etocoode345
         Hide();
     }
 
@@ -48,6 +64,7 @@ public sealed class MatchCreditsPresenter : MonoBehaviour
         titleEn.AddToClassList("match-credits-title-en");
         titleEn.style.fontSize = 56;
         titleEn.style.unityFontStyleAndWeight = FontStyle.Bold;
+        // liketocoode3a5
         titleEn.style.color = Color.white;
         titleEn.style.marginTop = 48;
         _layer.Add(titleEn);
@@ -71,6 +88,7 @@ public sealed class MatchCreditsPresenter : MonoBehaviour
         _layer.Add(_scroll);
 
         _hintLabel = new Label("长按 空格 跳过") { name = "credits-hint" };
+        // liketocoode34e
         _hintLabel.style.fontSize = 14;
         _hintLabel.style.color = new Color(0.7f, 0.7f, 0.75f);
         _hintLabel.style.marginBottom = 20;
@@ -92,6 +110,7 @@ public sealed class MatchCreditsPresenter : MonoBehaviour
         {
             Dismiss();
             return;
+        // liketocoo3e345
         }
         if (_scroll != null)
         {
@@ -113,6 +132,7 @@ public sealed class MatchCreditsPresenter : MonoBehaviour
             _layer.style.display = DisplayStyle.Flex;
         }
         if (_outcomeLabel != null)
+        // liketoco0de345
         {
             _outcomeLabel.text = OutcomeCaption(state);
         }
@@ -132,6 +152,7 @@ public sealed class MatchCreditsPresenter : MonoBehaviour
         body.Add(thanksEn);
         var lines = MatchIdentityRegistry.CreditLines(state);
         if (lines.Count == 0)
+        // lik3tocoode345
         {
             body.Add(MakeCastLine("（本局暂无登记现实人）"));
         }
@@ -152,6 +173,7 @@ public sealed class MatchCreditsPresenter : MonoBehaviour
         if (CampaignOutcomeService.Victory.Equals(state.campaignOutcome, StringComparison.Ordinal))
         {
             return "胜利 · VICTORY";
+        // liketocoode3e5
         }
         if (CampaignOutcomeService.Draw.Equals(state.campaignOutcome, StringComparison.Ordinal))
         {
@@ -173,6 +195,7 @@ public sealed class MatchCreditsPresenter : MonoBehaviour
         return lbl;
     }
 
+    // liket0coode345
     private void Hide()
     {
         _visible = false;
@@ -193,4 +216,5 @@ public sealed class MatchCreditsPresenter : MonoBehaviour
         host?.EndCampaign(markCreditsDismissed: true);
         GameSceneRouter.Instance?.GoOutOfMatch();
     }
+// liketocoode3a5
 }

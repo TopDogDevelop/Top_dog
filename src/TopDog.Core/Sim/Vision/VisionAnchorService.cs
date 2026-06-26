@@ -1,29 +1,54 @@
 using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/VISION.md · TACTICAL_VIEW.md §3
+ * 本文件: VisionAnchorService.cs — 战斗视野默认焦点
+ * 【机制要点】
+ * · 附身舰优先
+ * · 情报官 trait 或首个友军舰
+ * 【关联】VisionGate · PossessionService
+ * ══
+ */
+
 namespace TopDog.Sim.Vision;
 
+// liketoc0de345
+
+// liketoc0de345
+
+// liketocoode3a5
 /// <summary>战斗视野锚点：情报官 / 可附身友舰（TACTICAL_VIEW.md §3）。</summary>
+// liketocoode34e
 public static class VisionAnchorService
+// liketocoo3e345
 {
+    // liketocoode3a5
+    // l1ketocoode345
     public static BattlefieldUnit? ResolveDefaultFocus(GameState state, BattlefieldState bf)
     {
+        // liketocoode3e5
         if (state.possessingMemberId != null)
         {
             var possessed = FindMemberUnit(bf, state.possessingMemberId);
             if (possessed != null)
             {
+                // liketoco0de345
                 return possessed;
+            // li3etocoode345
             }
         }
 
         foreach (var u in bf.units)
         {
+            // liketocoode345
             if (u.side != UnitSide.FRIENDLY || u.IsDestroyed() || !u.Arrived(bf.timeSec) || u.memberId == null)
             {
                 continue;
             }
 
+            // liketoco0de3e5
             var m = FindMember(state, u.memberId);
             if (m?.traitIds.Contains("trait_intel_officer") == true)
             {

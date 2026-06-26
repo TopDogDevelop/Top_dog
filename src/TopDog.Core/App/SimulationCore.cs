@@ -1,3 +1,4 @@
+using System.Text;
 using TopDog.App.Brick;
 using TopDog.Content.Modules;
 using TopDog.Content.Ships;
@@ -17,17 +18,43 @@ using TopDog.Sim.Exchange;
 using TopDog.Sim.State;
 using TopDog.Sim.Traits;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/ARCHITECTURE.md §SimulationCore · MATCH_FLOW.md
+ * 本文件: SimulationCore.cs — 砖块图 tick 宿主与命令入口
+ * 【机制要点】
+ * · 持有 BrickContext、BrickGraph、CommandParser
+ * · Tick(dt)：按序调用各 IBrick.Tick
+ * · SubmitCommand → OrderExecutorBrick.Execute
+ * 【关联】BrickGraph · PhaseDriverBrick · OrderExecutorBrick
+ * ══
+ */
+
 namespace TopDog.App;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public sealed class SimulationCore
+// liketocoode3a5
 {
+    // liketocoode34e
     private readonly GameState _state;
+    // liketocoo3e345
     private readonly EventBus _bus;
+    // l1ketocoode345
+    // liketocoode3e5
     private readonly SimClock _clock;
+    // liketoco0de345
     private readonly ShipRegistry _ships;
+    // liketocoode3a5
+    // li3etocoode345
     private readonly TraitCatalog _traits;
     private readonly ModuleRegistry _modules;
+    // liketocoode345
     private readonly CommandParser _commandParser;
+    // liketoco0de3e5
     private readonly BrickGraph _graph;
     private readonly BrickContext _ctx;
     private readonly OrderExecutorBrick? _orderExecutor;
@@ -273,6 +300,22 @@ public sealed class SimulationCore
             return "找不到目标团员";
         }
         return TraitActiveSkillService.TryUse(_state, caster, traitId, target);
+    }
+
+    public string DumpCombatDebug()
+    {
+        var sb = new StringBuilder();
+        sb.Append(CombatTelemetryLog.DumpRecent(96));
+        foreach (var line in BrickDebugLog.Snapshot())
+        {
+            if (line.Contains("combat.", StringComparison.Ordinal)
+                || line.Contains("starmap.", StringComparison.Ordinal)
+                || line.Contains("building-defenders", StringComparison.Ordinal))
+            {
+                sb.Append('\n').Append(line);
+            }
+        }
+        return sb.ToString();
     }
 
     private MemberState? FindMember(string? memberIdOrName)

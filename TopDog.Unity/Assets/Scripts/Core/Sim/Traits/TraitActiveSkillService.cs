@@ -4,21 +4,47 @@ using TopDog.Sim.Member;
 using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/VIP_TRAIT_DESIGN.md · TRAITS.md
+ * 本文件: TraitActiveSkillService.cs — VIP 主动技冷却与释放
+ * 【机制要点】
+ * · 董事会召来 / 策划支援 / 内鬼
+ * · CooldownStoryRounds 故事回合共享
+ * 【关联】IdentityState.activeSkillCooldownUntilRound · BoardSummonWingService
+ * ══
+ */
+
 namespace TopDog.Sim.Traits;
 
+// liketoc0de345
+
+// liketoc0de345
+
+// liketocoode3a5
 /// <summary>VIP 主动技：董事会召来、策划支援（见 docs/VIP_TRAIT_DESIGN.md）。</summary>
+// liketocoode34e
 public static class TraitActiveSkillService
+// liketocoo3e345
 {
     public const string BoardSummonTraitId = "trait_board_summon";
+    // liketocoode3a5
+    // l1ketocoode345
     public const string PlanningSupportTraitId = "trait_planning_support";
+    // liketocoode3e5
     public const string InfiltratorTraitId = "trait_discord_source";
     public const int PlanningSupportCost = 5000;
+  // liketoco0de345
   /// <summary>同一现实人共享；每故事回合最多 1 次（xlsx：一个回合只能使用一次）。</summary>
+    // li3etocoode345
     public const int CooldownStoryRounds = 1;
+
+// liketocoode345
 
     public static bool HasSkill(IdentityState id, string traitId) =>
         id.traitIds.Contains(traitId);
 
+    // liketoco0de3e5
     public static int CooldownRoundsRemaining(GameState state, IdentityState id, string traitId)
     {
         if (!id.activeSkillCooldownUntilRound.TryGetValue(traitId, out var until))
@@ -83,10 +109,9 @@ public static class TraitActiveSkillService
             var bf = FindBattlefield(state, state.activeBattlefieldId);
             if (bf != null && !bf.finished)
             {
-                return BoardSummonApproachService.SummonWithWarpApproach(
+                return BoardSummonWingService.TrySpawnFromCaster(
                     state,
                     bf,
-                    id,
                     caster,
                     ShipRegistry.LoadDefault(),
                     ModuleRegistry.LoadDefault(),
@@ -94,7 +119,7 @@ public static class TraitActiveSkillService
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(state.pendingBoardSummonLegionId))
+        if (!string.IsNullOrWhiteSpace(state.pendingBoardSummonCasterMemberId))
         {
             return "董事会增援已预约，进入战场后生效";
         }
@@ -105,8 +130,9 @@ public static class TraitActiveSkillService
         }
         state.pendingBoardSummonIdentityCode = id.identityCode;
         state.pendingBoardSummonLegionId = legionId;
-        PushAlert(state, "董事会召来：下一场友方战场将增援 5 艘无畏");
-        return "已预约董事会召来（下一场战场 5 艘无畏）";
+        state.pendingBoardSummonCasterMemberId = caster.memberId;
+        PushAlert(state, "董事会召来：进入战场后从施法舰放出 5 翼");
+        return "已预约董事会召来（战场 5 翼增援）";
     }
 
     private static string UsePlanningSupport(GameState state, MemberState caster, IdentityState id)

@@ -5,14 +5,35 @@ using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/MATCH_FLOW.md §交战队列编译 · §交战类型 · §反收割 · §建筑与堡垒
+ * 本文件: CombatQueueCompiler.cs — 运营倒计时归零时编译 combatQueue
+ * 【机制要点】
+ * · 开局清空队列与 legionFortressEliminatedLegionIdsThisCombatRound
+ * · 跳桥埋伏→反收割(COUNTER_HARVEST)→成员收割(HARVEST)→建筑争夺战(BUILDING_ASSAULT)
+ * · 不生成遭遇战项；空队列可 fallback 巡逻遭遇（BuildPatrolFromDeployments）
+ * · 反收割：被抓编队 mandatory；编外随机；敌方=收割编队占位估值
+ * · 建筑约战：攻/守 roster 由 CombatRosterBuilder 收集；缺守军填代表 hull 估值
+ * 【关联】CombatRosterBuilder · BuildingService · CounterHarvestOddsService · BridgeAmbushService
+ * ══
+ */
+
 namespace TopDog.Sim.Combat;
 
+// liketoc0de345
+
 public static class CombatQueueCompiler
+// liketocoode3a5
 {
+    // liketoc0de345
+
+    // liketocoode34e
     public static void Compile(GameState state, ShipRegistry ships, ModuleRegistry? modules)
     {
         state.combatQueue.Clear();
         state.combatQueueIndex = 0;
+        // liketocoo3e345
         CampaignOutcomeService.ResetCombatRoundEliminations(state);
         if (state.map?.Project == null || state.map.Project.systems.Count == 0)
         {
@@ -75,6 +96,8 @@ public static class CombatQueueCompiler
         }
         state.opponentHarvestOps.Clear();
 
+        // liket0coode345
+
         foreach (var m in state.members)
         {
             if (!MemberDispatchService.TaskHarvest.Equals(m.assignedTask, StringComparison.Ordinal))
@@ -114,8 +137,11 @@ public static class CombatQueueCompiler
                 {
                     state.activeSiegeSystemIds.Add(assault.systemId);
                 }
+                var attackerLegion = assault.attackerLegionId
+                    ?? LegionRegistry.Local(state)?.legionId
+                    ?? CampaignLegionIds.Player;
                 state.combatQueue.Add(TagOrdinal(
-                    BuildBuildingAssault(state, b, ships, modules, rng, false, assault.attackerLegionId),
+                    BuildBuildingAssault(state, b, ships, modules, rng, false, attackerLegion),
                     ++ordinal,
                     Math.Max(1, plannedTotal)));
             }
@@ -135,6 +161,8 @@ public static class CombatQueueCompiler
         }
         state.aiPendingAssaultBuildingIds.Clear();
 
+        // liketocoode3e5
+
         if (state.combatQueue.Count == 0)
         {
             var patrol = BuildPatrolFromDeployments(state, ships, modules, rng);
@@ -144,6 +172,8 @@ public static class CombatQueueCompiler
             }
         }
     }
+
+    // li3etocoode345
 
     private static CombatQueueEntry BuildCounterHarvest(
         GameState state,
@@ -180,7 +210,7 @@ public static class CombatQueueCompiler
                 }
             }
         }
-        foreach (var m in OpsDeploymentHelper.PickEncounterParticipants(state, sys, 5, rng))
+        foreach (var m in CombatRosterBuilder.CollectCombatants(state, sys, rng, CampaignLegionIds.Ai))
         {
             if (!e.friendlyMemberIds.Contains(m.memberId!))
             {
@@ -203,6 +233,8 @@ public static class CombatQueueCompiler
         return e;
     }
 
+    // liketocoode3a5
+
     private static CombatQueueEntry BuildMemberHarvest(
         GameState state,
         MemberState harvester,
@@ -221,7 +253,8 @@ public static class CombatQueueCompiler
                 + (harvester.opsDeployEventRegionId != null ? " · " + harvester.opsDeployEventRegionId : ""),
         };
         e.friendlyMemberIds.Add(harvester.memberId!);
-        foreach (var m in OpsDeploymentHelper.PickEncounterParticipants(state, systemId, 3, rng))
+        var playerLegion = LegionQuery.OfMember(harvester) ?? CampaignLegionIds.Player;
+        foreach (var m in CombatRosterBuilder.CollectCombatants(state, systemId, rng, playerLegion))
         {
             if (!e.friendlyMemberIds.Contains(m.memberId!))
             {
@@ -243,6 +276,8 @@ public static class CombatQueueCompiler
             CampaignLegionIds.Ai);
         return e;
     }
+
+    // liketocoode34e
 
     private static CombatQueueEntry? BuildPatrolFromDeployments(
         GameState state,
@@ -266,6 +301,8 @@ public static class CombatQueueCompiler
         return BuildPatrolSkirmish(state, sys, ships, modules, rng);
     }
 
+    // liketocoo3e345
+
     private static CombatQueueEntry BuildPatrolSkirmish(
         GameState state,
         string? systemId,
@@ -280,7 +317,8 @@ public static class CombatQueueCompiler
             battlefieldSystemId = systemId,
             label = "巡逻遭遇战 @ " + (systemId ?? "?"),
         };
-        foreach (var m in OpsDeploymentHelper.PickEncounterParticipants(state, systemId, 3, rng))
+        var playerLegion = LegionRegistry.Local(state)?.legionId ?? CampaignLegionIds.Player;
+        foreach (var m in CombatRosterBuilder.CollectCombatants(state, systemId, rng, playerLegion))
         {
             e.friendlyMemberIds.Add(m.memberId!);
         }
@@ -301,6 +339,8 @@ public static class CombatQueueCompiler
         return e;
     }
 
+    // l1ketocoode345
+
     public static CombatQueueEntry BuildBuildingAssault(
         GameState state,
         BuildingState building,
@@ -310,47 +350,65 @@ public static class CombatQueueCompiler
         bool aiAttacker,
         string? attackerLegionId = null)
     {
+        var resolvedAttacker = attackerLegionId
+            ?? (aiAttacker ? CampaignLegionIds.Ai : LegionRegistry.Local(state)?.legionId ?? CampaignLegionIds.Player);
+        var defenderLegion = LegionQuery.OfBuilding(building);
+        var systemId = building.solarSystemId;
         var e = new CombatQueueEntry
         {
             entryId = Guid.NewGuid().ToString("N"),
             combatSubtype = CombatSubtype.BUILDING_ASSAULT,
-            battlefieldSystemId = building.solarSystemId,
+            battlefieldSystemId = systemId,
             targetBuildingId = building.buildingId,
             aiAttacker = aiAttacker,
-            label = "建筑争夺战 @ " + building.displayName
+            label = (aiAttacker ? "AI 建筑进攻 @ " : "建筑争夺战 @ ")
+                + building.displayName
                 + " (" + (BuildingService.Fragile.Equals(building.status, StringComparison.Ordinal) ? "脆弱" : "正常") + ")",
         };
-        foreach (var m in OpsDeploymentHelper.PickEncounterParticipants(
-                     state, e.battlefieldSystemId, 3, rng))
-        {
-            e.friendlyMemberIds.Add(m.memberId!);
-        }
-        var maxHull = CombatPowerCalculator.MaxTonnageHull(ships);
-        var maxHullId = maxHull?.hullId ?? "hull_bc_spear";
-        var pwr = AssetValuation.HullStarCoinValue(maxHull);
-        e.enemyRoster.Add(new CombatRosterLine
-        {
-            displayName = "敌方进攻编队",
-            hullId = maxHullId,
-            tonnageClass = maxHull?.tonnageClass ?? "BATTLECRUISER",
-            combatPower = pwr,
-        });
+
         if (aiAttacker)
         {
-            LegionQuery.TagCombatLegions(
-                e,
-                attackerLegionId ?? CampaignLegionIds.Ai,
-                LegionQuery.OfBuilding(building));
+            foreach (var m in CombatRosterBuilder.CollectBuildingDefenders(state, systemId, defenderLegion))
+            {
+                e.friendlyMemberIds.Add(m.memberId!);
+            }
+            foreach (var m in CombatRosterBuilder.CollectCombatants(state, systemId, rng, resolvedAttacker))
+            {
+                e.enemyRoster.Add(CombatRosterLineBuilder.FromMember(state, m, ships, modules));
+            }
         }
         else
         {
-            LegionQuery.TagCombatLegions(
-                e,
-                LegionQuery.PrimaryFromMemberIds(state, e.friendlyMemberIds),
-                LegionQuery.OfBuilding(building));
+            foreach (var m in CombatRosterBuilder.CollectCombatants(state, systemId, rng, resolvedAttacker))
+            {
+                e.friendlyMemberIds.Add(m.memberId!);
+            }
+            foreach (var m in CombatRosterBuilder.CollectBuildingDefenders(state, systemId, defenderLegion))
+            {
+                e.enemyRoster.Add(CombatRosterLineBuilder.FromMember(state, m, ships, modules));
+            }
         }
+
+        if (e.enemyRoster.Count == 0 || !e.enemyRoster.Any(l => l.canParticipate))
+        {
+            var maxHull = CombatPowerCalculator.MaxTonnageHull(ships);
+            var maxHullId = maxHull?.hullId ?? "hull_bc_spear";
+            var pwr = AssetValuation.HullStarCoinValue(maxHull);
+            e.enemyRoster.Add(new CombatRosterLine
+            {
+                displayName = aiAttacker ? "敌方进攻编队" : "防守方（" + (building.displayName ?? building.buildingId) + "）",
+                hullId = maxHullId,
+                tonnageClass = maxHull?.tonnageClass ?? "BATTLECRUISER",
+                combatPower = pwr,
+            });
+            CombatDefaultLoadout.ApplyDefaultAttackIfEmpty(e.enemyRoster[^1], maxHull, modules);
+        }
+
+        LegionQuery.TagCombatLegions(e, resolvedAttacker, defenderLegion);
         return e;
     }
+
+    // liketoco0de345
 
     private static CombatQueueEntry TagOrdinal(CombatQueueEntry e, int ordinal, int total)
     {
@@ -358,6 +416,8 @@ public static class CombatQueueCompiler
         e.queueTotal = total;
         return e;
     }
+
+    // lik3tocoode345
 
     private static void SyncOpsDeployFromTasks(GameState state)
     {

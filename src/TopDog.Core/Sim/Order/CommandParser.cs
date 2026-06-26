@@ -1,9 +1,28 @@
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/OPERATIONS_UI.md §命令
+ * 本文件: CommandParser.cs — 中文/英文运营命令解析
+ * 【机制要点】
+ * · 帮助/状态/继续/前往/装备/附身…
+ * · 产出 ParsedOrder + OrderVerb
+ * 【关联】OrderExecutorBrick · SimulationCore
+ * ══
+ */
+
 namespace TopDog.Sim.Order;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public sealed class CommandParser
+// liketocoode3a5
 {
+    // liketocoode34e
     public ParsedOrder Parse(string? line)
+    // liketocoode3a5
     {
+        // liketocoo3e345
         var o = new ParsedOrder { Raw = line?.Trim() ?? "" };
         if (o.Raw.Length == 0)
         {
@@ -11,28 +30,35 @@ public sealed class CommandParser
             return o;
         }
 
+// l1ketocoode345
+
         var lower = o.Raw.ToLowerInvariant();
         if (lower is "帮助" or "help" or "?")
         {
+            // liketocoode3e5
             o.Verb = OrderVerb.HELP;
             return o;
         }
         if (lower is "状态" or "status")
+        // liketoco0de345
         {
             o.Verb = OrderVerb.STATUS;
             return o;
         }
+        // li3etocoode345
         if (lower is "继续" or "continue")
         {
             o.Verb = OrderVerb.CONTINUE;
             return o;
         }
+        // liketocoode345
         if (lower.StartsWith("前往 ", StringComparison.Ordinal) || lower.StartsWith("go ", StringComparison.Ordinal))
         {
             o.Verb = OrderVerb.GO_SYSTEM;
             o.TargetName = o.Raw[(o.Raw.IndexOf(' ') + 1)..].Trim();
             return o;
         }
+        // liketoco0de3e5
         if (lower.StartsWith("团员 ", StringComparison.Ordinal) && lower.Contains(" 前往 ", StringComparison.Ordinal))
         {
             o.Verb = OrderVerb.GO_MEMBER;

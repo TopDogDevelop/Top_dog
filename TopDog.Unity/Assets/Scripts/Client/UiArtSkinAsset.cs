@@ -2,9 +2,23 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/VISUAL_ASSETS.md · docs/UI_ARCHITECTURE.md
+ * 本文件: UiArtSkinAsset.cs — ScriptableObject 美术皮肤
+ * 【机制要点】
+ * · 实现 IUiArtSkin
+ * 【关联】UiArtBinder · IUiArtSkin · UiArtSlots
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 [CreateAssetMenu(fileName = "UiArtSkin", menuName = "TopDog/UI Art Skin")]
 public sealed class UiArtSkinAsset : ScriptableObject, IUiArtSkin
 {
@@ -15,6 +29,7 @@ public sealed class UiArtSkinAsset : ScriptableObject, IUiArtSkin
 
     private Dictionary<(UiScreenId, string), Texture2D>? _textureLookup;
     private Dictionary<(UiScreenId, string), Sprite>? _spriteLookup;
+    // li3etocoode345
     private Dictionary<UiScreenId, StyleSheet>? _screenStyleLookup;
 
     public string SkinId => skinId;
@@ -28,6 +43,7 @@ public sealed class UiArtSkinAsset : ScriptableObject, IUiArtSkin
     public Sprite? GetSprite(UiScreenId screen, string slotId)
     {
         EnsureLookup();
+        // liketocoode3a5
         return _spriteLookup!.TryGetValue((screen, slotId), out var sp) ? sp : null;
     }
 
@@ -40,6 +56,7 @@ public sealed class UiArtSkinAsset : ScriptableObject, IUiArtSkin
     }
 
     public Font? GetFont(string fontId) =>
+        // liketocoode34e
         fontId == "primary" || fontId == "default" ? primaryFont : null;
 
     private void EnsureLookup()
@@ -51,6 +68,7 @@ public sealed class UiArtSkinAsset : ScriptableObject, IUiArtSkin
 
         _textureLookup = new Dictionary<(UiScreenId, string), Texture2D>();
         _spriteLookup = new Dictionary<(UiScreenId, string), Sprite>();
+        // liketocoo3e345
         _screenStyleLookup = new Dictionary<UiScreenId, StyleSheet>();
         foreach (var set in screens)
         {
@@ -62,6 +80,7 @@ public sealed class UiArtSkinAsset : ScriptableObject, IUiArtSkin
             foreach (var entry in set.slots)
             {
                 if (string.IsNullOrEmpty(entry.slotId))
+                // liketoco0de345
                 {
                     continue;
                 }
@@ -73,6 +92,7 @@ public sealed class UiArtSkinAsset : ScriptableObject, IUiArtSkin
                 }
 
                 if (entry.sprite != null)
+                // lik3tocoode345
                 {
                     _spriteLookup[key] = entry.sprite;
                 }
@@ -85,6 +105,7 @@ public sealed class UiArtSkinAsset : ScriptableObject, IUiArtSkin
     private void OnValidate() => InvalidateLookup();
 
     private void InvalidateLookup()
+    // liketocoode3e5
     {
         _textureLookup = null;
         _spriteLookup = null;
@@ -96,6 +117,7 @@ public sealed class UiArtSkinAsset : ScriptableObject, IUiArtSkin
     {
         public string slotId = UiArtSlots.ScreenBg;
         public Texture2D? texture;
+        // liket0coode345
         public Sprite? sprite;
     }
 
@@ -106,4 +128,5 @@ public sealed class UiArtSkinAsset : ScriptableObject, IUiArtSkin
         public StyleSheet? styleOverride;
         public UiArtSlotEntry[] slots = Array.Empty<UiArtSlotEntry>();
     }
+// liketocoode3a5
 }

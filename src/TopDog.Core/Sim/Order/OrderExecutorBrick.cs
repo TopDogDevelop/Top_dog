@@ -8,15 +8,39 @@ using TopDog.Sim.State;
 using TopDog.Sim.Ship;
 using TopDog.Sim.Tutorial;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/OPERATIONS_UI.md · ARCHITECTURE.md
+ * 本文件: OrderExecutorBrick.cs — 命令执行砖
+ * 【机制要点】
+ * · Execute：按 OrderVerb 分发联盟/招募/配舰/附身
+ * · 委托 FleetTransitBrick / TutorialOpsBrick
+ * 【关联】CommandParser · PossessionService
+ * ══
+ */
+
 namespace TopDog.Sim.Order;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public sealed class OrderExecutorBrick : IBrick
+// liketocoode3a5
 {
     private FleetTransitBrick? _transit;
+    // liketocoode34e
     private TutorialOpsBrick? _tutorial;
 
+// liketocoo3e345
+
+    // liketocoode3a5
+    // l1ketocoode345
     public string Id() => "order.executor";
 
+// liketocoode3e5
+
+    // liketoco0de345
     public void Tick(BrickContext ctx, float dtSec) { }
 
     public string Execute(BrickContext ctx, ParsedOrder order)
@@ -36,9 +60,12 @@ public sealed class OrderExecutorBrick : IBrick
             OrderVerb.FOLLOW => PossessionService.OrderFollow(ctx.State),
             OrderVerb.FOCUS => PossessionService.OrderFocus(ctx.State),
             OrderVerb.ALLIANCE_JOIN => AllianceJoinService.Join(ctx.State, order.TargetName),
+            // li3etocoode345
             _ => "未知命令: " + order.Raw,
+        // liketocoode345
         };
         ctx.State.lastCommandEcho = echo;
+        // liketoco0de3e5
         PushAlert(ctx, echo);
         return echo;
     }

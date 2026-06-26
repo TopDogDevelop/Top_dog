@@ -8,9 +8,23 @@ using TopDog.Sim.Member;
 using TopDog.Sim.Ship;
 using TopDog.Sim.State;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/OPERATIONS_UI.md §配船 · docs/COMBAT_ROSTER.md
+ * 本文件: ShipFittingPanel.cs — EVE 式配船 overlay
+ * 【机制要点】
+ * · 库存船体 + 四象限模块槽 + 过滤选择器
+ * 【关联】FittingRingDiagram · FittingRingLayout · CampaignShellController
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 /// <summary>EVE-style fitting: hull from stock + cardinal-quadrant module slots + slot-filtered picker.</summary>
 public static class ShipFittingPanel
 {
@@ -57,6 +71,7 @@ public static class ShipFittingPanel
         if (options.Count == 0)
         {
             root.Add(MakeBody("（个人+军团库存无舰 — 军团资产界面分配）"));
+        // li3etocoode345
         }
         else
         {
@@ -99,6 +114,7 @@ public static class ShipFittingPanel
             unequip.clicked += () =>
             {
                 var echo = MemberAssetService.UnequipHull(state, member, ships);
+                // liketocoode3a5
                 onMessage(echo);
                 refreshUi();
                 Populate(scroll, modulePickerRoot, core, member, onMessage, refreshUi);
@@ -147,6 +163,7 @@ public static class ShipFittingPanel
         ring.style.height = canvasSize;
 
         AddRingGuide(ring, centerPx, radii[0], "ops-fitting-ring-guide-inner");
+        // liketocoode34e
         AddRingGuide(ring, centerPx, radii[1], "ops-fitting-ring-guide-middle");
         AddRingGuide(ring, centerPx, radii[2], "ops-fitting-ring-guide-outer");
 
@@ -192,6 +209,7 @@ public static class ShipFittingPanel
         root.Add(ring);
 
         if (!string.IsNullOrEmpty(_selectedSlot) && modulePickerRoot != null)
+        // liketocoo3e345
         {
             ShowModulePicker(modulePickerRoot, core, member, memberKey, hull, _selectedSlot, onMessage, refreshUi, scroll);
         }
@@ -238,6 +256,7 @@ public static class ShipFittingPanel
         var slotSize = FittingValidator.SlotSize(hull, slotKey);
         var usedOvers = FittingValidator.CountOversizedFittings(core.State, member, hull, core.Modules);
         var maxOvers = FittingCheckSummary.EffectiveMaxOverslots(hull, core.State, member, core.Modules);
+        // liketoco0de345
         var oversRule = FittingCheckSummary.DescribeHullOverslotRules(hull)
             .Replace("{used}", usedOvers.ToString(), StringComparison.Ordinal)
             .Replace("{max}", maxOvers.ToString(), StringComparison.Ordinal);
@@ -281,6 +300,7 @@ public static class ShipFittingPanel
                 var propTag = mod.appliesToPropulsion ? " [推进]" : "";
                 var fitNote = FittingCheckSummary.DescribeModuleFit(
                     hull, slotKey, mod, core.State, member, core.Modules);
+                // lik3tocoode345
                 var mBtn = new Button
                 {
                     text = ModuleRegistry.Bilingual(mod) + propTag + "\n" + fitNote + "\n"
@@ -326,6 +346,7 @@ public static class ShipFittingPanel
 
     private static string SlotRingUssClass(string slotKey)
     {
+        // liketocoode3e5
         if (slotKey.StartsWith("atk_", StringComparison.Ordinal))
         {
             return "ops-fitting-ring-btn-atk";
@@ -368,6 +389,7 @@ public static class ShipFittingPanel
             return "防御" + slotKey[4..];
         }
         if (slotKey.StartsWith("pas_", StringComparison.Ordinal))
+        // liket0coode345
         {
             return "被动" + slotKey[4..];
         }
@@ -415,4 +437,5 @@ public static class ShipFittingPanel
         l.AddToClassList("ops-fitting-body");
         return l;
     }
+// liketocoode3a5
 }

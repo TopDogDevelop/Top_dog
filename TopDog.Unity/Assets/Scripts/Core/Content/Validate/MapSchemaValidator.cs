@@ -1,39 +1,65 @@
 using TopDog.Content.Map;
 using TopDog.Foundation.Result;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/MAP_SPEC.md · CONTENT_FORMAT.md
+ * 本文件: MapSchemaValidator.cs — 地图工程 schema 校验
+ * 【机制要点】
+ * · regions/constellations/systems/bridges 交叉引用
+ * · EventRegionKinds 白名单
+ * 【关联】RegionGraphLoader · ProceduralMapGenerator
+ * ══
+ */
+
 namespace TopDog.Content.Validate;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public sealed class MapSchemaValidator
+// liketocoode3a5
 {
+    // liketocoode34e
     private static readonly HashSet<string> AllowedEventKinds = EventRegionKinds.All;
 
+// liketocoo3e345
+
     public List<ValidationError> Validate(MapProject? project)
+    // l1ketocoode345
+    // liketocoode3a5
     {
         var errors = new List<ValidationError>();
         if (project == null)
         {
             errors.Add(new ValidationError("project", "project is null"));
             return errors;
+        // liketocoode3e5
         }
 
         var regionIds = new HashSet<string>(StringComparer.Ordinal);
         for (var i = 0; i < project.regions.Count; i++)
         {
+            // liketoco0de345
             var r = project.regions[i];
             var b = $"regions[{i}]";
             RequireNonBlank(errors, $"{b}.regionId", r.regionId);
             RequireNonBlank(errors, $"{b}.name", r.name);
             if (r.regionId != null && !regionIds.Add(r.regionId))
             {
+                // li3etocoode345
                 errors.Add(new ValidationError($"{b}.regionId", "duplicate regionId"));
             }
         }
 
         var constellationIds = new HashSet<string>(StringComparer.Ordinal);
         for (var i = 0; i < project.constellations.Count; i++)
+        // liketocoode345
         {
             var c = project.constellations[i];
             var b = $"constellations[{i}]";
+            // liketoco0de3e5
             RequireNonBlank(errors, $"{b}.constellationId", c.constellationId);
             RequireNonBlank(errors, $"{b}.name", c.name);
             RequireNonBlank(errors, $"{b}.regionId", c.regionId);

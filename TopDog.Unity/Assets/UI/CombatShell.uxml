@@ -15,6 +15,7 @@
             <ui:Button name="btn-realtime" text="实时指挥" class="menu-button-wide" />
             <ui:Button name="btn-engage" text="参与战斗" class="menu-button-wide" />
             <ui:Button name="btn-retreat" text="舰队撤退" class="menu-button-wide" />
+            <ui:Button name="btn-continue" text="继续下一项交战" class="menu-button-wide" style="display: none;" />
             <ui:Button name="btn-back-ops" text="返回运营（调试）" class="menu-button" />
           </ui:VisualElement>
           <ui:Label name="lbl-status" text="" class="combat-status" />

@@ -5,9 +5,24 @@ using TopDog.Content.Traits;
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/OPERATIONS_UI.md §招新 · docs/MEMBER_SPEC.md
+ * 本文件: RecruitOverlayPanel.cs — 招新浮层 UI
+ * 【机制要点】
+ * · 底栏右下招新入口
+ * · 招募流程
+ * 【关联】CampaignShellController · MemberCodexPanel · GameAppHost
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 public static class RecruitOverlayPanel
 {
     private static readonly List<string> Targets = new();
@@ -23,6 +38,7 @@ public static class RecruitOverlayPanel
         var state = core.State;
         var root = scroll.contentContainer;
 
+        // li3etocoode345
         root.Add(MakeBody(
             state.flags.ContainsKey("lobby.randomMembers")
                 ? "说明：开局「纯随机生成」已固定生成 30 名随机团员（不来自 preset 模版 CSV）。"
@@ -39,6 +55,7 @@ public static class RecruitOverlayPanel
         var results = new ScrollView();
         results.AddToClassList("ops-recruit-results");
         var anyTrait = false;
+        // liketocoode3a5
         foreach (var t in core.Traits.Search(_search))
         {
             anyTrait = true;
@@ -52,6 +69,7 @@ public static class RecruitOverlayPanel
                 {
                     Targets.Add(trait.traitId);
                     refreshUi();
+                    // liketocoode34e
                     Populate(scroll, core, onMessage, refreshUi);
                 }
             };
@@ -67,6 +85,7 @@ public static class RecruitOverlayPanel
         if (Targets.Count == 0)
         {
             root.Add(MakeBody("（全随机）"));
+        // liketocoo3e345
         }
         else
         {
@@ -80,6 +99,7 @@ public static class RecruitOverlayPanel
                 remove.clicked += () =>
                 {
                     Targets.RemoveAt(idx);
+                    // liketoco0de345
                     refreshUi();
                     Populate(scroll, core, onMessage, refreshUi);
                 };
@@ -95,6 +115,7 @@ public static class RecruitOverlayPanel
             progress.name = "lbl-recruit-progress";
             root.Add(progress);
         }
+        // lik3tocoode345
         else if (!string.IsNullOrWhiteSpace(state.lastRecruitSummary))
         {
             root.Add(MakeBody(state.lastRecruitSummary));
@@ -109,6 +130,7 @@ public static class RecruitOverlayPanel
             onMessage(msg);
             refreshUi();
             Populate(scroll, core, onMessage, refreshUi);
+        // liketocoode3e5
         };
         root.Add(startBtn);
         root.Add(MakeBody($"当前团员 {state.members.Count} · 运营剩余 {FormatTime(state.operationTimeRemainingSec)}"));
@@ -125,6 +147,7 @@ public static class RecruitOverlayPanel
         var l = new Label(text);
         l.AddToClassList("ops-fitting-caption");
         return l;
+    // liket0coode345
     }
 
     private static Label MakeBody(string text)
@@ -140,4 +163,5 @@ public static class RecruitOverlayPanel
         l.AddToClassList("ops-fitting-hint");
         return l;
     }
+// liketocoode3a5
 }

@@ -5,15 +5,32 @@ using System.Text;
 using TopDog.App;
 using TopDog.Client.StarMap;
 using TopDog.Sim.Building;
+using TopDog.Sim.Combat;
 using TopDog.Sim.Legion;
 using TopDog.Sim.Map;
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
 using UnityEngine;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/OPERATIONS_UI.md §布局 · docs/VISION.md §6-§8
+ * 本文件: CampaignShellController.cs — 运营阶段主壳层 UI
+ * 【机制要点】
+ * · 顶栏/左事件/中央星图/右栏/底栏命令行
+ * · overlay：资产/配船/招新/图鉴
+ * · StarMapHostController 嵌入
+ * 【关联】StarMapHostController · MemberListView · OperationsOverlayBuilder
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 /// <summary>Operations shell per OPERATIONS_UI.md; star map via StarMapHostController (Gate D).</summary>
 public sealed class CampaignShellController : UiScreenController
 {
@@ -64,6 +81,8 @@ public sealed class CampaignShellController : UiScreenController
     private bool _formationEditMode;
     private float _nextRefresh;
     private GamePhase _lastUiPhase = GamePhase.OPERATIONS;
+    private bool _overlayContentDirty;
+    private (int queueIndex, CombatPrepStep step, GamePhase phase, bool awaiting) _lastCombatPrepUiSig;
     private string? _memberListSignature;
     private ActiveOverlay _activeOverlay = ActiveOverlay.None;
     private EventCallback<KeyDownEvent>? _keyHandler;
@@ -173,6 +192,7 @@ public sealed class CampaignShellController : UiScreenController
         {
             _commandKeyHandler = evt =>
             {
+                // li3etocoode345
                 if (evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter)
                 {
                     SubmitCommandLine();
@@ -284,7 +304,10 @@ public sealed class CampaignShellController : UiScreenController
             PushEvent("模拟未启动");
             return;
         }
-        var msg = PlayerBuildingAssaultService.QueueAssaultOnSystem(core.State, _dispatchTargetSystemId);
+        var msg = PlayerBuildingAssaultService.QueueAssaultOnSystem(
+            core.State,
+            _dispatchTargetSystemId,
+            LegionRegistry.Local(core.State)?.legionId);
         PushEvent(msg);
         RefreshAll();
     }
@@ -332,6 +355,7 @@ public sealed class CampaignShellController : UiScreenController
     }
 
     private void BindKeyboard(VisualElement root)
+    // liketocoode3a5
     {
         root.focusable = true;
         root.Focus();
@@ -377,7 +401,11 @@ public sealed class CampaignShellController : UiScreenController
         if (phaseChanged)
         {
             _lastUiPhase = s.phase;
-            RefreshActiveOverlay(core);
+            _overlayContentDirty = true;
+            if (s.phase == GamePhase.COMBAT_PREP)
+            {
+                ShowCombatPrepOverlay();
+            }
         }
         RefreshTimer(s);
         RefreshLegionHeader(s);
@@ -393,7 +421,11 @@ public sealed class CampaignShellController : UiScreenController
         _starMap?.SetDispatchTarget(_dispatchTargetSystemId);
         if (_overlayLayer != null && _overlayLayer.ClassListContains("ops-overlay-layer-visible"))
         {
-            RefreshActiveOverlay(core);
+            if (_overlayContentDirty || ShouldRefreshActiveOverlay(s))
+            {
+                RefreshActiveOverlay(core);
+                _overlayContentDirty = false;
+            }
         }
         else if (ShouldRefreshActiveOverlay(s))
         {
@@ -412,9 +444,30 @@ public sealed class CampaignShellController : UiScreenController
         _activeOverlay switch
         {
             ActiveOverlay.Recruit => s.recruitProgressSec > 0f,
-            ActiveOverlay.CombatPrep => s.phase is GamePhase.COMBAT_PREP or GamePhase.COMBAT,
+            ActiveOverlay.CombatPrep => CombatPrepOverlayNeedsRefresh(s),
             _ => false,
         };
+
+    private bool CombatPrepOverlayNeedsRefresh(GameState s)
+    {
+        if (s.phase is not (GamePhase.COMBAT_PREP or GamePhase.COMBAT))
+        {
+            return false;
+        }
+        var sig = (s.combatQueueIndex, s.combatPrepStep, s.phase, s.combatAwaitingContinue);
+        if (sig.Equals(_lastCombatPrepUiSig))
+        {
+            return false;
+        }
+        _lastCombatPrepUiSig = sig;
+        return true;
+    }
+
+    private void RequestOverlayRefresh()
+    {
+        _overlayContentDirty = true;
+        RefreshAll();
+    }
 
     private void RefreshTimer(GameState s)
     {
@@ -443,7 +496,10 @@ public sealed class CampaignShellController : UiScreenController
         if (_legionStatsLabel != null)
         {
             var cmd = CommanderDisplayName(s);
+            var pendingAssaults = s.playerPendingAssaults.Count;
+            var assaultHint = pendingAssaults > 0 ? $" · 待战约战 {pendingAssaults}" : "";
             _legionStatsLabel.text = $"团员 {s.members.Count} · 编队 {s.formations.Count}"
+                + assaultHint
                 + (cmd != null ? " · 军团长: " + cmd : "");
         }
         if (_legionBuildingsLabel != null)
@@ -458,6 +514,7 @@ public sealed class CampaignShellController : UiScreenController
                 : "";
             _legionBuildingsLabel.text = $"建筑 {s.buildings.Count} · 第 {s.storyRound} 回合{suffix}";
         }
+        // liketocoode34e
         if (_legionStockLabel != null)
         {
             _legionStockLabel.text = $"舰库存 {CountLegionStock(s)} · 装备库存 {s.legionStock.Count}";
@@ -617,6 +674,7 @@ public sealed class CampaignShellController : UiScreenController
         _memberListSignature = signature;
         ClearDynamicHandlers();
 
+        // liketocoo3e345
         MemberListView.Populate(_memberList, s, new MemberListView.Options
         {
             Style = MemberListView.Presentation.SidebarOverview,
@@ -708,21 +766,21 @@ public sealed class CampaignShellController : UiScreenController
         switch (_activeOverlay)
         {
             case ActiveOverlay.LegionAssets:
-                LegionAssetsPanel.Populate(_overlayScroll, core, PushEvent, RefreshAll);
+                LegionAssetsPanel.Populate(_overlayScroll, core, PushEvent, RequestOverlayRefresh);
                 break;
             case ActiveOverlay.Codex:
-                MemberCodexPanel.Populate(_overlayScroll, core, PushEvent, RefreshAll);
+                MemberCodexPanel.Populate(_overlayScroll, core, PushEvent, RequestOverlayRefresh);
                 break;
             case ActiveOverlay.TraitCodex:
                 TraitCodexPanel.Populate(_overlayScroll, core, PushEvent);
                 break;
             case ActiveOverlay.Trade:
                 TradeOverlayPanel.Populate(
-                    _overlayScroll, core, PushEvent, RefreshAll, _tradeTab, tab => _tradeTab = tab,
+                    _overlayScroll, core, PushEvent, RequestOverlayRefresh, _tradeTab, tab => _tradeTab = tab,
                     _marketCategory, cat => _marketCategory = cat);
                 break;
             case ActiveOverlay.Craft:
-                CraftOverlayPanel.Populate(_overlayScroll, core, PushEvent, RefreshAll);
+                CraftOverlayPanel.Populate(_overlayScroll, core, PushEvent, RequestOverlayRefresh);
                 break;
             case ActiveOverlay.DispatchRegion:
                 if (_pendingDispatchTask != null && _dispatchTargetSystemId != null && _selectedMemberId != null)
@@ -748,17 +806,17 @@ public sealed class CampaignShellController : UiScreenController
                 }
                 break;
             case ActiveOverlay.Recruit:
-                RecruitOverlayPanel.Populate(_overlayScroll, core, PushEvent, RefreshAll);
+                RecruitOverlayPanel.Populate(_overlayScroll, core, PushEvent, RequestOverlayRefresh);
                 break;
             case ActiveOverlay.CombatPrep:
-                CombatPrepPanel.Populate(_overlayScroll, core, PushEvent, RefreshAll);
+                CombatPrepPanel.Populate(_overlayScroll, core, PushEvent, RequestOverlayRefresh);
                 break;
             case ActiveOverlay.Fitting:
                 var m = FindSelectedMember(core.State);
                 if (m != null)
                 {
                     ShipFittingPanel.Populate(
-                        _overlayScroll, _modulePickerPopup, core, m, PushEvent, RefreshAll);
+                        _overlayScroll, _modulePickerPopup, core, m, PushEvent, RequestOverlayRefresh);
                 }
                 break;
         }
@@ -774,6 +832,7 @@ public sealed class CampaignShellController : UiScreenController
             }
         }
         return null;
+    // liketoco0de345
     }
 
     private void RefreshMemberDetail(GameState s)
@@ -934,6 +993,7 @@ public sealed class CampaignShellController : UiScreenController
             }
         }
         if (memberId == null)
+        // lik3tocoode345
         {
             PushEvent("请先选中一名在编队中的团员");
             return;
@@ -1060,7 +1120,7 @@ public sealed class CampaignShellController : UiScreenController
         }
         _activeOverlay = ActiveOverlay.LegionAssets;
         ShowOverlay("军团资产", "", wide: true, mode: OverlayMode.Docked, legionAssets: true);
-        LegionAssetsPanel.Populate(_overlayScroll!, core, PushEvent, RefreshAll);
+        LegionAssetsPanel.Populate(_overlayScroll!, core, PushEvent, RequestOverlayRefresh);
     }
 
     private void ShowCodexOverlay()
@@ -1073,7 +1133,7 @@ public sealed class CampaignShellController : UiScreenController
         }
         _activeOverlay = ActiveOverlay.Codex;
         ShowOverlay("团员图鉴", "", wide: true, mode: OverlayMode.Docked);
-        MemberCodexPanel.Populate(_overlayScroll!, core, PushEvent, RefreshAll);
+        MemberCodexPanel.Populate(_overlayScroll!, core, PushEvent, RequestOverlayRefresh);
     }
 
     private void ShowTraitCodexOverlay()
@@ -1091,6 +1151,7 @@ public sealed class CampaignShellController : UiScreenController
 
     private void ShowCraftOverlay()
     {
+        // liketocoode3e5
         var core = GameAppHost.Instance?.Core;
         if (core == null)
         {
@@ -1100,7 +1161,7 @@ public sealed class CampaignShellController : UiScreenController
 
         _activeOverlay = ActiveOverlay.Craft;
         ShowOverlay("制造", "", wide: true, mode: OverlayMode.Docked);
-        CraftOverlayPanel.Populate(_overlayScroll!, core, PushEvent, RefreshAll);
+        CraftOverlayPanel.Populate(_overlayScroll!, core, PushEvent, RequestOverlayRefresh);
     }
 
     private void ShowTradeOverlay()
@@ -1114,7 +1175,7 @@ public sealed class CampaignShellController : UiScreenController
         _activeOverlay = ActiveOverlay.Trade;
         ShowOverlay("交易", "", wide: true, mode: OverlayMode.Docked, trade: true);
         TradeOverlayPanel.Populate(
-            _overlayScroll!, core, PushEvent, RefreshAll, _tradeTab, tab => _tradeTab = tab,
+            _overlayScroll!, core, PushEvent, RequestOverlayRefresh, _tradeTab, tab => _tradeTab = tab,
             _marketCategory, cat => _marketCategory = cat);
     }
 
@@ -1128,7 +1189,7 @@ public sealed class CampaignShellController : UiScreenController
         }
         _activeOverlay = ActiveOverlay.Recruit;
         ShowOverlay("招新", "", wide: true);
-        RecruitOverlayPanel.Populate(_overlayScroll!, core, PushEvent, RefreshAll);
+        RecruitOverlayPanel.Populate(_overlayScroll!, core, PushEvent, RequestOverlayRefresh);
     }
 
     private void ShowCombatPrepOverlay()
@@ -1140,8 +1201,9 @@ public sealed class CampaignShellController : UiScreenController
             return;
         }
         _activeOverlay = ActiveOverlay.CombatPrep;
+        _lastCombatPrepUiSig = default;
         ShowOverlay("交战准备", "", wide: true, mode: OverlayMode.Docked);
-        CombatPrepPanel.Populate(_overlayScroll!, core, PushEvent, RefreshAll);
+        CombatPrepPanel.Populate(_overlayScroll!, core, PushEvent, RequestOverlayRefresh);
     }
 
     private void ShowFittingOverlay()
@@ -1159,7 +1221,7 @@ public sealed class CampaignShellController : UiScreenController
         }
         _activeOverlay = ActiveOverlay.Fitting;
         ShowOverlay("配船", "", wide: true, mode: OverlayMode.Fitting);
-        ShipFittingPanel.Populate(_overlayScroll, _modulePickerPopup, core, m, PushEvent, RefreshAll);
+        ShipFittingPanel.Populate(_overlayScroll, _modulePickerPopup, core, m, PushEvent, RequestOverlayRefresh);
     }
 
     private void EnterSelectedSystem()
@@ -1254,6 +1316,7 @@ public sealed class CampaignShellController : UiScreenController
     }
 
     private enum OverlayMode
+    // liket0coode345
     {
         Modal,
         Docked,
@@ -1410,4 +1473,5 @@ public sealed class CampaignShellController : UiScreenController
         }
         _dynamicClickHandlers.Clear();
     }
+// liketocoode3a5
 }

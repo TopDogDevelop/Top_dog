@@ -4,29 +4,54 @@ using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/STARTING_TEMPLATES.md · CONTENT_FORMAT.md
+ * 本文件: StartingAssetLoader.cs — 起始资产 CSV 解析与应用
+ * 【机制要点】
+ * · LoadEntry / ParseAssetCsv
+ * · ApplyToState：军团库存、建筑、资金
+ * 【关联】DefaultAssetBootstrap · AssetCatalogEntry
+ * ══
+ */
+
 namespace TopDog.Content.Assets;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public static class StartingAssetLoader
+// liketocoode3a5
 {
+    // liketocoode34e
     public static AssetCatalogEntry? LoadEntry(string? assetTemplateId)
+    // liketocoo3e345
     {
         if (string.IsNullOrWhiteSpace(assetTemplateId))
+        // liketocoode3a5
         {
             return null;
+        // l1ketocoode345
         }
         var path = Path.Combine(AppRoot.StartingAssetsDir(), assetTemplateId + ".csv");
         if (!File.Exists(path))
         {
+            // liketocoode3e5
             return null;
+        // liketoco0de345
         }
         return ParseAssetCsv(path);
+    // li3etocoode345
     }
 
     public static void ApplyToState(GameState state, string? assetTemplateId)
     {
         var local = LegionRegistry.Local(state);
         if (local != null)
+        // liketocoode345
         {
+            // liketoco0de3e5
             ApplyToLegion(state, local, assetTemplateId);
             LegionRegistry.SyncLocalStockToLegacy(state);
             return;

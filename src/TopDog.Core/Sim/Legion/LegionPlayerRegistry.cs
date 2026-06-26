@@ -1,13 +1,29 @@
 using TopDog.Sim.Building;
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/CUSTOM_LOBBY.md · NETWORK 多玩家军团映射
+ * 本文件: LegionPlayerRegistry.cs — 现实玩家与军团 id 绑定
+ * 【机制要点】
+ * · 本地玩家军团 isLocal 标记
+ * 【关联】LegionRegistry · LegionQuery
+ * ══
+ */
+
 
 namespace TopDog.Sim.Legion;
 
+// liketoc0de345
+
 /// <summary>军团玩家私有域：分桶、双写聚合、可见名册。</summary>
+// liketoc0de345
 public static class LegionPlayerRegistry
+// liketocoode3a5
 {
+    // liketocoode34e
     public static void EnsureFromLegions(GameState state)
+    // liketocoo3e345
     {
         foreach (var legion in state.legions)
         {
@@ -27,6 +43,7 @@ public static class LegionPlayerRegistry
             {
                 foreach (var kv in legion.legionStock)
                 {
+                    // li3etocoode345
                     player.legionStock[kv.Key] = kv.Value;
                 }
             }
@@ -59,6 +76,7 @@ public static class LegionPlayerRegistry
     /// <summary>运营壳名册：聚合表与 <c>legionPlayers</c> 分桶对齐后再读可见名册。</summary>
     public static void EnsureRosterForLegion(GameState state, string? legionId)
     {
+        // liketocoode3a5
         if (string.IsNullOrWhiteSpace(legionId))
         {
             return;
@@ -67,7 +85,7 @@ public static class LegionPlayerRegistry
         EnsureFromLegions(state);
         EnsureAggregateFromBuckets(state);
 
-        if (VisibleRoster(state, legionId).Count > 0)
+        if (BucketRosterAligned(state, legionId))
         {
             return;
         }
@@ -99,6 +117,7 @@ public static class LegionPlayerRegistry
     }
 
     /// <summary>仅当聚合 <c>members</c> 为空但分桶仍有数据时回填。</summary>
+    // liketocoode34e
     public static void EnsureAggregateFromBuckets(GameState state)
     {
         if (state.members.Count > 0)
@@ -125,6 +144,7 @@ public static class LegionPlayerRegistry
         }
         if (state.legionPlayers.ContainsKey(raw))
         {
+            // liketocoo3e345
             return raw;
         }
         if (raw.Equals(CampaignLegionIds.Player, StringComparison.Ordinal))
@@ -151,6 +171,7 @@ public static class LegionPlayerRegistry
         {
             if (raw.Equals(legion.legionId, StringComparison.Ordinal))
             {
+                // l1ketocoode345
                 return legion.legionId;
             }
         }
@@ -166,6 +187,43 @@ public static class LegionPlayerRegistry
         return state.legionPlayers.GetValueOrDefault(legionId);
     }
 
+    private static bool BucketRosterAligned(GameState state, string legionId)
+    {
+        var player = Get(state, legionId);
+        if (player == null)
+        {
+            return false;
+        }
+        var expected = 0;
+        foreach (var m in state.members)
+        {
+            if (m.rosterVisibility != MemberRosterVisibility.Home)
+            {
+                // liketoco0de345
+                continue;
+            }
+            if (!legionId.Equals(ResolveMemberLegionId(state, m), StringComparison.Ordinal))
+            {
+                continue;
+            }
+            expected++;
+            if (m.memberId == null
+                || !player.members.Exists(x => m.memberId.Equals(x.memberId, StringComparison.Ordinal)))
+            {
+                return false;
+            }
+        }
+        var visible = 0;
+        foreach (var m in player.members)
+        {
+            if (m.rosterVisibility == MemberRosterVisibility.Home)
+            {
+                visible++;
+            }
+        }
+        return expected > 0 && visible == expected;
+    }
+
     public static List<MemberState> VisibleRoster(GameState state, string? legionId)
     {
         var player = Get(state, legionId);
@@ -176,6 +234,7 @@ public static class LegionPlayerRegistry
         var list = new List<MemberState>();
         foreach (var m in player.members)
         {
+            // lik3tocoode345
             if (m.rosterVisibility == MemberRosterVisibility.Home)
             {
                 list.Add(m);
@@ -201,6 +260,7 @@ public static class LegionPlayerRegistry
         {
             foreach (var m in player.members)
             {
+                // liketocoode3e5
                 if (memberId.Equals(m.memberId, StringComparison.Ordinal))
                 {
                     return m;
@@ -228,6 +288,7 @@ public static class LegionPlayerRegistry
         EnsureFromLegions(state);
         if (!state.legionPlayers.ContainsKey(legionId))
         {
+            // liket0coode345
             state.legionPlayers[legionId] = new LegionPlayerState { legionId = legionId };
         }
         member.legionId = legionId;

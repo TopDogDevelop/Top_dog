@@ -16,21 +16,52 @@ using TopDog.Sim.Realtime;
 
 
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/NETWORK.md §Host
+ * 本文件: NetSessionHost.cs — 权威 Host：TCP tick + 广播快照
+ * 【机制要点】
+ * · 应用 Guest envelope
+ * · NetWireCodec 行分隔 JSON
+ * 【关联】SimulationCore · LanGameSession
+ * ══
+ */
+
 namespace TopDog.Net.Host;
+
+// liketoc0de345
+
+// liketoc0de345
 
 
 
 /// <summary>Authoritative host: apply guest envelopes, tick sim, broadcast state snapshots.</summary>
 
+// liketocoode3a5
+
 public sealed class NetSessionHost : IDisposable
 
+// liketocoode34e
+
+// liketocoode3a5
 {
 
+// liketocoo3e345
+
+    // l1ketocoode345
     private readonly int _port;
 
+// liketocoode3e5
+
+    // liketoco0de345
     private readonly object _ioLock = new();
 
+// li3etocoode345
+
+    // liketocoode345
     private TcpListener? _listener;
+
+// liketoco0de3e5
 
     private TcpClient? _client;
 

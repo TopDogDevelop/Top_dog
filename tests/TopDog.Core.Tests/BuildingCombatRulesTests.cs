@@ -16,9 +16,14 @@ public sealed class BuildingCombatRulesTests
             structureMax = 100_000f,
             structureHp = 100_000f,
         };
-        var first = BuildingCombatRules.ClampBuildingDamage(bf, building, 50_000f, 0.5f);
-        var second = BuildingCombatRules.ClampBuildingDamage(bf, building, 50_000f, 0.5f);
-        Assert.That(first + second, Is.EqualTo(1000f).Within(0.01f));
+        var first = BuildingCombatRules.ClampBuildingDamage(bf, building, 50_000f);
+        var second = BuildingCombatRules.ClampBuildingDamage(bf, building, 50_000f);
+        Assert.That(first, Is.EqualTo(1000f).Within(0.01f));
+        Assert.That(second, Is.EqualTo(0f));
+
+        bf.timeSec = 1.1f;
+        var third = BuildingCombatRules.ClampBuildingDamage(bf, building, 50_000f);
+        Assert.That(third, Is.EqualTo(1000f).Within(0.01f));
     }
 
     [Test]

@@ -125,6 +125,7 @@
     border-width: 1px;
     border-color: rgba(255, 255, 255, 0.15);
     background-color: rgb(8, 10, 14);
+    overflow: visible;
 }
 
 .rtcombat-tactical-grid {
@@ -147,6 +148,7 @@
     right: 68px;
     top: 0;
     bottom: 0;
+    overflow: visible;
 }
 
 .rtcombat-marker {
@@ -166,9 +168,18 @@
 }
 
 .rtcombat-marker-offscreen {
-    opacity: 0.82;
+    opacity: 0.92;
     border-width: 1px;
-    border-color: rgba(255, 255, 255, 0.35);
+    border-color: rgba(255, 255, 255, 0.45);
+}
+
+.rtcombat-marker-chevron {
+    position: absolute;
+    left: 0;
+    top: 10px;
+    font-size: 14px;
+    color: rgb(255, 220, 80);
+    -unity-font-style: bold;
 }
 
 .rtcombat-marker-badge {
@@ -297,16 +308,53 @@
     align-self: stretch;
 }
 
-.rtcombat-hud-bar-fill-hp {
-    background-color: rgb(255, 230, 60);
+.rtcombat-hud-bar-fill-shield {
+    background-color: rgb(80, 160, 255);
 }
 
-.rtcombat-hud-bar-fill-capacitor {
-    background-color: rgb(120, 200, 255);
+.rtcombat-hud-bar-fill-armor {
+    background-color: rgb(255, 220, 60);
 }
 
-.rtcombat-hud-bar-fill-implant {
-    background-color: rgb(180, 120, 255);
+.rtcombat-hud-bar-fill-structure {
+    background-color: rgb(220, 90, 70);
+}
+
+.rtcombat-hud-bar-fill-enable {
+    background-color: rgb(100, 200, 140);
+}
+
+.rtcombat-hud-bar-fill-enable-time {
+    background-color: rgb(140, 170, 220);
+}
+
+.rtcombat-float-damage {
+    font-size: 11px;
+    color: rgb(255, 90, 70);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.rtcombat-float-heal {
+    font-size: 11px;
+    color: rgb(90, 230, 140);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.rtcombat-combat-debug {
+    max-height: 120px;
+    margin-top: 4px;
+    border-width: 1px;
+    border-color: rgba(120, 180, 255, 0.35);
+    background-color: rgba(0, 0, 0, 0.45);
+    padding: 4px;
+}
+
+.rtcombat-combat-debug-body {
+    font-size: 10px;
+    color: rgb(180, 200, 220);
+    white-space: normal;
 }
 
 .rtcombat-ship-detail-bar-horizontal .unity-progress-bar__container {
@@ -338,19 +386,19 @@
 }
 
 .rtcombat-hud-bar-armor .unity-progress-bar__progress {
-    background-color: rgb(180, 180, 190);
+    background-color: rgb(255, 220, 60);
 }
 
 .rtcombat-hud-bar-structure .unity-progress-bar__progress {
     background-color: rgb(220, 90, 70);
 }
 
-.rtcombat-hud-bar-capacitor .unity-progress-bar__progress {
-    background-color: rgb(120, 200, 255);
+.rtcombat-hud-bar-enable .unity-progress-bar__progress {
+    background-color: rgb(100, 200, 140);
 }
 
-.rtcombat-hud-bar-implant .unity-progress-bar__progress {
-    background-color: rgb(180, 120, 255);
+.rtcombat-hud-bar-enable-time .unity-progress-bar__progress {
+    background-color: rgb(140, 170, 220);
 }
 
 .rtcombat-orbit-hud-mid {
@@ -392,6 +440,8 @@
 }
 
 .rtcombat-ship-detail-bar-capacitor,
+.rtcombat-ship-detail-bar-enable,
+.rtcombat-ship-detail-bar-enable-time,
 .rtcombat-ship-detail-bar-implant {
     width: 5px;
     height: 28px;
@@ -434,6 +484,15 @@
     picking-mode: ignore;
 }
 
+.rtcombat-ring-km-label {
+    font-size: 10px;
+    color: rgba(220, 230, 255, 0.75);
+    -unity-text-align: middle-left;
+    background-color: rgba(0, 0, 0, 0.35);
+    padding-left: 2px;
+    padding-right: 2px;
+}
+
 .rtcombat-input-overlay {
     position: absolute;
     left: 0;
@@ -453,6 +512,7 @@
     position: absolute;
     width: 32px;
     height: 32px;
+    overflow: visible;
 }
 
 .rtcombat-marker-fallback {

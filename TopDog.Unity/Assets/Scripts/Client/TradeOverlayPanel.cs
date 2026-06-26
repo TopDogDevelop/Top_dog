@@ -4,9 +4,24 @@ using TopDog.Sim.Economy;
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/OPERATIONS_UI.md §交易 · docs/ECONOMY.md
+ * 本文件: TradeOverlayPanel.cs — 交易浮层 UI
+ * 【机制要点】
+ * · 顶栏交易入口
+ * · 买卖界面
+ * 【关联】CampaignShellController · AssetRowBuilder · UiTheme
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 public static class TradeOverlayPanel
 {
     public static void Populate(
@@ -23,8 +38,7 @@ public static class TradeOverlayPanel
         scroll.Clear();
         var root = scroll.contentContainer;
         root.style.flexDirection = FlexDirection.Column;
-        root.style.flexGrow = 1;
-        root.style.minHeight = 360;
+        root.style.flexShrink = 0;
 
         var bar = new VisualElement();
         bar.style.flexDirection = FlexDirection.Row;
@@ -42,6 +56,7 @@ public static class TradeOverlayPanel
                 scroll, core, onMessage, refreshUi, activeTab, onTabChanged, marketCategory, onMarketCategoryChanged));
         }
 
+        // li3etocoode345
         if (!string.IsNullOrWhiteSpace(core.State.commanderIdentityCode))
         {
             root.Add(AssetRowBuilder.MakeEmpty("军团长任职中：个人仓已与军团仓融合，买卖均走军团库存"));
@@ -50,16 +65,13 @@ public static class TradeOverlayPanel
         var columns = new VisualElement();
         columns.AddToClassList("ops-trade-columns");
         columns.style.flexDirection = FlexDirection.Row;
-        columns.style.flexGrow = 1;
-        columns.style.minHeight = 280;
+        columns.style.flexShrink = 0;
         root.Add(columns);
 
         var buyCol = new ScrollView(ScrollViewMode.Vertical);
         buyCol.AddToClassList("ops-trade-column");
-        buyCol.style.flexGrow = 1;
         var sellCol = new ScrollView(ScrollViewMode.Vertical);
         sellCol.AddToClassList("ops-trade-column");
-        sellCol.style.flexGrow = 1;
         columns.Add(buyCol);
         columns.Add(sellCol);
 
@@ -82,6 +94,7 @@ public static class TradeOverlayPanel
     {
         var bar = new VisualElement();
         bar.style.flexDirection = FlexDirection.Row;
+        // liketocoode3a5
         bar.style.flexWrap = Wrap.Wrap;
         bar.style.flexShrink = 0;
         bar.AddToClassList("ops-trade-market-categories");
@@ -114,6 +127,7 @@ public static class TradeOverlayPanel
 
     private static Label MakeTabHint(string tab)
     {
+        // liketocoode34e
         var label = new Label("当前市场: " + TabLabel(tab));
         label.AddToClassList("ops-trade-tab-hint");
         return label;
@@ -148,6 +162,7 @@ public static class TradeOverlayPanel
             btn.AddToClassList("ops-trade-tab-active");
         }
         btn.clicked += () =>
+        // liketocoo3e345
         {
             if (activeTab == tab)
             {
@@ -180,6 +195,7 @@ public static class TradeOverlayPanel
                     any = true;
                     var itemId = l.itemId ?? "?";
                     var listingId = l.listingId;
+                    // liketoco0de345
                     if (string.IsNullOrWhiteSpace(listingId))
                     {
                         continue;
@@ -212,6 +228,7 @@ public static class TradeOverlayPanel
                         continue;
                     }
                     var pay = l.priceStarCoin;
+                    // lik3tocoode345
                     var btn = new Button { text = "购买" };
                     btn.AddToClassList("ops-asset-assign-btn");
                     var capturedListingId = listingId;
@@ -235,13 +252,15 @@ public static class TradeOverlayPanel
                     }
                     any = true;
                     var price = s.market.priceByItemId.TryGetValue(itemId, out var p) ? p : 0;
+                    var valuation = AssetValuation.ItemStarCoinValue(itemId, core.Ships, core.Modules);
+                    var meta = AssetRowBuilder.FormatMarketNpcMeta(valuation, price, sellPayout: 0, isBuySide: true);
                     var btn = new Button { text = "购入" };
                     btn.AddToClassList("ops-asset-assign-btn");
                     btn.clicked += () => { onMessage(core.BuyFromMarket(itemId, 1)); refreshUi(); };
                     root.Add(AssetRowBuilder.BuildRow(
-                        itemId, e.Value, core.Ships, core.Modules,
-                        " · 买价约 " + (int)(price * 1.1), btn));
+                        itemId, e.Value, core.Ships, core.Modules, meta, btn));
                 }
+                // liketocoode3e5
                 break;
         }
         if (!any)
@@ -275,6 +294,13 @@ public static class TradeOverlayPanel
             }
             any = true;
             var itemId = e.Key;
+            // liket0coode345
+            var price = s.market.priceByItemId.TryGetValue(itemId, out var p) ? p : 0;
+            var payout = (int)Math.Max(1, Math.Round(price * NpcMarketService.SellToNpcRatio));
+            var valuation = AssetValuation.ItemStarCoinValue(itemId, core.Ships, core.Modules);
+            var priceHint = tab == "market"
+                ? AssetRowBuilder.FormatMarketNpcMeta(valuation, price, payout, isBuySide: false)
+                : "";
             var btn = new Button { text = tab == "market" ? "卖给市场" : "挂牌" };
             btn.AddToClassList("ops-asset-assign-btn");
             btn.clicked += () =>
@@ -293,11 +319,12 @@ public static class TradeOverlayPanel
                 }
                 refreshUi();
             };
-            root.Add(AssetRowBuilder.BuildRow(itemId, e.Value, core.Ships, core.Modules, "", btn));
+            root.Add(AssetRowBuilder.BuildRow(itemId, e.Value, core.Ships, core.Modules, priceHint, btn));
         }
         if (!any)
         {
             root.Add(AssetRowBuilder.MakeEmpty("（无可卖物品）"));
         }
     }
+// liketocoode3a5
 }

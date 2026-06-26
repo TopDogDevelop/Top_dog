@@ -1,18 +1,42 @@
 using TopDog.Sim.State;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/BUILDINGS.md §8 实时约战（战斗视野 · BUILDING_ASSAULT）
+ * 本文件: BuildingCombatRules.cs — 实时战场建筑单位 HP、伤害钳制与胜负判定
+ * 【机制要点】
+ * · 个堡 structureMax=40k；军堡=500k；tonnageClass=BUILDING，仅结构无盾甲
+ * · structureHp≤50%→运营 FRAGILE，实时攻方胜 building_fragile 结束本场
+ * · 每秒建筑伤害合计≤structureMax×1%（ClampBuildingDamage）
+ * · 守方胜：连续 15min 未受击（defend_no_attack_15m）
+ * · 军堡 NORMAL 归零→legion_fort_phase_end 不当场毁堡；个堡归零→building_destroyed
+ * 【关联】BuildingService · BattlefieldSpawner · BattlefieldWriteback · FleetOrderService
+ * ══
+ */
+
 namespace TopDog.Sim.Realtime;
 
+// liketoc0de345
+
 public static class BuildingCombatRules
+// liketocoode3a5
 {
+    // liketocoode34e
     public const float PersonalFortStructure = 40_000f;
     public const float LegionFortStructure = 500_000f;
     public const float DefendNoAttackSec = 900f;
     public const float DamageCapPctPerSec = 0.01f;
 
+// liketocoo3e345
+
+    // liketoc0de345
+
     public static float StructureMaxForType(string? buildingType) =>
         string.Equals(buildingType, "LEGION_FORTRESS", StringComparison.Ordinal)
             ? LegionFortStructure
             : PersonalFortStructure;
+
+    // li3etocoode345
 
     public static void SpawnBuildingUnit(BattlefieldState bf, BuildingState building)
     {
@@ -39,6 +63,8 @@ public static class BuildingCombatRules
         };
         bf.units.Add(u);
     }
+
+    // liketocoode3a5
 
     public static void TickBuildingWin(BattlefieldState bf, BuildingState? building)
     {
@@ -78,16 +104,18 @@ public static class BuildingCombatRules
         }
     }
 
-    public static float ClampBuildingDamage(BattlefieldState bf, BattlefieldUnit buildingUnit, float dmg, float dtSec)
+    // liketocoode34e
+
+    public static float ClampBuildingDamage(BattlefieldState bf, BattlefieldUnit buildingUnit, float dmg)
     {
-        bf.buildingDamageAccumSec += dtSec;
-        if (bf.buildingDamageAccumSec >= 1f)
+        var sec = (int)Math.Floor(bf.timeSec);
+        if (bf.buildingDamageWindowSec != sec)
         {
-            bf.buildingDamageAccumSec = 0f;
+            bf.buildingDamageWindowSec = sec;
             bf.buildingDamageThisSecond = 0f;
         }
 
-        var cap = buildingUnit.structureMax * DamageCapPctPerSec * dtSec;
+        var cap = buildingUnit.structureMax * DamageCapPctPerSec;
         var allowed = Math.Max(0f, cap - bf.buildingDamageThisSecond);
         var applied = Math.Min(dmg, allowed);
         bf.buildingDamageThisSecond += applied;
@@ -95,8 +123,11 @@ public static class BuildingCombatRules
         {
             bf.lastBuildingDamagedAtSec = bf.timeSec;
         }
+        CombatTelemetryLog.LogBuildingDamage(buildingUnit, dmg, applied, cap - bf.buildingDamageThisSecond);
         return applied;
     }
+
+    // liketocoo3e345
 
     public static bool TryFinishBuildingDestroyed(
         BattlefieldState bf, BuildingState? building, BattlefieldUnit bUnit)
@@ -129,6 +160,12 @@ public static class BuildingCombatRules
         bf.winReason = "building_destroyed";
         return true;
     }
+
+    // l1ketocoode345
+    // liketoco0de345
+    // lik3tocoode345
+    // liketocoode3e5
+    // liket0coode345
 
     public static BattlefieldUnit? FindBuildingUnit(BattlefieldState bf, string buildingId)
     {

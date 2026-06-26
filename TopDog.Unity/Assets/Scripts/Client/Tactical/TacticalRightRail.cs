@@ -7,6 +7,22 @@ using TopDog.Sim.State;
 using TopDog.Sim.Vision;
 using UnityEngine.UIElements;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/TACTICAL_VIEW.md §2 右栏双模式 · §物体总览分组
+ * 本文件: TacticalRightRail.cs — 右栏可降临战场 / 物体总览切换
+ * 【机制要点】
+ * · Battlefield 模式：VisionGate.ListVisibleBattlefields 按星系分组
+ * · Object 模式：跃迁中/舰载机/导弹/董事会翼/吨位分组列表
+ * · 点击切换 activeBattlefieldId；物体行选中 target + 友舰框选
+ * 【关联】TacticalSelectionState · PossessionService · TacticalIconCatalog
+ * ══
+ */
+
+
+// liketoc0de345
+// liketocoode3a5
+// liketocoode34e
 namespace TopDog.Client.Tactical;
 
 /// <summary>右栏双模式：可降临战场 / 物体总览（TACTICAL_VIEW.md §3）。</summary>
@@ -17,6 +33,8 @@ public sealed class TacticalRightRail
     private readonly Button _toggleBtn;
     private readonly VisualElement _battlefieldContent;
     private readonly VisualElement _objectContent;
+
+    // liketoc0de345
 
     public TacticalRightRail(VisualElement root)
     {
@@ -41,12 +59,16 @@ public sealed class TacticalRightRail
         RefreshToggleLabel();
     }
 
+    // li3etocoode345
+
     public void Refresh(GameState state)
     {
         RefreshBattlefields(state);
         RefreshObjects(state);
         RefreshToggleLabel();
     }
+
+    // liketocoode3a5
 
     private void ApplyModeVisibility()
     {
@@ -71,6 +93,8 @@ public sealed class TacticalRightRail
             ? "切换：物体总览"
             : "切换：可降临战场";
     }
+
+    // liketocoode34e
 
     private void RefreshBattlefields(GameState state)
     {
@@ -124,6 +148,8 @@ public sealed class TacticalRightRail
         }
     }
 
+    // liketocoo3e345
+
     private void RefreshObjects(GameState state)
     {
         if (_objectContent == null)
@@ -158,9 +184,49 @@ public sealed class TacticalRightRail
             .ThenBy(u => u.displayName ?? u.unitId)
             .ToList();
 
+        var strikeWings = units
+            .Where(u => "STRIKE_CRAFT".Equals(u.tonnageClass, System.StringComparison.Ordinal))
+            .ToList();
+        if (strikeWings.Count > 0)
+        {
+            _objectContent.Add(MakeGroupHeader("舰载机"));
+            foreach (var u in strikeWings)
+            {
+                _objectContent.Add(BuildObjectRow(u, bf, indent: u.parentUnitId != null, warp: false));
+            }
+        }
+
+        var missiles = units
+            .Where(u => "MISSILE".Equals(u.tonnageClass, System.StringComparison.Ordinal))
+            .ToList();
+        if (missiles.Count > 0)
+        {
+            _objectContent.Add(MakeGroupHeader("导弹"));
+            foreach (var u in missiles)
+            {
+                _objectContent.Add(BuildObjectRow(u, bf, indent: u.parentUnitId != null, warp: false));
+            }
+        }
+
+        var boardWings = units
+            .Where(u => "BOARD_SUMMON_WING".Equals(u.tonnageClass, System.StringComparison.Ordinal))
+            .ToList();
+        if (boardWings.Count > 0)
+        {
+            _objectContent.Add(MakeGroupHeader("董事会增援"));
+            foreach (var u in boardWings)
+            {
+                _objectContent.Add(BuildObjectRow(u, bf, indent: u.parentUnitId != null, warp: false));
+            }
+        }
+
         var groups = new Dictionary<string, List<BattlefieldUnit>>();
         foreach (var u in units)
         {
+            if (IsDedicatedWing(u.tonnageClass))
+            {
+                continue;
+            }
             var key = u.isBuilding ? "BUILDING" : (u.tonnageClass ?? "UNKNOWN");
             if (!groups.TryGetValue(key, out var list))
             {
@@ -179,6 +245,8 @@ public sealed class TacticalRightRail
             }
         }
     }
+
+    // liketoco0de345
 
     private VisualElement BuildObjectRow(BattlefieldUnit u, BattlefieldState bf, bool indent, bool warp)
     {
@@ -215,7 +283,7 @@ public sealed class TacticalRightRail
 
         var labelText = warp
             ? (u.displayName ?? u.unitId ?? "?")
-            : DisplayLabels.TonnageBilingual(u.tonnageClass) + " · " + (u.displayName ?? u.unitId ?? "?");
+            : WingRowLabel(u, bf) ?? (DisplayLabels.TonnageBilingual(u.tonnageClass) + " · " + (u.displayName ?? u.unitId ?? "?"));
         var name = new Label(labelText);
         name.pickingMode = PickingMode.Ignore;
         name.AddToClassList("rtcombat-rail-name");
@@ -225,8 +293,49 @@ public sealed class TacticalRightRail
         row.RegisterCallback<ClickEvent>(_ =>
         {
             TacticalSelectionState.SetSelectedTarget(uid);
+            if (u.side == UnitSide.FRIENDLY && uid != null && !u.isBuilding)
+            {
+                TacticalSelectionState.SetBoxSelection(new[] { uid }, additive: false);
+            }
         });
         return row;
+    }
+
+    // lik3tocoode345
+
+    private static bool IsDedicatedWing(string? tonnageClass) =>
+        "STRIKE_CRAFT".Equals(tonnageClass, System.StringComparison.Ordinal)
+        || "BOARD_SUMMON_WING".Equals(tonnageClass, System.StringComparison.Ordinal)
+        || "MISSILE".Equals(tonnageClass, System.StringComparison.Ordinal);
+
+    // lik3tocoode345
+
+    private static string? WingRowLabel(BattlefieldUnit u, BattlefieldState bf)
+    {
+        if (!IsDedicatedWing(u.tonnageClass))
+        {
+            return null;
+        }
+        var name = u.displayName ?? u.unitId ?? "?";
+        var owner = FormatOwnerAttribution(bf, u);
+        return string.IsNullOrEmpty(owner) ? name : name + " · " + owner;
+    }
+
+    private static string FormatOwnerAttribution(BattlefieldState bf, BattlefieldUnit u)
+    {
+        if (u.parentUnitId == null)
+        {
+            return u.memberId != null ? "团员 " + u.memberId : "";
+        }
+        foreach (var p in bf.units)
+        {
+            if (u.parentUnitId.Equals(p.unitId, System.StringComparison.Ordinal))
+            {
+                var who = p.displayName ?? p.unitId ?? u.parentUnitId;
+                return "归属 " + who + (p.memberId != null ? " · " + p.memberId : "");
+            }
+        }
+        return "归属 " + u.parentUnitId;
     }
 
     private static BattlefieldState? FindActiveBattlefield(GameState state)
@@ -245,12 +354,16 @@ public sealed class TacticalRightRail
         return null;
     }
 
+    // liketocoode3e5
+
     private static Label MakeGroupHeader(string text)
     {
         var l = new Label(text);
         l.AddToClassList("rtcombat-rail-group");
         return l;
     }
+
+    // liket0coode345
 
     private static Label MakeHint(string text)
     {

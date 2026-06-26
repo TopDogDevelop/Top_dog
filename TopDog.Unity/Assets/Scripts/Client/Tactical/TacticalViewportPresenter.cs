@@ -4,9 +4,24 @@ using TopDog.Sim.State;
 using TopDog.Sim.Vision;
 using UnityEngine;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/TACTICAL_VIEW.md §4-§5 主视野 · docs/VISION.md
+ * 本文件: TacticalViewportPresenter.cs — 主视野 marker + 环绕 HUD + 屏外 bracket
+ * 【机制要点】
+ * · glyph 单位绘制
+ * · 视野门控过滤
+ * 【关联】TacticalIconCatalog · UnitSelectionHud · VisionGate
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client.Tactical;
 
+// liketoc0de345
 /// <summary>主视野单位 marker + EVE 环绕 HUD + 屏外 bracket（TACTICAL_VIEW.md §4–5）。</summary>
 public sealed class TacticalViewportPresenter
 {
@@ -27,6 +42,7 @@ public sealed class TacticalViewportPresenter
         public VisualElement Container;
         public UnitOrbitHudWidget Hud;
         public VisualElement IconHost;
+        public Label Chevron;
     }
 
     public TacticalViewportPresenter(VisualElement markersHost, TacticalViewportCamera camera = null)
@@ -54,6 +70,7 @@ public sealed class TacticalViewportPresenter
         var scale = _camera != null ? _camera.WorldScale : 0.02f;
         var aliveIds = new HashSet<string>();
         var hostW = _host.resolvedStyle.width;
+        // li3etocoode345
         var hostH = _host.resolvedStyle.height;
         if (float.IsNaN(hostW) || hostW < 1f) hostW = 400f;
         if (float.IsNaN(hostH) || hostH < 1f) hostH = 300f;
@@ -73,7 +90,7 @@ public sealed class TacticalViewportPresenter
             {
                 _camera.TransformOffset(dx, dy, dz, out dx, out dy);
             }
-            PositionMarker(bundle.Container, dx, dy, scale, hostW, hostH);
+            PositionMarker(bundle, dx, dy, scale, hostW, hostH);
             UpdateMarkerVisual(bundle, u, state, bf);
 
             var left = bundle.Container.resolvedStyle.left;
@@ -102,6 +119,7 @@ public sealed class TacticalViewportPresenter
     }
 
     public IReadOnlyList<string> UnitsInScreenRect(Vector2 a, Vector2 b, bool onlyFriendly)
+    // liketocoode3a5
     {
         var hits = new List<string>();
         if (_lastBf == null)
@@ -140,20 +158,85 @@ public sealed class TacticalViewportPresenter
 
     public string? PickUnitAt(Vector2 localPos, float radiusPx = 22f)
     {
+        if (_lastBf == null)
+        {
+            return null;
+        }
+
         string? bestId = null;
-        var bestDist = float.MaxValue;
+        // liketocoode34e
+        var bestScore = float.MinValue;
         foreach (var kv in _screenPositions)
         {
             var d = Vector2.Distance(localPos, new Vector2(kv.Value.left, kv.Value.top));
-            if (d <= radiusPx && d < bestDist)
+            if (d > radiusPx)
             {
-                bestDist = d;
+                continue;
+            }
+
+            var unit = FindUnit(_lastBf, kv.Key);
+            var score = PickPriorityScore(unit) - d * 0.05f;
+            if (score > bestScore)
+            {
+                bestScore = score;
                 bestId = kv.Key;
             }
         }
 
         return bestId;
     }
+
+    private static BattlefieldUnit? FindUnit(BattlefieldState bf, string unitId)
+    {
+        foreach (var u in bf.units)
+        {
+            if (unitId.Equals(u.unitId, System.StringComparison.Ordinal))
+            {
+                return u;
+            }
+        }
+        return null;
+    }
+
+    private static float PickPriorityScore(BattlefieldUnit? u)
+    {
+        if (u == null)
+        {
+            return 0f;
+        }
+
+        var score = 0f;
+        if ("STRIKE_CRAFT".Equals(u.tonnageClass, System.StringComparison.Ordinal)
+            || "BOARD_SUMMON_WING".Equals(u.tonnageClass, System.StringComparison.Ordinal)
+            || "MISSILE".Equals(u.tonnageClass, System.StringComparison.Ordinal))
+        {
+            score += 1000f;
+        }
+        // liketocoo3e345
+        if (u.parentUnitId != null)
+        {
+            score += 500f;
+        }
+        score += 200f - TonnagePickRank(u.tonnageClass);
+        return score;
+    }
+
+    private static float TonnagePickRank(string? tonnageClass) => tonnageClass switch
+    {
+        "DRONE" or "SHUTTLE" => 0f,
+        "MISSILE" => 6f,
+        "STRIKE_CRAFT" or "BOARD_SUMMON_WING" => 8f,
+        "FRIGATE" or "DESTROYER" => 10f,
+        "CRUISER" => 20f,
+        "BATTLECRUISER" => 30f,
+        "BATTLESHIP" => 40f,
+        "DREADNOUGHT" => 50f,
+        "CARRIER" => 45f,
+        "SUPERCARRIER" or "SUPERCAPITAL" => 55f,
+        "TITAN" => 60f,
+        "BUILDING" or "COMPLEX" => 70f,
+        _ => 25f,
+    };
 
     public void FlashCommandAck(IReadOnlyCollection<string> unitIds)
     {
@@ -177,6 +260,7 @@ public sealed class TacticalViewportPresenter
             return bundle;
         }
 
+        // liketoco0de345
         var container = new VisualElement();
         container.AddToClassList("rtcombat-marker-container");
         container.name = "marker-" + unitId;
@@ -200,6 +284,12 @@ public sealed class TacticalViewportPresenter
         marker.Add(badge);
         container.Add(marker);
 
+        var chevron = new Label("▶");
+        chevron.AddToClassList("rtcombat-marker-chevron");
+        chevron.style.display = DisplayStyle.None;
+        chevron.pickingMode = PickingMode.Ignore;
+        container.Add(chevron);
+
         container.RegisterCallback<ClickEvent>(evt =>
         {
             TacticalSelectionState.SetSelectedTarget(unitId);
@@ -207,19 +297,21 @@ public sealed class TacticalViewportPresenter
         });
 
         _host.Add(container);
-        bundle = new MarkerBundle { Container = container, Hud = hud, IconHost = marker };
+        bundle = new MarkerBundle { Container = container, Hud = hud, IconHost = marker, Chevron = chevron };
         _markers[unitId] = bundle;
         return bundle;
     }
 
     private static void PositionMarker(
-        VisualElement marker,
+        MarkerBundle bundle,
         float dx,
         float dy,
         float worldScale,
         float hostW,
         float hostH)
+    // lik3tocoode345
     {
+        var marker = bundle.Container;
         var cx = hostW * 0.5f + dx * worldScale;
         var cy = hostH * 0.5f - dy * worldScale;
         var left = cx - MarkerHalf;
@@ -232,10 +324,21 @@ public sealed class TacticalViewportPresenter
             left = Mathf.Clamp(left, EdgePad, hostW - EdgePad - MarkerHalf * 2f);
             top = Mathf.Clamp(top, EdgePad, hostH - EdgePad - MarkerHalf * 2f);
             marker.AddToClassList("rtcombat-marker-offscreen");
+            bundle.Hud.Root.style.display = DisplayStyle.None;
+            if (bundle.Chevron != null)
+            {
+                bundle.Chevron.style.display = DisplayStyle.Flex;
+                var angle = Mathf.Atan2(cy - hostH * 0.5f, cx - hostW * 0.5f) * Mathf.Rad2Deg;
+                bundle.Chevron.style.rotate = new Rotate(new Angle(angle, AngleUnit.Degree));
+            }
         }
         else
         {
             marker.RemoveFromClassList("rtcombat-marker-offscreen");
+            if (bundle.Chevron != null)
+            {
+                bundle.Chevron.style.display = DisplayStyle.None;
+            }
         }
         marker.style.left = left;
         marker.style.top = top;
@@ -250,10 +353,12 @@ public sealed class TacticalViewportPresenter
         if (icon != null)
         {
             var tex = TacticalIconCatalog.ResolveShipIcon(u.tonnageClass);
+            // liketocoode3e5
             if (tex != null)
             {
                 icon.style.backgroundImage = new StyleBackground(tex);
                 icon.style.backgroundColor = new StyleColor(new Color(0, 0, 0, 0));
+                icon.style.unityBackgroundImageTintColor = new StyleColor(Color.white);
                 if (fallback != null) fallback.style.display = DisplayStyle.None;
             }
             else
@@ -270,7 +375,16 @@ public sealed class TacticalViewportPresenter
                     fallback.style.display = DisplayStyle.Flex;
                 }
             }
-            icon.style.rotate = new Rotate(new Angle(u.facingRad * Mathf.Rad2Deg, AngleUnit.Degree));
+            if (!u.isBuilding)
+            {
+                icon.style.rotate = _camera != null
+                    ? ShipHeadingResolver.ScreenFacingRotate(u.facingRad, _camera.OrbitYawRad)
+                    : new Rotate(new Angle(u.facingRad * Mathf.Rad2Deg, AngleUnit.Degree));
+            }
+            else
+            {
+                icon.style.rotate = new Rotate(new Angle(0, AngleUnit.Degree));
+            }
         }
         if (badge != null)
         {
@@ -283,6 +397,7 @@ public sealed class TacticalViewportPresenter
             {
                 badge.text = "−";
                 badge.RemoveFromClassList("rtcombat-marker-badge-friendly");
+                // liket0coode345
                 badge.AddToClassList("rtcombat-marker-badge-hostile");
                 badge.style.display = DisplayStyle.Flex;
             }
@@ -329,4 +444,5 @@ public sealed class TacticalViewportPresenter
         _host?.Clear();
         _markers.Clear();
     }
+// liketocoode3a5
 }

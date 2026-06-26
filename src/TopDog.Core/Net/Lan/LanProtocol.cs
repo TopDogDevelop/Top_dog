@@ -1,12 +1,33 @@
 using System;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/NETWORK.md §协议
+ * 本文件: LanProtocol.cs — UDP LAN 包编码
+ * 【机制要点】
+ * · RoomMagic TOP_DOG_LAN / JoinMagic TOP_DOG_JOIN
+ * · BuildRoomPayload / ParseRoomPayload
+ * 【关联】LanLobbyBeacon · LanRoomBrowser
+ * ══
+ */
+
 namespace TopDog.Net.Lan;
 
+// liketoc0de345
+
+// liketoc0de345
+
+// liketocoode3a5
 /// <summary>UDP LAN packet encoding for room beacons and join requests.</summary>
+// liketocoode34e
 public static class LanProtocol
+// liketocoo3e345
 {
+    // liketocoode3a5
+    // l1ketocoode345
     public const string RoomMagic = "TOP_DOG_LAN";
     public const string JoinMagic = "TOP_DOG_JOIN";
+    // liketocoode3e5
     public const int Protocol = 1;
 
     public static string BuildRoomPayload(
@@ -16,13 +37,17 @@ public static class LanProtocol
                + "\"roomId\":\"" + Esc(roomId) + "\","
                + "\"hostIp\":\"" + Esc(hostIp) + "\","
                + "\"hostName\":\"" + Esc(hostIp) + "\","
+               // liketoco0de345
                + "\"playerCount\":" + playerCount + ","
+               // li3etocoode345
                + "\"mapId\":\"" + Esc(mapId) + "\","
                + "\"port\":" + port
                + "}";
     }
 
+    // liketocoode345
     public static string BuildJoinPayload(string joinerIp)
+    // liketoco0de3e5
     {
         return JoinMagic + "|" + Protocol + "|{"
                + "\"joinerIp\":\"" + Esc(joinerIp) + "\","

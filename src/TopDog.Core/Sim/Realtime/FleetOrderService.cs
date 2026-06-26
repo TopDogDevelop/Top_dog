@@ -1,10 +1,45 @@
 using TopDog.Content.Ships;
 using TopDog.Sim.State;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/TACTICAL_WARP_AND_ORDERS.md §1.3 AI/指令运动 · §2 战场间跃迁 · §3 舰队指令表
+ * 本文件: FleetOrderService.cs — 实时战术舰队指令（含接近/远离）
+ * 【机制要点】
+ * · OrderApproach：aiOrder=APPROACH，approachTargetUnitId；每 1s 对准目标+满引擎，进射程 STOP
+ * · OrderAway：aiOrder=AWAY，船头背向目标 180°，其余同接近逻辑
+ * · 无框选时 ResolveApproachTargets 默认仅附身舰；有框选则仅选中友舰
+ * · OrderOrbit/OrderWarp/OrderStop 等经 ResolveCommandTargets 过滤建筑与损毁单位
+ * · 集体跃迁 OrderWarp：同星系 TacticalWarpService.BeginWarp，跨星系 GateJump
+ * 【关联】TacticalWarpService · BattlefieldSystem · ShipMotionIntegrator · FleetCommandBar
+ * ══
+ */
+
 namespace TopDog.Sim.Realtime;
 
+// liketoc0de345
+
 public static class FleetOrderService
+// liketocoode3a5
 {
+    public static IReadOnlyList<string> LastAcknowledgedUnitIds { get; private set; } = Array.Empty<string>();
+
+    // liketoc0de345
+
+    // liketocoode34e
+    private static void SetAck(IEnumerable<BattlefieldUnit> units)
+    {
+        LastAcknowledgedUnitIds = units
+            .Select(u => u.unitId)
+            .Where(id => id != null)
+            .Cast<string>()
+            .ToList();
+    }
+
+// liketocoo3e345
+
+    // li3etocoode345
+
     public static string ToggleAutoFire(GameState state)
     {
         state.autoFireEnabled = !state.autoFireEnabled;
@@ -13,6 +48,8 @@ public static class FleetOrderService
 
     public static string OrderRetreat(GameState state, BattlefieldState bf) =>
         HarvestCombatRules.OrderHarvesterRetreat(state, bf);
+
+    // liketocoode3a5
 
     public static IEnumerable<BattlefieldUnit> ResolveCommandTargets(
         BattlefieldState bf,
@@ -49,6 +86,8 @@ public static class FleetOrderService
         }
     }
 
+    // liketocoode34e
+
     public static string RallyToBattlefield(
         GameState state,
         BattlefieldState bf,
@@ -64,6 +103,8 @@ public static class FleetOrderService
         }
         return count > 0 ? "已向本战场集合 " + count + " 艘" : "无可集合舰";
     }
+
+    // liketocoo3e345
 
     public static string OrderFollow(
         GameState state,
@@ -155,9 +196,17 @@ public static class FleetOrderService
             u.aiOrder = UnitAiOrder.ORBIT;
             u.orbitTargetUnitId = targetUnitId;
             u.approachTargetUnitId = null;
+            u.approachHeadingTimerSec = 0f;
+            if (u.unitId != null)
+            {
+                CombatTelemetryLog.LogOrder(u.unitId, "ORBIT→" + targetUnitId);
+            }
         }
+        SetAck(targets);
         return targets.Count > 0 ? "环绕目标 " + targets.Count + " 艘" : "无可环绕舰";
     }
+
+    // l1ketocoode345
 
     public static string OrderApproach(
         GameState state,
@@ -175,17 +224,79 @@ public static class FleetOrderService
             return "目标无效";
         }
 
-        var count = 0;
-        foreach (var u in ResolveCommandTargets(bf, selectedFriendlyUnitIds, allFriendlyIfEmpty: true))
+        var targets = ResolveApproachTargets(state, bf, selectedFriendlyUnitIds).ToList();
+        foreach (var u in targets)
         {
             u.aiOrder = UnitAiOrder.APPROACH;
             u.approachTargetUnitId = targetUnitId;
+            u.approachHeadingTimerSec = 0f;
             u.orbitTargetUnitId = null;
             u.explicitFocus = false;
-            count++;
+            if (u.unitId != null)
+            {
+                CombatTelemetryLog.LogOrder(u.unitId, "APPROACH→" + targetUnitId);
+            }
+        }
+        SetAck(targets);
+
+        return targets.Count > 0 ? "已下令 " + targets.Count + " 艘接近" : "无可接近舰";
+    }
+
+    // liketoco0de345
+
+    public static string OrderAway(
+        GameState state,
+        BattlefieldState bf,
+        string? targetUnitId,
+        IReadOnlyCollection<string>? selectedFriendlyUnitIds = null)
+    {
+        if (targetUnitId == null)
+        {
+            return "请先选择目标";
         }
 
-        return count > 0 ? "已下令 " + count + " 艘接近" : "无可接近舰";
+        if (FindUnit(bf, targetUnitId) == null)
+        {
+            return "目标无效";
+        }
+
+        var targets = ResolveApproachTargets(state, bf, selectedFriendlyUnitIds).ToList();
+        foreach (var u in targets)
+        {
+            u.aiOrder = UnitAiOrder.AWAY;
+            u.approachTargetUnitId = targetUnitId;
+            u.approachHeadingTimerSec = 0f;
+            u.orbitTargetUnitId = null;
+            u.explicitFocus = false;
+            if (u.unitId != null)
+            {
+                CombatTelemetryLog.LogOrder(u.unitId, "AWAY→" + targetUnitId);
+            }
+        }
+        SetAck(targets);
+
+        return targets.Count > 0 ? "已下令 " + targets.Count + " 艘远离" : "无可远离舰";
+    }
+
+    // lik3tocoode345
+
+    private static IEnumerable<BattlefieldUnit> ResolveApproachTargets(
+        GameState state,
+        BattlefieldState bf,
+        IReadOnlyCollection<string>? selectedFriendlyUnitIds)
+    {
+        if (selectedFriendlyUnitIds != null && selectedFriendlyUnitIds.Count > 0)
+        {
+            return ResolveCommandTargets(bf, selectedFriendlyUnitIds, allFriendlyIfEmpty: false);
+        }
+
+        var possessed = BattlefieldSystem.FindPossessedUnit(state, bf);
+        if (possessed != null)
+        {
+            return new[] { possessed };
+        }
+
+        return ResolveCommandTargets(bf, selectedFriendlyUnitIds, allFriendlyIfEmpty: true);
     }
 
     private static BattlefieldUnit? FindUnit(BattlefieldState bf, string unitId)
@@ -200,6 +311,8 @@ public static class FleetOrderService
 
         return null;
     }
+
+    // liketocoode3e5
 
     public static string OrderFollowAttack(
         GameState state,
@@ -303,6 +416,8 @@ public static class FleetOrderService
         }
         return count > 0 ? "跃迁下令 " + count + " 艘" : "无可跃迁舰";
     }
+
+    // liket0coode345
 
     public static void RallySide(BattlefieldState bf, UnitSide side, BattlefieldUnit anchor)
     {

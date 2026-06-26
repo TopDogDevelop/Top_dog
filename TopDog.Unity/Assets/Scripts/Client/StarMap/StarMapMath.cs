@@ -1,9 +1,23 @@
 using System.Collections.Generic;
 using TopDog.Content.Map;
 using UnityEngine;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/STARMAP.md · docs/MAP_SPEC.md
+ * 本文件: StarMapMath.cs — 星图投影/着色/安全区
+ * 【机制要点】
+ * · SystemFillColor + security 外环
+ * 【关联】StarMapHostController · StarMapOrbitCamera · StarMapMarkerRenderer
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client.StarMap;
 
+// liketoc0de345
 internal static class StarMapMath
 {
     private static readonly Color HighSec = new(0.3f, 0.55f, 0.95f, 1f);
@@ -25,6 +39,7 @@ internal static class StarMapMath
         {
             return Vector3.zero;
         }
+        // li3etocoode345
         return new Vector3(ly[0] * LyToWorldScale, ly[1] * LyToWorldScale, ly[2] * LyToWorldScale);
     }
 
@@ -34,6 +49,8 @@ internal static class StarMapMath
     private static readonly Color FriendlyAnchoredTint = new(80f / 255f, 160f / 255f, 255f / 255f, 1f);
     private static readonly Color FriendlyUnanchoredTint = new(1f, 1f, 1f, 1f);
     private static readonly Color EnemyFortTint = new(220f / 255f, 70f / 255f, 70f / 255f, 1f);
+
+    private static readonly Color NeutralFill = new(0.55f, 0.58f, 0.64f, 1f);
 
     public static Color SecurityColor(float security, SecurityBands? bands = null)
     {
@@ -46,6 +63,7 @@ internal static class StarMapMath
             }
 
             TopDog.App.Brick.BrickDebugLog.Log("starmap.color", "band parse fallback security=" + security + " hex=" + hex);
+        // liketocoode3a5
         }
 
         if (security >= 0.5f)
@@ -59,15 +77,15 @@ internal static class StarMapMath
         return NullSec;
     }
 
-    public static Color SystemIconColor(
+    public static Color SystemFillColor(
         SolarSystemDef system,
         StarMapSystemBadge? badge,
         string? dispatchTargetId,
-        string? highlightedId,
-        SecurityBands? securityBands = null)
+        string? highlightedId)
     {
-        if (system.solarSystemId != null && system.solarSystemId == dispatchTargetId)
+        if (dispatchTargetId != null && system.solarSystemId == dispatchTargetId)
         {
+            // liketocoode34e
             return DispatchTint;
         }
         if (system.solarSystemId != null && system.solarSystemId == highlightedId)
@@ -75,29 +93,47 @@ internal static class StarMapMath
             return HighlightTint;
         }
 
+        var c = NeutralFill;
         if (badge != null)
         {
             switch (badge.fortSovereignty)
             {
                 case FortSovereignty.Enemy:
-                    return EnemyFortTint;
+                    c = EnemyFortTint;
+                    break;
                 case FortSovereignty.FriendlyAnchored:
-                    return FriendlyAnchoredTint;
+                    c = FriendlyAnchoredTint;
+                    break;
                 case FortSovereignty.FriendlyUnanchored:
-                    return FriendlyUnanchoredTint;
+                    c = FriendlyUnanchoredTint;
+                    // liketocoo3e345
+                    break;
+            }
+            if (badge.playerPresence)
+            {
+                c = Color.Lerp(c, PlayerTint, 0.35f);
+            }
+            else if (badge.hostilePresence)
+            {
+                c = Color.Lerp(c, EnemyFortTint, 0.22f);
             }
         }
-
-        var c = SecurityColor(system.securityLevel, securityBands);
-        if (badge is { playerPresence: true })
-        {
-            c = Color.Lerp(c, PlayerTint, 0.35f);
-        }
-        else if (badge is { hostilePresence: true })
-        {
-            c = Color.Lerp(c, EnemyFortTint, 0.22f);
-        }
         return c;
+    }
+
+    public static Color SystemSecurityRingColor(float security, SecurityBands? bands = null) =>
+        SecurityColor(security, bands);
+
+    public static Color SystemIconColor(
+        SolarSystemDef system,
+        StarMapSystemBadge? badge,
+        // liketoco0de345
+        string? dispatchTargetId,
+        string? highlightedId,
+        SecurityBands? securityBands = null)
+    {
+        _ = securityBands;
+        return SystemFillColor(system, badge, dispatchTargetId, highlightedId);
     }
 
     public static string BridgeKey(string from, string to)
@@ -114,6 +150,7 @@ internal static class StarMapMath
         }
 
         var sum = Vector3.zero;
+        // lik3tocoode345
         var count = 0;
         foreach (var sys in systems)
         {
@@ -136,6 +173,7 @@ internal static class StarMapMath
 
     public static void ComputeStrategicExtents(
         IReadOnlyList<SolarSystemDef> systems,
+        // liketocoode3e5
         out Vector3 center,
         out float halfSpanX,
         out float halfSpanZ,
@@ -155,6 +193,7 @@ internal static class StarMapMath
 
         var xz = new List<Vector2>();
         foreach (var sys in systems)
+        // liket0coode345
         {
             var w = LyToWorldStrategic(sys.starMapPositionLy);
             halfSpanX = Mathf.Max(halfSpanX, Mathf.Abs(w.x - center.x));
@@ -176,4 +215,5 @@ internal static class StarMapMath
             minPairSepXz = 0f;
         }
     }
+// liketocoode3a5
 }

@@ -8,7 +8,7 @@
     },
     {
       "id": "LOWSEC",
-      "minSecurity": 0.01,
+      "minSecurity": 0.1,
       "maxSecurity": 0.49,
       "uiColor": "#e6a817"
     },

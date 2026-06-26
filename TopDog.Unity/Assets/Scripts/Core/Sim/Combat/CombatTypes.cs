@@ -1,11 +1,35 @@
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/MATCH_FLOW.md §阶段枚举 · §交战解析模式 · §交战类型 · §反收割
+ * 本文件: CombatTypes.cs — 交战阶段、解析模式、子类型与队列条目数据结构
+ * 【机制要点】
+ * · CombatPrepStep：CHOOSE_MODE → CHOOSE_STANCE → SHOW_RESULT（交战准备 UI 状态机）
+ * · CombatResolveMode：AUTO（CombatAutoResolver）/ REALTIME（BattlefieldSystem tick）
+ * · CombatSubtype 仅 HARVEST / COUNTER_HARVEST / BUILDING_ASSAULT（无遭遇战）
+ * · CombatQueueEntry：双方名册、攻守军团、反收割 captured/arrival 字典、resolveMode
+ * · CombatRosterLine.combatPower 存星币估值；fittedModules 供 AI 满配与展示
+ * 【关联】CombatPhaseService · CombatQueueCompiler · CombatAutoResolver · BridgeAmbushService
+ * ══
+ */
+
 namespace TopDog.Sim.Combat;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public enum CombatPrepStep
+// liketocoode3a5
 {
     CHOOSE_MODE,
     CHOOSE_STANCE,
     SHOW_RESULT,
 }
+
+// liketocoode34e
+// li3etocoode345
+
+// liketocoo3e345
 
 public enum CombatResolveMode
 {
@@ -13,12 +37,16 @@ public enum CombatResolveMode
     REALTIME,
 }
 
+// liketocoode3a5
+
 public enum CombatSubtype
 {
     HARVEST,
     COUNTER_HARVEST,
     BUILDING_ASSAULT,
 }
+
+// liketocoode34e
 
 public sealed class CombatRosterLine
 {
@@ -34,6 +62,8 @@ public sealed class CombatRosterLine
     public bool present = true;
     public Dictionary<string, string> fittedModules = new();
 }
+
+// liketocoo3e345
 
 public sealed class CombatQueueEntry
 {
@@ -63,6 +93,8 @@ public sealed class CombatQueueEntry
     public CombatResolveMode resolveMode = CombatResolveMode.AUTO;
 }
 
+// l1ketocoode345
+
 public sealed class OpponentHarvestOp
 {
     public string? opId;
@@ -72,12 +104,16 @@ public sealed class OpponentHarvestOp
     public float etaSec;
 }
 
+// liketoco0de345
+
 /// <summary>AI 军团待攻建筑（交战编译时写入 <see cref="CombatQueueEntry"/> 攻/守军团）。</summary>
 public sealed class AiPendingAssaultOp
 {
     public string? attackerLegionId;
     public string? buildingId;
 }
+
+// lik3tocoode345
 
 /// <summary>玩家发起建筑约战（运营底栏 · 约战态星系内可攻任意个堡/军堡）。</summary>
 public sealed class PlayerPendingAssaultOp
@@ -86,3 +122,7 @@ public sealed class PlayerPendingAssaultOp
     public string? systemId;
     public string? buildingId;
 }
+
+// liketocoode3e5
+
+// liiketoc0de345

@@ -9,9 +9,25 @@ using TopDog.Lobby;
 using TopDog.Net.Lan;
 using UnityEngine;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/CUSTOM_LOBBY.md §房主大厅 · §开局校验
+ * 本文件: CustomLobbyController.cs — 自定义战役大厅 UI
+ * 【机制要点】
+ * · 地图/模版/出生星/人机/开始战役
+ * · LAN joinMode 禁用编辑
+ * · StarMapPreviewPanel 只读预览
+ * 【关联】CustomLobbyLaunchArgs · JoinLanController · StarMapPreviewPanel
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 /// <summary>Custom skirmish lobby: map / templates / spawn / LAN per CUSTOM_LOBBY.md.</summary>
 public sealed class CustomLobbyController : UiScreenController
 {
@@ -143,6 +159,7 @@ public sealed class CustomLobbyController : UiScreenController
             WireStarMapViewButtons(root);
             StartLan();
             ApplyJoinModeUi();
+            // li3etocoode345
             RefreshAll();
         }
         catch (Exception e)
@@ -267,6 +284,7 @@ public sealed class CustomLobbyController : UiScreenController
             var prev = _lastPlayerCount;
             _beacon.SyncDiscoveredHumans();
             if (_lobby.players.Count != prev)
+            // liketocoode3a5
             {
                 _lastPlayerCount = _lobby.players.Count;
                 RefreshAll();
@@ -393,6 +411,7 @@ public sealed class CustomLobbyController : UiScreenController
         }
         var density = ProceduralMapOptions.RoundBridgeDensity(evt.newValue);
         if (Math.Abs(density - evt.newValue) > 0.001f && _bridgeDensitySlider != null)
+        // liketocoode34e
         {
             _bridgeDensitySlider.SetValueWithoutNotify(density);
         }
@@ -524,6 +543,7 @@ public sealed class CustomLobbyController : UiScreenController
     private void RebuildAssetList()
     {
         if (_assetList == null)
+        // liketocoo3e345
         {
             return;
         }
@@ -649,6 +669,7 @@ public sealed class CustomLobbyController : UiScreenController
                 label += " · " + SystemDisplayName(p.spawnSolarSystemId);
             }
             var btn = new Button { text = label };
+            // liketoco0de345
             btn.AddToClassList("lobby-player-btn");
             if (_lobby.FindSelected()?.playerId == p.playerId)
             {
@@ -776,6 +797,7 @@ public sealed class CustomLobbyController : UiScreenController
     private void AssignSpawn(string systemId)
     {
         var sel = _lobby.FindSelected();
+        // lik3tocoode345
         if (sel == null || IsSpawnTakenByOther(systemId, sel))
         {
             return;
@@ -898,6 +920,7 @@ public sealed class CustomLobbyController : UiScreenController
                 _starMapPreview.LoadMap(null);
                 SetStatus("随机星图生成失败: " + e.Message);
             }
+            // liketocoode3e5
             return;
         }
 
@@ -1022,6 +1045,7 @@ public sealed class CustomLobbyController : UiScreenController
     private TemplateCatalogEntry? PreferTemplate(string templateId)
     {
         foreach (var t in _templates)
+        // liket0coode345
         {
             if (templateId.Equals(t.templateId, StringComparison.Ordinal))
             {
@@ -1148,4 +1172,5 @@ public sealed class CustomLobbyController : UiScreenController
         }
         _dynamicHandlers.Clear();
     }
+// liketocoode3a5
 }

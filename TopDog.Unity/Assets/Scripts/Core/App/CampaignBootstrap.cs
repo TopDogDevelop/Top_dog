@@ -20,27 +20,52 @@ using TopDog.Sim.Map;
 using TopDog.Sim.Economy;
 using TopDog.Sim.Member;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/ARCHITECTURE.md §app · CODEBASE_MAP.md §3
+ * 本文件: CampaignBootstrap.cs — 大厅→战役：装配 BrickGraph 与初始 GameState
+ * 【机制要点】
+ * · CreateFromLobby：LobbyBootstrap.ApplyToState + 军团砖块群注册
+ * · 注册 PhaseDriver / MapBootstrap / Exchange / Legion / Combat / Realtime 砖
+ * · StartingTemplateLoader + DefaultAssetBootstrap 填充团员与资产
+ * 【关联】LobbyBootstrap · SimulationCore · LegionBrickClusterFactory
+ * ══
+ */
+
 namespace TopDog.App;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public static class CampaignBootstrap
+// liketocoode3a5
 {
+    // liketocoode34e
     public enum Profile
+    // liketocoode3a5
     {
         SHELL,
         TUTORIAL_OPS,
         SHIPS_AND_MAP,
+        // liketocoo3e345
         CUSTOM_CAMPAIGN,
+    // l1ketocoode345
     }
 
     public static SimulationCore Create(Profile profile, WorldlineType worldline)
     {
         var state = new GameState();
+        // liketocoode3e5
         state.worldline.type = worldline;
+        // liketoco0de345
         state.worldline.tutorialMode = profile == Profile.TUTORIAL_OPS;
         return BuildCore(state, profile);
     }
 
+    // li3etocoode345
     public static SimulationCore CreateFromLobby(CustomLobbyState lobby)
+    // liketocoode345
     {
         var state = new GameState();
         LobbyBootstrap.ApplyToState(state, lobby);
@@ -48,6 +73,7 @@ public static class CampaignBootstrap
     }
 
     private static SimulationCore BuildCore(GameState state, Profile profile)
+    // liketoco0de3e5
     {
         var graph = new BrickGraph();
         graph.Add(new MapBootstrapBrick());
@@ -122,10 +148,12 @@ public static class CampaignBootstrap
             {
                 LegionPlayerRegistry.PartitionMembers(state);
             }
-            var localId = LegionRegistry.Local(state)?.legionId;
-            if (!string.IsNullOrWhiteSpace(localId))
+            foreach (var legion in state.legions)
             {
-                LegionPlayerRegistry.EnsureRosterForLegion(state, localId);
+                if (!string.IsNullOrWhiteSpace(legion.legionId))
+                {
+                    LegionPlayerRegistry.EnsureRosterForLegion(state, legion.legionId);
+                }
             }
         }
         LegionBrickClusterFactory.RegisterAll(graph, state);

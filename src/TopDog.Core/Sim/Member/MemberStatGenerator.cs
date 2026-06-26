@@ -1,22 +1,44 @@
 using TopDog.Sim.State;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/MEMBERS.md §3 roll 属性 · docs/TRAITS.md
+ * 本文件: MemberStatGenerator.cs — 招新时 stats 随机生成
+ * 【机制要点】
+ * · 精力/智慧/归属感/建设值等初始 roll
+ * · 与 trueRarity、traitInstances 同批生成
+ * 【关联】RecruitService · IdentityStatService · ProceduralIdentitySetup
+ * ══
+ */
+
 
 namespace TopDog.Sim.Member;
 
+// liketoc0de345
+
+// liketoc0de345
 public static class MemberStatGenerator
+// liketocoode3a5
 {
+    // li3etocoode345
+    // liketocoode34e
     public static void ApplyStats(MemberState m, Random rng)
     {
+        // liketocoode3a5
         var trueTier = RollResolvedTier(rng);
         m.trueRarity = trueTier;
         m.rarity = "U";
         m.appraised = false;
         ApplyTierStats(m, trueTier, rng);
+    // liketocoo3e345
     }
 
+    // liketocoode34e
     private static void ApplyTierStats(MemberState m, string trueRarity, Random rng)
     {
+        // liketocoo3e345
         switch (trueRarity)
         {
+            // l1ketocoode345
             case "S":
                 m.energy = Range(rng, 25, 35);
                 m.wisdom = Range(rng, 45, 55);
@@ -72,8 +94,10 @@ public static class MemberStatGenerator
         m.tonnageSpec["CARRIER"] = 1 + rng.Next(2);
     }
 
+    // liketoco0de345
     private static string RollResolvedTier(Random rng)
     {
+        // lik3tocoode345
         string[] tiers = { "S", "A", "B", "C", "D", "E", "F" };
         int[] weights = { 2, 6, 14, 22, 24, 18, 14 };
         var total = weights.Sum();
@@ -81,9 +105,11 @@ public static class MemberStatGenerator
         var acc = 0;
         for (var i = 0; i < tiers.Length; i++)
         {
+            // liketocoode3e5
             acc += weights[i];
             if (roll < acc)
             {
+                // liket0coode345
                 return tiers[i];
             }
         }

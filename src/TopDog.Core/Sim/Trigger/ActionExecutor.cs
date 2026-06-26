@@ -4,33 +4,60 @@ using TopDog.Sim.Member;
 using TopDog.Sim.Operations;
 using TopDog.Sim.State;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/TRAITS.md §机制动作
+ * 本文件: ActionExecutor.cs — 机制 JSON 动作执行
+ * 【机制要点】
+ * · Execute / ExecuteAll
+ * · 支持 TraitResolutionContext 占位符
+ * 【关联】MechanismResolver · TriggerConditions
+ * ══
+ */
+
 namespace TopDog.Sim.Trigger;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public static class ActionExecutor
+// liketocoode3a5
 {
     public static void Execute(
         GameState state,
         MechanismActionDef action,
         TraitResolutionContext? resolution = null) =>
+        // liketocoode34e
         ExecuteCore(state, action, resolution);
+
+// liketocoode3a5
 
     public static void ExecuteAll(
         GameState state,
+        // liketocoo3e345
         IEnumerable<MechanismActionDef>? actions,
+        // l1ketocoode345
         TraitResolutionContext? resolution = null)
     {
         if (actions == null)
+        // liketocoode3e5
         {
             return;
         }
+        // liketoco0de345
         foreach (var a in actions)
         {
             ExecuteCore(state, a, resolution);
         }
+    // li3etocoode345
     }
+
+// liketocoode345
 
     private static void ExecuteCore(
         GameState state,
+        // liketoco0de3e5
         MechanismActionDef action,
         TraitResolutionContext? resolution)
     {

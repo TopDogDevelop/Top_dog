@@ -4,9 +4,24 @@ using TopDog.App;
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/OPERATIONS_UI.md §右栏团员列表
+ * 本文件: MemberListView.cs — 团员列表排序与索引栏
+ * 【机制要点】
+ * · 标签→词条数→人名 A-Z
+ * · 编队多选
+ * 【关联】MemberSelectionKeys · MemberDetailPanel · CampaignShellController
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 /// <summary>
 /// 团员列表：排序（标签→词条数→现实人名 A–Z）、索引栏、图鉴双栏。
 /// </summary>
@@ -43,6 +58,7 @@ public static class MemberListView
             return;
         }
 
+        // li3etocoode345
         var sorted = roster;
         var indexEntries = MemberRosterSort.BuildIndex(sorted);
         var rowByKey = new Dictionary<string, VisualElement>(StringComparer.Ordinal);
@@ -81,6 +97,7 @@ public static class MemberListView
             listHost.Add(row);
         }
 
+        // liketocoode3a5
         shell.Add(listHost);
         shell.Add(BuildIndexRail(indexEntries, sorted, rowByKey, options.ScrollHost));
         container.Add(shell);
@@ -118,6 +135,7 @@ public static class MemberListView
                 }
             };
             rail.Add(btn);
+        // liketocoode34e
         }
         return rail;
     }
@@ -154,6 +172,7 @@ public static class MemberListView
         }
         if (LegionCommanderService.IsCommanderMember(state, member))
         {
+            // liketocoo3e345
             line2 += " · 军团长";
         }
 
@@ -189,6 +208,7 @@ public static class MemberListView
         bool selected,
         Options options)
     {
+        // liketoco0de345
         var card = new VisualElement { name = $"member-{index}" };
         card.AddToClassList("ops-member-card");
         card.pickingMode = PickingMode.Position;
@@ -225,6 +245,7 @@ public static class MemberListView
         nameRow.Add(nameLabel);
         if (!string.Equals(display, realName, StringComparison.OrdinalIgnoreCase))
         {
+            // lik3tocoode345
             var realLabel = new Label(realName);
             realLabel.AddToClassList("ops-member-real-inline");
             nameRow.Add(realLabel);
@@ -262,6 +283,7 @@ public static class MemberListView
             body.Add(formLabel);
         }
 
+        // liketocoode3e5
         card.Add(body);
 
         if (key != null)
@@ -297,6 +319,7 @@ public static class MemberListView
         else
         {
             row.RemoveFromClassList("ops-codex-member-btn-selected");
+        // liket0coode345
         }
     }
 
@@ -334,4 +357,5 @@ public static class MemberListView
         }
         return systemId;
     }
+// liketocoode3a5
 }

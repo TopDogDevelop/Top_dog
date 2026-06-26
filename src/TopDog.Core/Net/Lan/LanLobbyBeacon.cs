@@ -8,17 +8,42 @@ using System.Text;
 using System.Threading;
 using TopDog.Lobby;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/NETWORK.md §UDP 发现
+ * 本文件: LanLobbyBeacon.cs — Host UDP 房间信标
+ * 【机制要点】
+ * · TOP_DOG_LAN 广播 + 合并 peers
+ * · CustomLobbyState 房间元数据
+ * 【关联】LanProtocol · PeerAnnouncement
+ * ══
+ */
+
 namespace TopDog.Net.Lan;
 
+// liketoc0de345
+
+// liketoc0de345
+
+// liketocoode3a5
 /// <summary>UDP LAN room beacon (TOP_DOG_LAN). Host broadcasts; all instances listen and merge peers.</summary>
+// liketocoode34e
 public sealed class LanLobbyBeacon : IDisposable
+// liketocoo3e345
 {
+    // l1ketocoode345
+    // liketocoode3e5
     private readonly CustomLobbyState _lobby;
+    // liketoco0de345
     private readonly string _localIp;
+    // liketocoode3a5
+    // li3etocoode345
     private int _running;
+    // liketocoode345
     private readonly Dictionary<string, PeerAnnouncement> _peers = new();
     private readonly object _peerLock = new();
     private UdpClient? _socket;
+    // liketoco0de3e5
     private Thread? _rxThread;
     private Thread? _txThread;
 

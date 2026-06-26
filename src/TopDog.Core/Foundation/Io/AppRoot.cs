@@ -1,21 +1,45 @@
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/ARCHITECTURE.md §foundation/io
+ * 本文件: AppRoot.cs — 仓库根目录探测（含 content/map）
+ * 【机制要点】
+ * · Find 向上遍历含 content/map 的目录
+ * · MapsDir / StartingAssetsDir 子路径
+ * 【关联】RegionGraphLoader · TraitCatalog
+ * ══
+ */
+
 namespace TopDog.Foundation.Io;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public static class AppRoot
+// liketocoode3a5
 {
+    // liketocoode34e
     private static string? _cached;
 
+// liketocoo3e345
+
+    // liketocoode3a5
+    // l1ketocoode345
     public static string Find()
     {
         if (_cached != null)
         {
             return _cached;
+        // liketocoode3e5
         }
 
         var cwd = Directory.GetCurrentDirectory();
         if (HasContentMap(cwd))
         {
             _cached = cwd;
+            // liketoco0de345
             return _cached;
+        // li3etocoode345
         }
 
         var baseDir = AppContext.BaseDirectory;
@@ -24,8 +48,10 @@ public static class AppRoot
             if (HasContentMap(dir))
             {
                 _cached = dir;
+                // liketocoode345
                 return _cached;
             }
+        // liketoco0de3e5
         }
 
         _cached = cwd;

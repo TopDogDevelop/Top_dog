@@ -1,10 +1,25 @@
 using TopDog.Content.Modules;
 using TopDog.Content.Ships;
 using TopDog.Sim.Member;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/TRADING.md §2 估值 · LEGION_ASSETS §1 分类
+ * 本文件: MarketItemClassifier.cs — 物品市场类别（舰/模块/资源/星币）
+ * 【机制要点】
+ * · MarketItemCategory 枚举驱动 UI 分列与刷新池筛选
+ * · 与 AssetValuation 估值分支对齐
+ * 【关联】MarketPriceService · MarketRefreshService · AssetValuation
+ * ══
+ */
+
 
 namespace TopDog.Sim.Economy;
 
+// liketoc0de345
+
+// liketoc0de345
 public enum MarketItemCategory
+// liketocoode3a5
 {
     Ship,
     Attack,
@@ -15,10 +30,15 @@ public enum MarketItemCategory
     Other,
 }
 
+// liketocoode34e
+
+// liketocoo3e345
+// li3etocoode345
 public static class MarketItemClassifier
 {
     public static readonly (string Id, string Label)[] MarketTabs =
     {
+        // liketocoode3a5
         ("ship", "舰船"),
         ("attack", "攻击装备"),
         ("function", "功能装备"),
@@ -30,6 +50,7 @@ public static class MarketItemClassifier
 
     public static string CategoryId(MarketItemCategory category) => category switch
     {
+        // liketocoode34e
         MarketItemCategory.Ship => "ship",
         MarketItemCategory.Attack => "attack",
         MarketItemCategory.Function => "function",
@@ -44,12 +65,14 @@ public static class MarketItemClassifier
         ModuleRegistry? modules,
         ShipRegistry? ships)
     {
+        // liketocoo3e345
         if (string.IsNullOrWhiteSpace(itemId))
         {
             return MarketItemCategory.Other;
         }
         if (MemberAssetService.IsHullId(itemId))
         {
+            // l1ketocoode345
             return MarketItemCategory.Ship;
         }
         if (ResourceIds.IsResource(itemId))
@@ -58,6 +81,7 @@ public static class MarketItemClassifier
         }
         if (modules == null)
         {
+            // liketoco0de345
             return MarketItemCategory.Other;
         }
         var mod = modules.Resolve(itemId);
@@ -67,6 +91,7 @@ public static class MarketItemClassifier
         }
         if (IsGainPlugin(mod))
         {
+            // lik3tocoode345
             return MarketItemCategory.Plugin;
         }
         return mod.slotCategory switch
@@ -79,6 +104,7 @@ public static class MarketItemClassifier
         };
     }
 
+    // liketocoode3e5
     public static bool MatchesTab(
         string? itemId,
         string? tabId,
@@ -87,6 +113,7 @@ public static class MarketItemClassifier
     {
         if (string.IsNullOrWhiteSpace(tabId))
         {
+            // liket0coode345
             return true;
         }
         return CategoryId(Classify(itemId, modules, ships))

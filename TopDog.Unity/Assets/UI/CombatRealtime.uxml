@@ -9,6 +9,7 @@
         <ui:VisualElement name="art-screen-bg" class="art-layer art-slot-screen-bg" />
         <ui:VisualElement class="rtcombat-topbar">
           <ui:Button name="btn-view-toggle" text="星图" class="rtcombat-compact-btn" />
+          <ui:Button name="btn-battle-reports" text="战报" class="rtcombat-compact-btn" />
           <ui:Label name="lbl-broadcast" text="播报" class="rtcombat-subtitle" />
           <ui:ScrollView name="overview-scroll" class="rtcombat-overview">
             <ui:Label name="lbl-overview" text="未选中目标" />
@@ -28,6 +29,7 @@
               <ui:Button name="btn-vp-orbit-down" text="▼" class="ops-vp-btn" tooltip="俯仰下" />
               <ui:Button name="btn-vp-zoom-in" text="+" class="ops-vp-btn" tooltip="放大" />
               <ui:Button name="btn-vp-zoom-out" text="−" class="ops-vp-btn" tooltip="缩小" />
+              <ui:Button name="btn-vp-reset" text="归位" class="ops-vp-btn" tooltip="俯视归位战场" />
             </ui:VisualElement>
             <ui:VisualElement name="virtual-joystick-host" class="rtcombat-joystick-host" style="display: none;" />
           </ui:VisualElement>
@@ -43,7 +45,7 @@
               <ui:Button name="btn-vp-zoom-in-sm" text="+" class="ops-vp-btn" tooltip="放大" />
               <ui:Button name="btn-vp-zoom-out-sm" text="−" class="ops-vp-btn" tooltip="缩小" />
               <ui:Button name="btn-vp-frame-sm" text="全图" class="ops-vp-btn" tooltip="全图" />
-              <ui:Button name="btn-vp-reset-sm" text="归零" class="ops-vp-btn" tooltip="归零" />
+              <ui:Button name="btn-vp-reset-sm" text="归位" class="ops-vp-btn" tooltip="俯视归位战场" />
             </ui:VisualElement>
           </ui:VisualElement>
           <ui:VisualElement name="right-rail" class="rtcombat-right-rail">
@@ -59,6 +61,7 @@
           <ui:Button name="btn-possess-friendly" text="切换视野" class="rtcombat-fleet-btn" />
           <ui:Button name="btn-rally" text="集合" class="rtcombat-fleet-btn" />
           <ui:Button name="btn-follow" text="接近" class="rtcombat-fleet-btn" />
+          <ui:Button name="btn-away" text="远离" class="rtcombat-fleet-btn" />
           <ui:Button name="btn-follow-attack" text="跟随攻击" class="rtcombat-fleet-btn" />
           <ui:Button name="btn-focus" text="集火" class="rtcombat-fleet-btn" />
           <ui:Button name="btn-scatter" text="散开" class="rtcombat-fleet-btn" />

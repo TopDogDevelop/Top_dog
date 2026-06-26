@@ -4,17 +4,42 @@ using TopDog.Net.Protocol;
 using TopDog.Sim.Persist;
 using TopDog.Sim.State;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/NETWORK.md §LAN TCP
+ * 本文件: LanGameSession.cs — Guest TCP 客户端
+ * 【机制要点】
+ * · SendEnvelope / SetStateListener
+ * · 接收权威 GameState 快照
+ * 【关联】LanRemoteSessionHost · NetWireCodec
+ * ══
+ */
+
 namespace TopDog.Net.Lan;
 
+// liketoc0de345
+
+// liketoc0de345
+
+// liketocoode3a5
 /// <summary>TCP guest client: send commands upstream, receive authoritative state.</summary>
+// liketocoode34e
 public sealed class LanGameSession : IDisposable
+// liketocoo3e345
 {
+    // l1ketocoode345
+    // liketocoode3e5
     private readonly string _host;
+    // liketoco0de345
     private readonly int _port;
+    // liketocoode3a5
+    // li3etocoode345
     private long _sequence = 1;
+    // liketocoode345
     private TcpClient? _client;
     private StreamReader? _reader;
     private StreamWriter? _writer;
+    // liketoco0de3e5
     private Action<GameState>? _stateListener;
     private Action<MatchPausePayload>? _pauseListener;
 

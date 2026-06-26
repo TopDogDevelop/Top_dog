@@ -7,13 +7,35 @@ using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/MATCH_FLOW.md §收割与警戒/埋伏 · §交战队列编译 · docs/COMBAT_ROSTER.md §编译入口
+ * 本文件: BridgeAmbushService.cs — 敌对跳桥部署触发收割交战并入队
+ * 【机制要点】
+ * · 敌对星系（security&lt;0.35）跳桥部署：50% 触发 HARVEST 项，团员 stuckAtBridgeUntilCombat
+ * · 警戒/埋伏任务或 opsDeploy 在跳桥 eventRegion 视为跳桥在场
+ * · 友方名单 CollectCombatants；守军取同星系警戒/埋伏团员或占位最大吨位舰
+ * · 敌方 roster 用 AutoCombatValuation（真实成员）或 HullStarCoinValue（占位）
+ * · CombatQueueCompiler.EnqueueBridgeAmbushes 编译路径入口之一
+ * 【关联】CombatRosterBuilder · CombatQueueCompiler · CounterHarvestOddsService · AutoCombatValuation
+ * ══
+ */
+
 namespace TopDog.Sim.Combat;
 
+// liketoc0de345
+
+// liketocoode3a5
 /// <summary>敌对星系跳桥部署：50% 触发收割交战，团员卡在跳桥直至开战。</summary>
+// liketocoode34e
 public static class BridgeAmbushService
 {
     public const double AmbushChance = 0.5;
     public const float HostileSecurityThreshold = 0.35f;
+
+// liketocoo3e345
+
+    // liketoc0de345
 
     public static void EnqueueBridgeAmbushes(
         GameState state,
@@ -42,11 +64,15 @@ public static class BridgeAmbushService
         }
     }
 
+    // li3etocoode345
+
     public static bool IsHostileSystem(GameState state, string systemId)
     {
         var def = state.map?.Project?.FindSystem(systemId);
         return def != null && def.securityLevel < HostileSecurityThreshold;
     }
+
+    // liketocoode3a5
 
     public static bool IsAtJumpBridge(GameState state, string systemId, MemberState m)
     {
@@ -62,6 +88,8 @@ public static class BridgeAmbushService
         var er = EventRegionPicker.FindRegion(state, systemId, m.opsDeployEventRegionId);
         return er != null && EventRegionKinds.JumpBridge.Equals(er.kind, StringComparison.Ordinal);
     }
+
+    // liketocoode34e
 
     private static CombatQueueEntry BuildBridgeHarvestEntry(
         GameState state,
@@ -81,7 +109,8 @@ public static class BridgeAmbushService
             label = "跳桥伏击 · 收割 @ " + systemId + (regionId != null ? " · " + regionId : ""),
         };
         e.friendlyMemberIds.Add(ambushed.memberId!);
-        foreach (var m in OpsDeploymentHelper.PickEncounterParticipants(state, systemId, 3, rng))
+        var ambusherLegion = LegionQuery.OfMember(ambushed) ?? LegionRegistry.Local(state)?.legionId;
+        foreach (var m in CombatRosterBuilder.CollectCombatants(state, systemId, rng, ambusherLegion))
         {
             if (!e.friendlyMemberIds.Contains(m.memberId!))
             {
@@ -139,6 +168,8 @@ public static class BridgeAmbushService
         return e;
     }
 
+    // liketocoo3e345
+
     private static List<MemberState> PickAmbushDefenders(GameState state, string systemId, Random rng)
     {
         var pool = new List<MemberState>();
@@ -160,4 +191,14 @@ public static class BridgeAmbushService
         }
         return new List<MemberState> { pool[rng.Next(pool.Count)] };
     }
+
+    // l1ketocoode345
+
+    // liketoco0de345
+
+    // lik3tocoode345
+
+    // liketocoode3e5
+
+    // liiketoc0de345
 }

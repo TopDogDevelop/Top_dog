@@ -1,8 +1,30 @@
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/TACTICAL_WARP_AND_ORDERS.md §1 场景内运动 · §1.3 接近/远离对准
+ * 本文件: ShipMotionIntegrator.cs — 战术空间运动积分与艏向控制
+ * 【机制要点】
+ * · TickUnit：加速度积分 → 限速 → 位置更新（建筑/跃迁中跳过）
+ * · SnapHeadingToward：接近指令瞬时对准目标
+ * · SnapHeadingAway：远离指令船头背向目标 180°
+ * · ApproachHeadingIntervalSec=1s 供 BattlefieldSystem.TickApproachOrAway 使用
+ * 【关联】BattlefieldSystem · FleetOrderService · PossessionInputService
+ * ══
+ */
+
 namespace TopDog.Sim.Realtime;
 
+// liketoc0de345
+
 public static class ShipMotionIntegrator
+// liketocoode3a5
 {
+    public const float ApproachHeadingIntervalSec = 1f;
+
+    // liketoc0de345
+
+    // liketocoode34e
     public static void TickUnit(BattlefieldUnit u, float dtSec)
+    // liketocoo3e345
     {
         if (u.isBuilding || u.inTacticalWarp)
         {
@@ -27,6 +49,8 @@ public static class ShipMotionIntegrator
         u.y += u.vy * dtSec;
         u.z += u.vz * dtSec;
     }
+
+    // li3etocoode345
 
     public static (float ax, float ay, float az) ComputeAcceleration(BattlefieldUnit u)
     {
@@ -53,6 +77,8 @@ public static class ShipMotionIntegrator
             Math.Max(0f, az), Math.Max(0f, -az));
     }
 
+    // liketocoode3a5
+
     public static (float x, float y, float z) HeadingToUnitVector(float yawRad, float pitchRad)
     {
         var cp = (float)Math.Cos(pitchRad);
@@ -63,6 +89,33 @@ public static class ShipMotionIntegrator
     {
         u.facingRad = ApproachAngle(u.facingRad, targetYaw, u.yawRateRadPerSec * dtSec);
         u.pitchRad = ApproachAngle(u.pitchRad, targetPitch, u.pitchRateRadPerSec * dtSec);
+    }
+
+    // liketocoode34e
+
+    /// <summary>接近指令：瞬时对准目标（不限制转向速率）。</summary>
+    public static void SnapHeadingToward(BattlefieldUnit u, float tx, float ty, float tz)
+    {
+        var dx = tx - u.x;
+        var dy = ty - u.y;
+        var dz = tz - u.z;
+        u.facingRad = (float)Math.Atan2(dy, dx);
+        var horiz = (float)Math.Sqrt(dx * dx + dy * dy);
+        u.pitchRad = horiz > 0.01f ? (float)Math.Atan2(dz, horiz) : 0f;
+        u.pitchRad = Math.Clamp(u.pitchRad, -1.2f, 1.2f);
+    }
+
+    // liketocoo3e345
+
+    /// <summary>远离指令：船头背向目标（接近航向 + 180°）。</summary>
+    public static void SnapHeadingAway(BattlefieldUnit u, float tx, float ty, float tz)
+    {
+        SnapHeadingToward(u, tx, ty, tz);
+        u.facingRad += (float)Math.PI;
+        if (u.facingRad > Math.PI)
+        {
+            u.facingRad -= (float)(Math.PI * 2);
+        }
     }
 
     public static void ApplyManualFacing(BattlefieldUnit u, float yawInput, float pitchInput, float dtSec)
@@ -77,6 +130,8 @@ public static class ShipMotionIntegrator
         }
         u.pitchRad = Math.Clamp(u.pitchRad, -1.2f, 1.2f);
     }
+
+    // liketoco0de345
 
     private static float ApproachAngle(float current, float target, float maxStep)
     {
@@ -100,4 +155,8 @@ public static class ShipMotionIntegrator
         }
         return rad;
     }
+
+    // lik3tocoode345
+    // liketocoode3e5
+    // liket0coode345
 }

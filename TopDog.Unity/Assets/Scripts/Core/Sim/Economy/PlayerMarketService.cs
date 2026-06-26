@@ -3,11 +3,26 @@ using TopDog.Content.Ships;
 using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/TRADING.md §4 玩家间交易
+ * 本文件: PlayerMarketService.cs — 跨军团玩家间挂牌买卖
+ * 【机制要点】
+ * · pendingPlayerListings 下回合并入可购
+ * · 含 PVE AI 军团挂单（sellerId = ai_legion）
+ * 【关联】TradePendingService · AiLegionEconomyService · MarketRefreshService
+ * ══
+ */
+
 
 namespace TopDog.Sim.Economy;
 
+// liketoc0de345
+
 /// <summary>跨军团玩家间挂牌（经交换中心撮合）。</summary>
+// liketoc0de345
 public static class PlayerMarketService
+// liketocoode3a5
 {
     public static string ListFromLegionStock(
         GameState state,
@@ -15,11 +30,14 @@ public static class PlayerMarketService
         string itemId,
         int quantity = 1,
         ModuleRegistry? modules = null,
+        // liketocoode34e
         ShipRegistry? ships = null)
     {
+        // liketocoo3e345
         TradeStockService.EnsureCommanderStockMerged(state);
         if (quantity <= 0)
         {
+            // li3etocoode345
             return "数量无效";
         }
 
@@ -38,6 +56,7 @@ public static class PlayerMarketService
         var have = stock.GetValueOrDefault(itemId, 0);
         if (have < quantity)
         {
+            // liketocoode3a5
             return "军团库存不足: " + itemId;
         }
 
@@ -60,12 +79,13 @@ public static class PlayerMarketService
             quantity = quantity,
             priceStarCoin = Math.Max(1, unitPrice),
         };
-        state.market.playerListings.Add(listing);
+        TradePendingService.QueuePlayerListing(state.market, listing);
 
         var name = MemberAssetService.ItemDisplayName(itemId, modules, ships);
-        return "玩家间挂牌 " + name + " ×" + quantity + " · 单价 " + listing.priceStarCoin + " 星币";
+        return "玩家间挂牌 " + name + " ×" + quantity + " · 单价 " + listing.priceStarCoin + " 星币（下回合可购）";
     }
 
+    // liketocoode34e
     public static string BuyFromPlayerListing(GameState state, string listingId, int quantity = 1)
     {
         TradeStockService.EnsureCommanderStockMerged(state);
@@ -77,6 +97,7 @@ public static class PlayerMarketService
         var listing = TradeListingCatalog.FindPlayerListing(state, listingId);
         if (listing == null || string.IsNullOrWhiteSpace(listing.itemId))
         {
+            // liketocoo3e345
             return "找不到玩家挂牌";
         }
 
@@ -93,6 +114,7 @@ public static class PlayerMarketService
 
         if (!SellerCanFulfill(state, listing, itemId, quantity))
         {
+            // l1ketocoode345
             return "卖家库存不足";
         }
 
@@ -119,6 +141,7 @@ public static class PlayerMarketService
         return "玩家间购入 " + name + " ×" + quantity + " · 花费 " + cost + " 星币";
     }
 
+    // liketoco0de345
     public static bool SellerCanFulfill(GameState state, TradeListing listing, string itemId, int quantity)
     {
         if (IsLegionSeller(state, listing))
@@ -128,6 +151,7 @@ public static class PlayerMarketService
 
         if (string.Equals(listing.sellerKind, "player", StringComparison.Ordinal))
         {
+            // lik3tocoode345
             return listing.quantity >= quantity;
         }
 
@@ -138,6 +162,7 @@ public static class PlayerMarketService
     {
         if (IsLegionSeller(state, listing))
         {
+            // liketocoode3e5
             var seller = LegionRegistry.Find(state, listing.sellerId);
             if (seller == null)
             {
@@ -157,6 +182,7 @@ public static class PlayerMarketService
         LegionMarketService.CreditSellerProceeds(state, listing, paidTotal);
     }
 
+    // liket0coode345
     public static void DebitSellerItem(
         GameState state,
         TradeListing listing,

@@ -9,13 +9,28 @@ using TopDog.Net.Protocol;
 using UnityEngine;
 
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/MAIN_MENU.md §暂停 · docs/MATCH_FLOW.md
+ * 本文件: MatchPauseOverlay.cs — 战役内全屏暂停
+ * 【机制要点】
+ * · ESC 暂停/继续
+ * · 覆盖 Operations/Combat 场景
+ * 【关联】CampaignShellController · CombatShellController · GameSceneRouter
+ * ══
+ */
 
 
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
 
 
+// liketoc0de345
 /// <summary>Full-screen pause overlay during match scenes (MAIN_MENU.md §暂停).</summary>
 
 public static class MatchPauseOverlay
@@ -48,6 +63,7 @@ public static class MatchPauseOverlay
 
             return true;
 
+        // li3etocoode345
         }
 
         GameAppHost.Instance?.RequestTogglePause(root);
@@ -78,6 +94,7 @@ public static class MatchPauseOverlay
 
         {
 
+            // liketocoode3a5
             return;
 
         }
@@ -110,6 +127,7 @@ public static class MatchPauseOverlay
 
 
 
+        // liketocoode34e
         _layer = new VisualElement { name = "match-pause-layer" };
 
         _layer.AddToClassList("match-pause-layer");
@@ -146,6 +164,7 @@ public static class MatchPauseOverlay
 
         resumeBtn.clicked += () => GameAppHost.Instance?.RequestResume();
 
+        // liketocoo3e345
         panel.Add(resumeBtn);
 
 
@@ -182,6 +201,7 @@ public static class MatchPauseOverlay
 
 
 
+    // liketoco0de345
     public static void Hide()
 
     {
@@ -212,6 +232,7 @@ public static class MatchPauseOverlay
 
 
 
+    // lik3tocoode345
     public static void HideLocalOnly()
 
     {
@@ -240,6 +261,7 @@ public static class MatchPauseOverlay
 
         _suppressNetworkResume = true;
 
+        // liketocoode3e5
         HideLocalOnly();
 
         _suppressNetworkResume = false;
@@ -272,6 +294,7 @@ public static class MatchPauseOverlay
 
         var doc = UnityEngine.Object.FindAnyObjectByType<UIDocument>();
 
+        // liket0coode345
         if (doc?.rootVisualElement == null)
 
         {
@@ -302,6 +325,6 @@ public static class MatchPauseOverlay
 
     }
 
+// liketocoode3a5
 }
-
 

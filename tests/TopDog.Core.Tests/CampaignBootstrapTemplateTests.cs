@@ -1,6 +1,8 @@
 using TopDog.App;
+using TopDog.Content.Starting;
 using TopDog.Foundation.Io;
 using TopDog.Lobby;
+using TopDog.Sim.Legion;
 using TopDog.Sim.State;
 using System.Linq;
 
@@ -74,6 +76,60 @@ public sealed class CampaignBootstrapTemplateTests
             .ToList();
         Assert.That(legionForts.Count, Is.EqualTo(2));
         Assert.That(legionForts.Select(b => b.legionId).Distinct().Count(), Is.EqualTo(2));
+    }
+
+    [Test]
+    public void SameMemberTemplate_BothLegionsKeepDistinctRosters()
+    {
+        var map = ContentCatalog.LoadMap(AppRoot.ContentMapDir());
+        var lobby = new CustomLobbyState
+        {
+            mapPath = AppRoot.ContentMapDir(),
+            mapDisplayName = "tutorial",
+        };
+        var human = new LobbyPlayer
+        {
+            local = true,
+            host = true,
+            kind = LobbyPlayerKind.HUMAN,
+            displayName = "test-host",
+            memberTemplateId = "template_1",
+            assetTemplateId = "assets_1",
+            spawnSolarSystemId = map.Project.systems[0].solarSystemId,
+        };
+        lobby.players.Add(human);
+        var ai = new LobbyPlayer
+        {
+            kind = LobbyPlayerKind.AI,
+            displayName = "ai-1",
+            memberTemplateId = "template_1",
+            assetTemplateId = "assets_1",
+            spawnSolarSystemId = map.Project.systems.Count > 1
+                ? map.Project.systems[1].solarSystemId
+                : map.Project.systems[0].solarSystemId,
+        };
+        lobby.players.Add(ai);
+
+        var core = CampaignBootstrap.CreateFromLobby(lobby);
+        var templateCount = StartingTemplateLoader.LoadMembers("template_1").Count;
+        var humanLegionId = core.State.legions.First(l => l.isLocal).legionId;
+        var aiLegionId = core.State.legions.First(l => l.isAiControlled).legionId;
+        var humanRoster = LegionPlayerRegistry.VisibleRoster(core.State, humanLegionId);
+        var aiRoster = LegionPlayerRegistry.VisibleRoster(core.State, aiLegionId);
+
+        Assert.That(templateCount, Is.GreaterThan(0));
+        Assert.That(humanRoster, Is.Not.Empty, "human legion roster should not be empty when sharing template with AI");
+        Assert.That(aiRoster, Is.Not.Empty, "AI legion roster should not be empty when sharing template with human");
+        Assert.That(humanRoster.Count, Is.EqualTo(templateCount));
+        Assert.That(aiRoster.Count, Is.EqualTo(templateCount));
+        Assert.That(core.State.members.Count, Is.EqualTo(templateCount * 2));
+        Assert.That(humanRoster.Select(m => m.memberId).Distinct().Count(), Is.EqualTo(templateCount));
+        Assert.That(aiRoster.Select(m => m.memberId).Distinct().Count(), Is.EqualTo(templateCount));
+        var overlap = humanRoster.Select(m => m.memberId).Intersect(aiRoster.Select(m => m.memberId)).ToList();
+        Assert.That(overlap, Is.Empty, "memberId must be unique per legion instance");
+        var sharedIdentity = humanRoster[0].identityCode;
+        Assert.That(aiRoster.Any(m => sharedIdentity.Equals(m.identityCode, StringComparison.Ordinal)), Is.True,
+            "same template identity may repeat across legions");
     }
 
     [Test]

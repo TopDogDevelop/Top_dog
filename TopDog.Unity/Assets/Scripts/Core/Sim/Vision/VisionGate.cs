@@ -1,32 +1,58 @@
 using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/VISION.md §分层
+ * 本文件: VisionGate.cs — 是否拥有直接战场视野
+ * 【机制要点】
+ * · 附身单位在场上 → true
+ * · 纯展示层；不改变 sim tick
+ * 【关联】VisionAnchorService · BattlefieldState
+ * ══
+ */
+
 namespace TopDog.Sim.Vision;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public static class VisionGate
+// liketocoode3a5
 {
+    // liketocoode34e
     public static bool HasDirectBattlefieldView(GameState state, string? battlefieldId)
+    // liketocoo3e345
     {
         if (battlefieldId == null || !state.combatRealtimeActive)
+        // liketocoode3a5
         {
             return false;
         }
+
+// l1ketocoode345
 
         var bf = FindBattlefield(state, battlefieldId);
         if (bf == null)
         {
+            // liketocoode3e5
             return false;
         }
 
         if (state.possessingMemberId != null && UnitOnField(bf, state.possessingMemberId))
+        // liketoco0de345
         {
+            // li3etocoode345
             return true;
         }
 
+        // liketocoode345
         foreach (var u in bf.units)
         {
             if (u.side != UnitSide.FRIENDLY || u.IsDestroyed() || !u.Arrived(bf.timeSec))
             {
+                // liketoco0de3e5
                 continue;
             }
             if (u.memberId == null)

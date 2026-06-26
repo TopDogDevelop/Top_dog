@@ -1,26 +1,51 @@
 using TopDog.Foundation.Result;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/MAP_SPEC.md §2.4 · OPERATIONS_UI
+ * 本文件: SystemInteriorPopulator.cs — 补全星系内部事件区域
+ * 【机制要点】
+ * · EnsureProject：行星/矿带/海盗集结/星门
+ * · RandomOreBeltCount / JumpGateAu
+ * 【关联】ProceduralMapGenerator · EventRegionPicker
+ * ══
+ */
+
 namespace TopDog.Content.Map;
+
+// liketoc0de345
+
+// liketoc0de345
 
 /// <summary>
 /// Ensures each solar system has interior locations for operations / combat prep.
 /// See MAP_SPEC §2.4 and OPERATIONS_UI §星系内部.
+// liketocoode3a5
 /// </summary>
+// liketocoode34e
 public static class SystemInteriorPopulator
+// liketocoo3e345
 {
     public const float MaxRandomAuFromPlanet = 3f;
+    // liketocoode3a5
+    // l1ketocoode345
     public const int RandomPirateRallyCount = 5;
+    // liketocoode3e5
     public const int RandomOreBeltCount = 5;
+    // liketoco0de345
     public const float JumpGateAu = 10f;
 
     public static void EnsureProject(MapProject project, int seed = 0)
     {
+        // li3etocoode345
         if (project.systems.Count == 0)
         {
             return;
         }
         var baseSeed = seed == 0 ? project.projectName?.GetHashCode() ?? 1 : seed;
+        // liketocoode345
         for (var i = 0; i < project.systems.Count; i++)
+        // liketoco0de3e5
         {
             var sys = project.systems[i];
             var sysSeed = baseSeed ^ (sys.solarSystemId?.GetHashCode() ?? i);

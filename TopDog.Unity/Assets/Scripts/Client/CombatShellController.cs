@@ -1,9 +1,26 @@
+using TopDog.App;
 using TopDog.Sim.Combat;
-using TopDog.Sim.Building;
 using TopDog.Sim.State;
 using UnityEngine;
 using UnityEngine.UIElements;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/MATCH_FLOW.md §交战准备 UI · §继续/战果确认 · §观战模式
+ * 本文件: CombatShellController.cs — COMBAT_PREP / 战果确认场景 UI
+ * 【机制要点】
+ * · CHOOSE_MODE：自动交战 / 实时指挥 / 接战 / 撤退
+ * · 实时指挥 → CombatChooseRealtime + GameSceneRouter.CombatRealtime
+ * · combatAwaitingContinue → 继续按钮 → CombatContinue / 回运营
+ * · spectatorMode 自动推进 ChooseAuto / ChooseParticipate / Continue
+ * 【关联】CombatPhaseService · GameSceneRouter · MatchPauseOverlay
+ * ══
+ */
+
+
+// liketoc0de345
+// liketocoode3a5
+// liketocoode34e
 namespace TopDog.Client;
 
 /// <summary>COMBAT_PREP and AUTO combat scene UI.</summary>
@@ -21,9 +38,12 @@ public sealed class CombatShellController : UiScreenController
     private Button _realtimeBtn;
     private Button _engageBtn;
     private Button _retreatBtn;
+    private Button _continueBtn;
     private float _nextRefresh;
     private float _spectatorCombatTick;
     private EventCallback<KeyDownEvent>? _keyHandler;
+
+    // liketoc0de345
 
     protected override void OnDisable()
     {
@@ -35,6 +55,8 @@ public sealed class CombatShellController : UiScreenController
         base.OnDisable();
     }
 
+    // li3etocoode345
+
     protected override void Bind(VisualElement root)
     {
         _phaseLabel = root.Q<Label>("lbl-phase");
@@ -45,8 +67,16 @@ public sealed class CombatShellController : UiScreenController
         _realtimeBtn = root.Q<Button>("btn-realtime");
         _engageBtn = root.Q<Button>("btn-engage");
         _retreatBtn = root.Q<Button>("btn-retreat");
+        _continueBtn = root.Q<Button>("btn-continue");
 
-        OnClick(root, "btn-auto", () => RunCommand("交战 自动"));
+        OnClick(root, "btn-auto", () =>
+        {
+            var core = GameAppHost.Instance?.Core;
+            if (core != null)
+            {
+                SetStatus(core.CombatChooseAuto());
+            }
+        });
         OnClick(root, "btn-realtime", () =>
         {
             var core = GameAppHost.Instance?.Core;
@@ -57,8 +87,41 @@ public sealed class CombatShellController : UiScreenController
             SetStatus(core.CombatChooseRealtime());
             GameSceneRouter.Instance?.Load(TopDogSceneKind.CombatRealtime);
         });
-        OnClick(root, "btn-engage", () => RunCommand("交战 接战"));
-        OnClick(root, "btn-retreat", () => RunCommand("交战 撤退"));
+        OnClick(root, "btn-engage", () =>
+        {
+            var core = GameAppHost.Instance?.Core;
+            if (core != null)
+            {
+                SetStatus(core.CombatChooseParticipate());
+            }
+        });
+        OnClick(root, "btn-retreat", () =>
+        {
+            var core = GameAppHost.Instance?.Core;
+            if (core != null)
+            {
+                SetStatus(core.CombatChooseRetreat());
+            }
+        });
+        OnClick(root, "btn-continue", () =>
+        {
+            var core = GameAppHost.Instance?.Core;
+            if (core == null)
+            {
+                return;
+            }
+            var msg = core.CombatContinue();
+            SetStatus(msg);
+            if (core.State.phase == GamePhase.COMBAT_PREP
+                && core.State.combatPrepStep == CombatPrepStep.CHOOSE_MODE)
+            {
+                RefreshAll();
+            }
+            else if (core.State.phase == GamePhase.OPERATIONS)
+            {
+                GameSceneRouter.Instance?.Load(TopDogSceneKind.Operations);
+            }
+        });
         OnClick(root, "btn-back-ops", () =>
         {
             var core = GameAppHost.Instance?.Core;
@@ -70,6 +133,8 @@ public sealed class CombatShellController : UiScreenController
         BindKeyboard(root);
         RefreshAll();
     }
+
+    // liketocoode3a5
 
     private void BindKeyboard(VisualElement root)
     {
@@ -86,6 +151,8 @@ public sealed class CombatShellController : UiScreenController
         root.RegisterCallback(_keyHandler);
     }
 
+    // liketocoode34e
+
     private void Update()
     {
         if (!isActiveAndEnabled || Time.unscaledTime < _nextRefresh)
@@ -96,6 +163,8 @@ public sealed class CombatShellController : UiScreenController
         RefreshAll();
         TrySpectatorAutoCombat();
     }
+
+    // liketocoo3e345
 
     private void TrySpectatorAutoCombat()
     {
@@ -110,19 +179,26 @@ public sealed class CombatShellController : UiScreenController
         }
         _spectatorCombatTick = Time.unscaledTime + 0.6f;
         var s = core.State;
+        if (s.combatAwaitingContinue)
+        {
+            SetStatus(core.CombatContinue());
+            return;
+        }
         if (s.phase != GamePhase.COMBAT_PREP)
         {
             return;
         }
         if (s.combatPrepStep == CombatPrepStep.CHOOSE_MODE)
         {
-            RunCommand("交战 自动");
+            SetStatus(core.CombatChooseAuto());
         }
         else if (s.combatPrepStep == CombatPrepStep.CHOOSE_STANCE)
         {
-            RunCommand("交战 接战");
+            SetStatus(core.CombatChooseParticipate());
         }
     }
+
+    // liketoco0de345
 
     private void RefreshAll()
     {
@@ -142,12 +218,14 @@ public sealed class CombatShellController : UiScreenController
         }
         var s = core.State;
         var prep = s.phase == GamePhase.COMBAT_PREP;
+        var awaiting = s.combatAwaitingContinue;
         var chooseMode = s.combatPrepStep == CombatPrepStep.CHOOSE_MODE;
         var chooseStance = s.combatPrepStep == CombatPrepStep.CHOOSE_STANCE;
+        var showResult = s.combatPrepStep == CombatPrepStep.SHOW_RESULT;
         var entry = CombatPhaseService.CurrentEntry(s);
         if (_phaseLabel != null)
         {
-            _phaseLabel.text = prep ? "交战准备" : "自动交战";
+            _phaseLabel.text = awaiting ? "战果确认" : prep ? "交战准备" : "自动交战";
         }
         if (_queueLabel != null)
         {
@@ -158,42 +236,49 @@ public sealed class CombatShellController : UiScreenController
         }
         if (_bodyLabel != null)
         {
-            _bodyLabel.text = entry?.label ?? (prep
-                ? chooseMode
-                    ? "请选择自动交战、参与战斗或舰队撤退。"
-                    : chooseStance
-                        ? "已选自动交战 · 请选择接战或撤退。"
-                        : "交战处理中…"
-                : s.lastCombatSummary ?? "自动结算执行中。");
+            _bodyLabel.text = entry?.label ?? (awaiting || showResult
+                ? s.lastCombatSummary ?? "交战已结束 · 点继续进入下一项"
+                : prep
+                    ? chooseMode
+                        ? "请选择自动交战、参与战斗或舰队撤退。"
+                        : chooseStance
+                            ? "已选自动交战 · 请选择接战或撤退。"
+                            : "交战处理中…"
+                    : s.lastCombatSummary ?? "自动结算执行中。");
         }
         var prepUi = prep && !s.spectatorMode;
-        if (s.spectatorMode && _bodyLabel != null)
+        if (s.spectatorMode && _bodyLabel != null && !awaiting)
         {
             _bodyLabel.text = "观战模式 · 自动推进交战 · 全场景可见（实时阶段）";
         }
         if (_autoBtn != null)
         {
             _autoBtn.SetEnabled(prepUi && chooseMode);
+            _autoBtn.style.display = awaiting ? DisplayStyle.None : DisplayStyle.Flex;
         }
         if (_realtimeBtn != null)
         {
             _realtimeBtn.SetEnabled(prepUi && chooseMode);
+            _realtimeBtn.style.display = awaiting ? DisplayStyle.None : DisplayStyle.Flex;
         }
         if (_engageBtn != null)
         {
-            _engageBtn.SetEnabled(prepUi);
+            _engageBtn.SetEnabled(prepUi && (chooseMode || chooseStance));
+            _engageBtn.style.display = awaiting ? DisplayStyle.None : DisplayStyle.Flex;
         }
         if (_retreatBtn != null)
         {
-            _retreatBtn.SetEnabled(prepUi);
+            _retreatBtn.SetEnabled(prepUi && (chooseMode || chooseStance));
+            _retreatBtn.style.display = awaiting ? DisplayStyle.None : DisplayStyle.Flex;
+        }
+        if (_continueBtn != null)
+        {
+            _continueBtn.SetEnabled(awaiting && !s.spectatorMode);
+            _continueBtn.style.display = awaiting ? DisplayStyle.Flex : DisplayStyle.None;
         }
     }
 
-    private void RunCommand(string line)
-    {
-        var msg = GameAppHost.Instance?.SubmitCommand(line) ?? "模拟未启动";
-        SetStatus(msg);
-    }
+    // lik3tocoode345
 
     private void SetStatus(string msg)
     {
@@ -202,4 +287,7 @@ public sealed class CombatShellController : UiScreenController
             _statusLabel.text = msg;
         }
     }
+
+    // liketocoode3e5
+    // liket0coode345
 }

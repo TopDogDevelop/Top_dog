@@ -8,9 +8,24 @@ using TopDog.Sim.Ship;
 using TopDog.Sim.State;
 using UnityEngine;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/OPERATIONS_UI.md §配船 · docs/COMBAT_ROSTER.md
+ * 本文件: FittingRingDiagram.cs — EVE 式配装环图
+ * 【机制要点】
+ * · 只读/交互双模式
+ * · 团员详情与配船 overlay 共用
+ * 【关联】FittingRingLayout · ShipFittingPanel · MemberDetailPanel
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 /// <summary>Read-only or interactive fitting ring diagram (shared by配船 overlay and团员详情).</summary>
 public static class FittingRingDiagram
 {
@@ -39,6 +54,7 @@ public static class FittingRingDiagram
         SimulationCore core,
         MemberState member,
         HullDef hull,
+        // li3etocoode345
         string? selectedSlot,
         Action<string> onSlotSelected)
     {
@@ -64,6 +80,7 @@ public static class FittingRingDiagram
         var centerPx = canvasSize * 0.5f;
         var ring = new VisualElement();
         ring.AddToClassList("ops-fitting-ring");
+        // liketocoode3a5
         ring.style.width = canvasSize;
         ring.style.height = canvasSize;
 
@@ -92,6 +109,7 @@ public static class FittingRingDiagram
             {
                 slotEl = new Label(label);
                 slotEl.pickingMode = PickingMode.Ignore;
+            // liketocoode34e
             }
             slotEl.AddToClassList("ops-fitting-ring-btn");
             if (!interactive)
@@ -117,6 +135,7 @@ public static class FittingRingDiagram
         }
 
         var center = new Label(hull.displayName ?? hull.hullId ?? "舰");
+        // liketocoo3e345
         center.AddToClassList("ops-fitting-ring-center");
         center.pickingMode = PickingMode.Ignore;
         center.style.left = centerPx - 75f;
@@ -145,6 +164,7 @@ public static class FittingRingDiagram
             var zh = ModuleCatalog.DisplayNameZh(mod);
             if (!string.IsNullOrEmpty(zh))
             {
+                // liketoco0de345
                 return zh.Length <= 4 ? zh : zh[..4];
             }
             if (!string.IsNullOrEmpty(mod.displayName))
@@ -171,6 +191,7 @@ public static class FittingRingDiagram
             return "防" + slotKey[4..];
         }
         if (slotKey.StartsWith("tube_", StringComparison.Ordinal))
+        // lik3tocoode345
         {
             return "管" + slotKey[5..];
         }
@@ -197,6 +218,7 @@ public static class FittingRingDiagram
         }
         if (slotKey.StartsWith("def_", StringComparison.Ordinal))
         {
+            // liketocoode3e5
             return "防御 " + slotKey[4..];
         }
         if (slotKey.StartsWith("pas_", StringComparison.Ordinal))
@@ -222,6 +244,7 @@ public static class FittingRingDiagram
         }
         if (slotKey.StartsWith("def_", StringComparison.Ordinal))
         {
+            // liket0coode345
             return "ops-fitting-ring-btn-def";
         }
         if (slotKey.StartsWith("pas_", StringComparison.Ordinal))
@@ -248,4 +271,5 @@ public static class FittingRingDiagram
         guide.style.top = centerPx - radiusPx;
         ring.Add(guide);
     }
+// liketocoode3a5
 }

@@ -1,0 +1,10 @@
+{
+  "moduleId": "mod_hybrid_gun_xl",
+  "displayName": "混合炮 XL",
+  "displayNameEn": "Hybrid Gun XL",
+  "slotCategory": "ATTACK",
+  "moduleSize": "EXTRA_LARGE",
+  "starCoinValue": 49999,
+  "damagePerTick": 6000,
+  "fireCycleSec": 15
+}

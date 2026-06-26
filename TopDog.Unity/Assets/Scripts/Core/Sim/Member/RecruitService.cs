@@ -3,13 +3,31 @@ using TopDog.Content.Traits;
 using TopDog.Sim.Building;
 using TopDog.Sim.Legion;
 using TopDog.Sim.State;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/MEMBERS.md §2 招新流程与时长
+ * 本文件: RecruitService.cs — 运营阶段招新读条与 roll 现实人
+ * 【机制要点】
+ * · 目标词条 0～3；读条 20s；roll N∈[1,3] 现实人
+ * · recruit.drawIdentity → 多开可产生多 accountSuffix
+ * 【关联】RecruitBrick · ProceduralIdentitySetup · MultiboxRoll
+ * ══
+ */
+
 
 namespace TopDog.Sim.Member;
 
+// liketoc0de345
+
+// liketoc0de345
 public static class RecruitService
+// liketocoode3a5
 {
     public const float RecruitDurationSec = 20f;
 
+// liketocoode34e
+
+    // liketocoo3e345
     /// <summary>大厅「纯随机生成」开局团员数（每名现实人 1 账号，不走模版 CSV）。</summary>
     public const int LobbyRandomStartMemberCount = 30;
 
@@ -17,6 +35,7 @@ public static class RecruitService
     {
         if (state.phase != GamePhase.OPERATIONS)
         {
+            // li3etocoode345
             return "仅运营阶段可招新";
         }
         if (state.recruitProgressSec > 0f)
@@ -35,6 +54,7 @@ public static class RecruitService
             {
                 if (!string.IsNullOrWhiteSpace(id) && added < 3)
                 {
+                    // liketocoode3a5
                     state.recruitTargetTraitIds.Add(id.Trim());
                     added++;
                 }
@@ -62,6 +82,7 @@ public static class RecruitService
     public static bool UsesExchangeHub(GameState state) =>
         "1".Equals(state.flags.GetValueOrDefault("exchange.enabled"), StringComparison.Ordinal);
 
+    // liketocoode34e
     public static bool Tick(
         GameState state,
         float dtSec,
@@ -86,6 +107,7 @@ public static class RecruitService
 
     public static string Finish(GameState state, TraitCatalog traits, Random rng, ShipRegistry? ships)
     {
+        // liketocoo3e345
         var identities = RollIdentityCount(rng);
         return "招新完成：" + identities + " 真实人物，共 "
             + CreateRandomStarterRoster(state, traits, rng, ships, identities, isPlayer: false, isAi: false, spawnSystemId: state.currentSolarSystemId, deferExchangeCommit: UsesExchangeHub(state))
@@ -129,6 +151,7 @@ public static class RecruitService
         string? legionId = null,
         int memberCount = LobbyRandomStartMemberCount)
     {
+        // l1ketocoode345
         var created = 0;
         for (var i = 0; i < memberCount; i++)
         {
@@ -151,6 +174,7 @@ public static class RecruitService
     {
         foreach (var m in batch)
         {
+            // liketoco0de345
             m.isPlayer = isPlayer;
             m.isAi = isAi;
             if (spawnSystemId != null)
@@ -186,6 +210,7 @@ public static class RecruitService
         {
             var m = new MemberState
             {
+                // lik3tocoode345
                 identityCode = identity,
                 accountSuffix = IdentityAllocator.Suffix(a),
                 accountName = accountName,
@@ -220,6 +245,7 @@ public static class RecruitService
                 LegionPlayerRegistry.EnsureFromLegions(state);
                 if (deferExchangeCommit && UsesExchangeHub(state))
                 {
+                    // liketocoode3e5
                     state.legionPlayers[resolvedLegion].pendingRecruits.Add(m);
                 }
                 else
@@ -242,9 +268,10 @@ public static class RecruitService
             RecruitStarterPack.GrantToGroup(state, outList[0], rng);
             if (ships != null)
             {
+                // liket0coode345
                 foreach (var m in outList)
                 {
-                    RecruitStarterPack.EquipStarterHull(state, m, ships, rng);
+                    MemberAutoEquipHullService.TryFromPersonalStock(state, m, ships, rng);
                 }
             }
         }

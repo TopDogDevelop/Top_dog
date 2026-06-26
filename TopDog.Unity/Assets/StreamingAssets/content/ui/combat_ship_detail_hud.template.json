@@ -93,26 +93,27 @@
       "optional": true
     },
     {
-      "id": "capacitor_bar",
-      "labelZh": "电容",
-      "labelEn": "Capacitor",
+      "id": "enable_quota_bar",
+      "labelZh": "启用配额",
+      "labelEn": "Enable Quota",
       "role": "percent_bar",
       "display": { "showText": false, "precisionPct": 1 },
       "side": "right_inner",
       "rect": { "x0": 26, "y0": -40, "w": 7, "h": 51 },
-      "bind": { "value": "fit.capacitorPct", "max": "1" },
-      "styleClass": "rtcombat-hud-bar-capacitor"
+      "bind": { "value": "fit.enabledModuleCount", "max": "fit.simultaneousEnableLimit" },
+      "styleClass": "rtcombat-hud-bar-enable"
     },
     {
-      "id": "implant_bar",
-      "labelZh": "植入体能量",
-      "labelEn": "Implant Energy",
+      "id": "enable_time_bar",
+      "labelZh": "启用时间",
+      "labelEn": "Enable Time Budget",
       "role": "percent_bar",
       "display": { "showText": false, "precisionPct": 1 },
       "side": "right_outer",
       "rect": { "x0": 33, "y0": -40, "w": 8, "h": 75 },
-      "bind": { "value": "fit.implantEnergyPct", "max": "1" },
-      "styleClass": "rtcombat-hud-bar-implant"
+      "bind": { "value": "fit.enableTimeRemainingPct", "max": "1" },
+      "styleClass": "rtcombat-hud-bar-enable-time",
+      "optional": true
     },
     {
       "id": "name_legion_row",
@@ -162,7 +163,7 @@
     "default": "selected_target_only",
     "building": {
       "show": ["structure_bar", "name_legion_row", "speed_panel", "ship_icon_slot"],
-      "hide": ["shield_bar", "armor_bar", "capacitor_bar", "implant_bar", "buff_rail", "heading_chevron"]
+      "hide": ["shield_bar", "armor_bar", "enable_quota_bar", "enable_time_bar", "buff_rail", "heading_chevron"]
     }
   },
   "implementation": {

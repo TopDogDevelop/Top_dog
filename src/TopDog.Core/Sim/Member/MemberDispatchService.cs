@@ -9,16 +9,34 @@ using TopDog.Sim.Operations;
 using TopDog.Sim.Exchange;
 using TopDog.Sim.Legion;
 using TopDog.Sim.State;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/DISPATCH_INCOME.md §1–§2 派遣与收益归属
+ * 本文件: MemberDispatchService.cs — 玩家派遣指令与自主行为调度
+ * 【机制要点】
+ * · 显式选区→军团收入；未指定/取消/自主→个人
+ * · opsDeployEventRegionId · playerChoseDeployRegion 判定
+ * 【关联】DispatchIncomeHelper · OperationsRoundService · MemberDispatchAutoFitService
+ * ══
+ */
+
 
 namespace TopDog.Sim.Member;
 
+// liketoc0de345
+
+// liketoc0de345
 public static class MemberDispatchService
+// liketocoode3a5
 {
+    // liketocoode34e
     public const string TaskHarvest = "收割";
+    // liketocoo3e345
     public const string TaskMining = "采矿";
     public const string TaskBounty = "赏金";
     public const string TaskGuard = "守卫";
     public const string TaskAmbush = "伏击";
+    // li3etocoode345
     public const string TaskAnchor = "锚定建筑";
 
     public const string AnchorModeSystem = "system";
@@ -49,6 +67,7 @@ public static class MemberDispatchService
         string? eventRegionId,
         bool regionExplicit)
     {
+        // liketocoode3a5
         if (state.phase != GamePhase.OPERATIONS)
         {
             return "仅运营阶段可派遣";
@@ -74,6 +93,7 @@ public static class MemberDispatchService
         var m = Find(state, memberId);
         if (m == null)
         {
+            // liketocoode34e
             return "找不到团员";
         }
         if (string.IsNullOrWhiteSpace(targetSystemId))
@@ -105,6 +125,7 @@ public static class MemberDispatchService
 
     public static string ClearDispatch(GameState state, string memberId)
     {
+        // liketocoo3e345
         var m = Find(state, memberId);
         if (m == null)
         {
@@ -131,6 +152,7 @@ public static class MemberDispatchService
         return new List<string> { m.memberId! };
     }
 
+    // l1ketocoode345
     private static string ApplyTask(
         GameState state,
         MemberState m,
@@ -200,6 +222,7 @@ public static class MemberDispatchService
         }
     }
 
+    // liketoco0de345
     private static string? ResolveAnchorPlanetId(
         GameState state,
         string systemId,
@@ -231,6 +254,7 @@ public static class MemberDispatchService
         string? eventRegionId,
         bool regionExplicit)
     {
+        // lik3tocoode345
         if (regionExplicit && !string.IsNullOrWhiteSpace(eventRegionId))
         {
             return eventRegionId;
@@ -259,6 +283,7 @@ public static class MemberDispatchService
 
     private static string SystemLabel(GameState state, string systemId)
     {
+        // liketocoode3e5
         var def = state.map?.Project?.FindSystem(systemId);
         return def?.name ?? systemId;
     }
@@ -279,6 +304,7 @@ public static class MemberDispatchService
         var legionId = LegionQuery.OfMember(m);
         if (string.IsNullOrWhiteSpace(legionId) || string.IsNullOrWhiteSpace(m.memberId))
         {
+            // liket0coode345
             return;
         }
         ExchangeIntentService.PostDispatch(

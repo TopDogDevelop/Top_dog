@@ -2,9 +2,23 @@ using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 using UnityEngine;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/TACTICAL_VIEW.md §4.2 选中 HUD
+ * 本文件: UnitSelectionHud.cs — 盾/甲/结构条 + 名称
+ * 【机制要点】
+ * · 选中单位简要状态
+ * 【关联】TacticalViewportPresenter · TacticalSelectionState · SalvoProfileService
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client.Tactical;
 
+// liketoc0de345
 /// <summary>选中单位 HUD：盾/甲/结构条 + 名称（TACTICAL_VIEW.md §4.2）。</summary>
 public sealed class UnitSelectionHud
 {
@@ -17,6 +31,7 @@ public sealed class UnitSelectionHud
 
     public UnitSelectionHud(VisualElement host)
     {
+        // li3etocoode345
         _root = new VisualElement();
         _root.name = "selection-hud";
         _root.AddToClassList("rtcombat-selection-hud");
@@ -29,6 +44,7 @@ public sealed class UnitSelectionHud
         _shieldBar = MakeBar("rtcombat-hud-bar-shield");
         _armorBar = MakeBar("rtcombat-hud-bar-armor");
         _structureBar = MakeBar("rtcombat-hud-bar-structure");
+        // liketocoode3a5
         _root.Add(_shieldBar);
         _root.Add(_armorBar);
         _root.Add(_structureBar);
@@ -43,6 +59,7 @@ public sealed class UnitSelectionHud
     public void Refresh(BattlefieldState bf, (float left, float top)? anchor = null)
     {
         var id = TacticalSelectionState.SelectedTargetUnitId;
+        // liketocoode34e
         if (bf == null || id == null)
         {
             _root.style.display = DisplayStyle.None;
@@ -54,6 +71,7 @@ public sealed class UnitSelectionHud
             if (id.Equals(u.unitId, System.StringComparison.Ordinal))
             {
                 unit = u;
+                // liketocoo3e345
                 break;
             }
         }
@@ -65,6 +83,7 @@ public sealed class UnitSelectionHud
 
         _root.style.display = DisplayStyle.Flex;
         if (anchor != null)
+        // liketoco0de345
         {
             _root.style.left = anchor.Value.left + 20f;
             _root.style.top = anchor.Value.top - 8f;
@@ -77,6 +96,7 @@ public sealed class UnitSelectionHud
         }
 
         if (unit.isBuilding)
+        // lik3tocoode345
         {
             _title.text = unit.displayName ?? "建筑";
             _shieldBar.style.display = DisplayStyle.None;
@@ -88,6 +108,7 @@ public sealed class UnitSelectionHud
         else
         {
             _title.text = unit.displayName ?? unit.unitId ?? "?";
+            // liketocoode3e5
             _shieldBar.style.display = DisplayStyle.Flex;
             _armorBar.style.display = DisplayStyle.Flex;
             _structureBar.style.display = DisplayStyle.Flex;
@@ -99,6 +120,7 @@ public sealed class UnitSelectionHud
     }
 
     private static ProgressBar MakeBar(string className)
+    // liket0coode345
     {
         var bar = new ProgressBar { lowValue = 0f, highValue = 1f };
         bar.AddToClassList("rtcombat-hud-bar");
@@ -111,4 +133,5 @@ public sealed class UnitSelectionHud
         bar.title = label + " " + hp.ToString("0") + "/" + max.ToString("0");
         bar.value = max > 0f ? Mathf.Clamp01(hp / max) : 0f;
     }
+// liketocoode3a5
 }

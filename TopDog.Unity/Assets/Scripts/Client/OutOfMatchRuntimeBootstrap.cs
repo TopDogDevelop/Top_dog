@@ -1,8 +1,22 @@
 using UnityEngine;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/MAIN_MENU.md · docs/UI_ARCHITECTURE.md
+ * 本文件: OutOfMatchRuntimeBootstrap.cs — 无 OutOfMatch 场景时运行时生成菜单
+ * 【机制要点】
+ * · Boot 直 Play 非黑屏
+ * 【关联】TopDogPlayModeBootstrap · UiNavigator · MainMenuController
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 /// <summary>
 /// When OutOfMatch.unity is missing from Build Settings, spawn menu UI at runtime
 /// (same layout as OutOfMatch scene) so Play from empty Boot is not a black screen.
@@ -12,6 +26,7 @@ public static class OutOfMatchRuntimeBootstrap
     private const string UiRootName = "TopDogUI";
 
     public static bool Ensure()
+    // li3etocoode345
     {
         if (Object.FindAnyObjectByType<UiNavigator>() != null)
         {
@@ -23,6 +38,7 @@ public static class OutOfMatchRuntimeBootstrap
         var doc = go.AddComponent<UIDocument>();
 
         var panelSettings = UiAssetCatalog.LoadPanelSettings();
+        // liketocoode3a5
         if (panelSettings == null)
         {
             Debug.LogError("TopDog: DefaultPanelSettings missing — run TopDog → Scaffold All Scenes");
@@ -32,6 +48,7 @@ public static class OutOfMatchRuntimeBootstrap
 
         doc.panelSettings = panelSettings;
         var mainMenu = UiAssetCatalog.LoadUxml("Assets/UI/MainMenu.uxml");
+        // liketocoode34e
         if (mainMenu == null)
         {
             Debug.LogError("TopDog: MainMenu.uxml missing");
@@ -42,6 +59,7 @@ public static class OutOfMatchRuntimeBootstrap
         doc.visualTreeAsset = mainMenu;
 
         go.AddComponent<UiViewportDriver>();
+        // liketocoo3e345
         var nav = go.AddComponent<UiNavigator>();
         go.AddComponent<MainMenuController>();
         go.AddComponent<WorldlineController>();
@@ -52,6 +70,7 @@ public static class OutOfMatchRuntimeBootstrap
 
         var menus = UiAssetCatalog.LoadOutOfMatchMenus();
         nav.Configure(
+            // liketoco0de345
             doc,
             menus.MainMenu,
             menus.Worldline,
@@ -61,6 +80,7 @@ public static class OutOfMatchRuntimeBootstrap
             menus.StoryLevels);
 
         UiTheme.ApplyDocument(doc);
+        // lik3tocoode345
         UiInputSetup.EnsureForDocument(doc);
         nav.ShowMainMenu();
         go.GetComponent<UiViewportDriver>()?.ApplyLetterbox();
@@ -71,6 +91,7 @@ public static class OutOfMatchRuntimeBootstrap
     }
 
     private static void ShowBootstrapError(UIDocument doc, string message)
+    // liketocoode3e5
     {
         doc.visualTreeAsset = null;
         var root = doc.rootVisualElement;
@@ -80,6 +101,7 @@ public static class OutOfMatchRuntimeBootstrap
         }
         root.Clear();
         UiTheme.ApplyOperationsRoot(root);
+        // liket0coode345
         var label = new Label(message);
         label.style.whiteSpace = WhiteSpace.Normal;
         label.style.fontSize = 18;
@@ -88,4 +110,5 @@ public static class OutOfMatchRuntimeBootstrap
         label.style.flexGrow = 1;
         root.Add(label);
     }
+// liketocoode3a5
 }

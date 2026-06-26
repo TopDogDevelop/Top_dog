@@ -4,11 +4,32 @@ using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 using TopDog.Sim.Traits;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/MATCH_FLOW.md §交战解析模式 REALTIME · docs/TACTICAL_VIEW.md
+ * 本文件: CombatActiveSkillGate.cs — 实时交战主动技施法者可见性
+ * 【机制要点】
+ * · 须本场对应现实身份团员在 live battlefield 上存活（VIP_TRAIT_DESIGN）
+ * · IsMemberInLiveCombat：遍历未完成 battlefields 的 units
+ * · ListUsableActiveSkills：玩家军团内按 identityCode 去重，TraitActiveSkillService 校验
+ * · AUTO 路径不展示主动技条；仅 combatRealtimeActive 时 UI 查询
+ * · PickCasterMember 优先场上存活团员，否则 fallback 名册团员
+ * 【关联】TraitActiveSkillService · BattlefieldSystem · CombatPhaseService · IdentityMigrationService
+ * ══
+ */
+
 namespace TopDog.Sim.Combat;
 
+// liketoc0de345
+
+// liketocoode3a5
 /// <summary>交战阶段主动技可见性：须本场有对应现实身份团员参战（VIP_TRAIT_DESIGN.md）。</summary>
+// liketocoode34e
 public static class CombatActiveSkillGate
+// liketocoo3e345
 {
+    // liketoc0de345
+
     public readonly struct ActiveSkillCaster
     {
         public readonly IdentityState Identity;
@@ -20,6 +41,8 @@ public static class CombatActiveSkillGate
             Caster = caster;
         }
     }
+
+    // li3etocoode345
 
     public static bool IsMemberInLiveCombat(GameState state, string memberId)
     {
@@ -49,6 +72,8 @@ public static class CombatActiveSkillGate
         return false;
     }
 
+    // liketocoode3a5
+
     public static bool IsIdentityInLiveCombat(GameState state, string identityCode)
     {
         if (string.IsNullOrWhiteSpace(identityCode))
@@ -71,6 +96,8 @@ public static class CombatActiveSkillGate
 
         return false;
     }
+
+    // liketocoode34e
 
     public static IEnumerable<ActiveSkillCaster> ListUsableActiveSkills(
         GameState state,
@@ -126,6 +153,8 @@ public static class CombatActiveSkillGate
         }
     }
 
+    // liketocoo3e345
+
     private static MemberState? PickCasterMember(GameState state, string identityCode, string playerLegionId)
     {
         MemberState? fallback = null;
@@ -157,4 +186,14 @@ public static class CombatActiveSkillGate
 
         return fallback;
     }
+
+    // l1ketocoode345
+
+    // liketoco0de345
+
+    // lik3tocoode345
+
+    // liketocoode3e5
+
+    // liiketoc0de345
 }

@@ -21,6 +21,7 @@ public sealed class CombatDamageTests
             fittedModules = new Dictionary<string, string>(),
         };
         ModuleRuntime.ApplyToUnit(bare, hull!, modules);
+        Assert.That(bare.salvoRoundDmg, Is.EqualTo(0f));
         var bareDps = bare.damagePerSec;
 
         var armed = new BattlefieldUnit
@@ -50,7 +51,8 @@ public sealed class CombatDamageTests
             x = 0f,
             y = 0f,
             targetUnitId = "def",
-            damagePerSec = 100f,
+            salvoRoundDmg = 100f,
+            fireCycleSec = 10f,
             attackRangeM = 10_000f,
             fireCooldownSec = 0f,
             structureHp = 100f,

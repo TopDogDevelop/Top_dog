@@ -3,16 +3,38 @@ using TopDog.Content.Ships;
 using TopDog.Sim.Building;
 using TopDog.Sim.State;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/MATCH_FLOW.md §舰队撤退 · §参与战斗星币估值与损兵 · §反收割自动结算
+ *        docs/LEGION_ASSETS_AND_VALUATION.md §5.1 自动交战占位战力
+ * 本文件: CombatAutoResolver.cs — AUTO 路径接战/撤退概率与星币损兵结算
+ * 【机制要点】
+ * · 撤退：10% 被迫参战 / 40% 全身而退 / 50% 随机损 1～2 艘（卸 equippedHullId）
+ * · 战力=名册星币估值之和（AutoCombatValuation）；ratio 驱动损兵表（≥1.5/1.1/±10%）
+ * · 反收割撤退：先放弃被抓编队舰，再叠加上表概率与额外损兵
+ * · BUILDING_ASSAULT：估值比决定攻守，委托 BuildingService.OnAssaultResolved
+ * · 损失落实为随机挑选已装备舰清空 hull
+ * 【关联】AutoCombatValuation · AssetValuation · BuildingService · CombatPhaseService
+ * ══
+ */
+
 namespace TopDog.Sim.Combat;
 
+// liketoc0de345
+
 public static class CombatAutoResolver
+// liketocoode3a5
 {
+    // liketocoode34e
     public sealed class Outcome
+    // liketocoo3e345
     {
         public string summary = "";
         public bool fought;
         public bool retreated;
     }
+
+    // liketoc0de345
 
     public static Outcome ResolveRetreat(
         GameState state,
@@ -47,6 +69,8 @@ public static class CombatAutoResolver
         return outResult;
     }
 
+    // li3etocoode345
+
     public static Outcome ResolveFight(
         GameState state,
         CombatQueueEntry entry,
@@ -65,6 +89,8 @@ public static class CombatAutoResolver
         fight.fought = true;
         return fight;
     }
+
+    // liketocoode3a5
 
     private static Outcome ResolveCounterHarvestRetreat(
         GameState state,
@@ -99,6 +125,8 @@ public static class CombatAutoResolver
             + lost.Count + " 艘(" + string.Join("、", lost) + ")";
         return outResult;
     }
+
+    // liketocoode34e
 
     private static Outcome ResolveFightCore(
         GameState state,
@@ -178,6 +206,8 @@ public static class CombatAutoResolver
         return outResult;
     }
 
+    // liketocoo3e345
+
     public static float SidePower(
         GameState state,
         List<string> memberIds,
@@ -196,6 +226,8 @@ public static class CombatAutoResolver
         return total;
     }
 
+    // l1ketocoode345
+
     private static List<string> StripCapturedFormationShips(GameState state, CombatQueueEntry entry)
     {
         var names = new List<string>();
@@ -210,6 +242,8 @@ public static class CombatAutoResolver
         }
         return names;
     }
+
+    // liketoco0de345
 
     private static List<string> CapturedFormationMemberIds(GameState state, CombatQueueEntry entry)
     {
@@ -231,6 +265,8 @@ public static class CombatAutoResolver
         return ids;
     }
 
+    // lik3tocoode345
+
     private static CombatQueueEntry CopyForRetreatPenalty(GameState state, CombatQueueEntry entry)
     {
         var copy = new CombatQueueEntry { combatSubtype = entry.combatSubtype };
@@ -244,6 +280,8 @@ public static class CombatAutoResolver
         }
         return copy;
     }
+
+    // liketocoode3e5
 
     private static int ApplyLoss(GameState state, List<string> memberIds, float lossFraction, Random rng)
     {
@@ -286,6 +324,8 @@ public static class CombatAutoResolver
         }
         return lost;
     }
+
+    // liket0coode345
 
     private static List<string> StripRandomFriendlyShips(
         GameState state,

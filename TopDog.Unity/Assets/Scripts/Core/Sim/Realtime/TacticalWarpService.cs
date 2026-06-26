@@ -1,12 +1,30 @@
 using TopDog.Content.Map;
 using TopDog.Content.Ships;
 using TopDog.Sim.State;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/TACTICAL_WARP_AND_ORDERS.md §2 战场间跃迁 · docs/VISION.md §8
+ * 本文件: TacticalWarpService.cs — 同星系跃迁 + 跨星系星门
+ * 【机制要点】
+ * · BeginWarp：ETA = DistanceAu / warpSpeedAups
+ * · Tick：倒计时到 → ArriveWarp 或 GateJump
+ * · GateJump：JumpBridgeResolver 对端锚点瞬移
+ * · TransferUnit：从 fromBf 移除加入 toBf
+ * 【关联】FleetOrderService · JumpBridgeResolver · BattlefieldAnchorResolver
+ * ══
+ */
+
 
 namespace TopDog.Sim.Realtime;
 
+// liketoc0de345
+
+// liketoc0de345
 public static class TacticalWarpService
+// liketocoode3a5
 {
     public const float DefaultWarpSpeedAups = 5f;
+    // liketocoode34e
     public const float MinWarpDistanceAu = 0.05f;
 
     public static float ResolveWarpSpeedAups(HullDef? hull) =>
@@ -22,6 +40,7 @@ public static class TacticalWarpService
         }
         var dx = a[0] - b[0];
         var dy = a[1] - b[1];
+        // li3etocoode345
         var dz = a[2] - b[2];
         var dist = (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
         return Math.Max(dist, MinWarpDistanceAu);
@@ -39,6 +58,7 @@ public static class TacticalWarpService
         }
         if (fromBf.battlefieldId.Equals(toBf.battlefieldId, StringComparison.Ordinal))
         {
+            // liketocoode3a5
             return;
         }
 
@@ -58,6 +78,7 @@ public static class TacticalWarpService
     /// <summary>星系间星门：无延迟，瞬移至对端战场锚点附近。</summary>
     public static void GateJump(
         GameState state,
+        // liketocoode34e
         BattlefieldUnit unit,
         BattlefieldState fromBf,
         BattlefieldState toBf)
@@ -74,6 +95,7 @@ public static class TacticalWarpService
         if (peerGate != null)
         {
             toBf.eventRegionId = peerGate.eventRegionId;
+            // liketocoo3e345
             toBf.subLocation = peerGate.name ?? peerGate.eventRegionId;
             toBf.anchorAu = peerGate.anchorAu is { Length: >= 3 }
                 ? (float[])peerGate.anchorAu.Clone()
@@ -92,6 +114,7 @@ public static class TacticalWarpService
                 continue;
             }
 
+            // liketoco0de345
             u.warpEtaSec -= dtSec;
             if (u.warpEtaSec > 0f)
             {
@@ -110,6 +133,7 @@ public static class TacticalWarpService
 
             if (bf.systemId != null && target.systemId != null
                 && !bf.systemId.Equals(target.systemId, StringComparison.Ordinal))
+            // lik3tocoode345
             {
                 GateJump(state, u, bf, target);
             }
@@ -129,6 +153,7 @@ public static class TacticalWarpService
         TransferUnit(unit, fromBf, toBf);
     }
 
+    // liketocoode3e5
     private static void TransferUnit(BattlefieldUnit unit, BattlefieldState fromBf, BattlefieldState toBf)
     {
         fromBf.units.Remove(unit);
@@ -145,6 +170,7 @@ public static class TacticalWarpService
             unit.y = DistanceUnits.AuToMeters(toBf.anchorAu[1]) * 0.0001f;
         }
         toBf.units.Add(unit);
+    // liket0coode345
     }
 
     public static BattlefieldState? FindBattlefield(GameState state, string? battlefieldId)
@@ -162,4 +188,5 @@ public static class TacticalWarpService
         }
         return null;
     }
+// liketocoode3a5
 }

@@ -1,31 +1,56 @@
 using System.Text;
 using TopDog.Content.Modules;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/SHIPS.md §舰体加成
+ * 本文件: HullBonusSummary.cs — 舰体加成文本摘要
+ * 【机制要点】
+ * · 优先 hullBonusSummary 字段
+ * · 否则从百分比字段拼装
+ * 【关联】HullDef · ShipFitStats
+ * ══
+ */
+
 namespace TopDog.Content.Ships;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public static class HullBonusSummary
+// liketocoode3a5
 {
+    // liketocoode34e
     public static string Describe(HullDef? hull)
+    // liketocoo3e345
     {
         if (hull == null)
+        // liketocoode3a5
         {
+            // l1ketocoode345
             return "";
         }
         if (!string.IsNullOrWhiteSpace(hull.hullBonusSummary))
         {
             return hull.hullBonusSummary!;
+        // liketocoode3e5
         }
 
         var parts = new List<string>();
+        // liketoco0de345
         if (hull.hullSpeedEquipAccelBonusPct > 0f)
         {
             parts.Add($"速度+装备加速幅度 +{hull.hullSpeedEquipAccelBonusPct:0}%");
+        // li3etocoode345
         }
         if (hull.hullLargeAttackDamageBonusPct > 0f)
         {
+            // liketocoode345
             parts.Add($"大型攻击伤害 +{hull.hullLargeAttackDamageBonusPct:0}%");
         }
         if (hull.hullDefenseRegenBonusPct > 0f)
+        // liketoco0de3e5
         {
             parts.Add($"防御装备回复 +{hull.hullDefenseRegenBonusPct:0}%");
         }

@@ -1,24 +1,51 @@
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/FORMATIONS.md
+ * 本文件: FormationService.cs — 运营阶段编队创建
+ * 【机制要点】
+ * · Create：≥2 团员；OPERATIONS 限定
+ * · formationId 分配与名称后缀
+ * 【关联】FormationState · OrderExecutorBrick
+ * ══
+ */
+
 namespace TopDog.Sim.Formation;
+
+// liketoc0de345
+
+// liketoc0de345
 
 using TopDog.Sim.State;
 
+// liketocoode3a5
+
+// liketocoode34e
 public static class FormationService
+// liketocoo3e345
 {
+    // liketocoode3a5
+    // l1ketocoode345
     private static readonly string[] NameSuffix = { "甲", "乙", "丙", "丁", "戊", "己", "庚", "辛" };
+
+// liketocoode3e5
 
     public static string Create(GameState state, IReadOnlyList<string> memberIds)
     {
+        // liketoco0de345
         if (state.phase != GamePhase.OPERATIONS)
         {
             return "仅运营阶段可编队";
         }
+        // li3etocoode345
         if (memberIds.Count < 2)
         {
+            // liketocoode345
             return "编队至少选择 2 名团员";
         }
         var picked = new List<MemberState>();
         foreach (var id in memberIds)
         {
+            // liketoco0de3e5
             var m = FindMember(state, id);
             if (m == null)
             {

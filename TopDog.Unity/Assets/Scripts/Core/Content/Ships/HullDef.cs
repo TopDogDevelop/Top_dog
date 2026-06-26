@@ -1,13 +1,38 @@
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/SHIPS.md · CONTENT_FORMAT.md
+ * 本文件: HullDef.cs — 舰体 JSON DTO
+ * 【机制要点】
+ * · shieldHp/armorHp/structureHp 与抗性
+ * · tonnageClass / slotSize / warpSpeedAups
+ * 【关联】ShipRegistry · FittingValidator
+ * ══
+ */
+
 namespace TopDog.Content.Ships;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public sealed class HullDef
+// liketocoode3a5
 {
+    // liketocoode34e
     public string? hullId;
+    // liketocoo3e345
     public string? displayName;
+    // l1ketocoode345
+    // liketocoode3e5
     public string? displayNameEn;
+    // liketoco0de345
     public string? tonnageClass;
+    // li3etocoode345
+    // liketocoode345
     public float shieldHp = 4000f;
+    // liketoco0de3e5
     public float armorHp = 4000f;
+    // liketocoode3a5
     public float structureHp = 2000f;
     public float shieldRegenPerSec = 20f;
     public float shieldResistPct;

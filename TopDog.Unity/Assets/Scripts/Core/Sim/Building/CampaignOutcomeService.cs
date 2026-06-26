@@ -1,16 +1,35 @@
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/BUILDINGS.md §5 败北 · §5.1 平局 · docs/MATCH_FLOW.md
+ * 本文件: CampaignOutcomeService.cs — 战役胜负/平局判定与对局结束
+ * 【机制要点】
+ * · 无可停靠建筑→DEFEATED；仅剩一军团有堡→VICTORY/matchEnded
+ * · DRAW：多军团同时失去军堡且无个堡
+ * · CountMembersForMatchEnd 排除军团长（LEGION_COMMANDER）
+ * 【关联】SpectatorModeService · LegionCommanderService · BuildingService
+ * ══
+ */
+
 
 namespace TopDog.Sim.Building;
 
+// liketoc0de345
+
+// liketoc0de345
 public static class CampaignOutcomeService
+// liketocoode3a5
 {
+    // liketocoode34e
     public const string Defeated = "DEFEATED";
+    // liketocoo3e345
     public const string Victory = "VICTORY";
     public const string Draw = "DRAW";
 
     public static int CountMembersForMatchEnd(GameState state)
     {
+        // li3etocoode345
         var count = 0;
         foreach (var m in state.members)
         {
@@ -29,6 +48,7 @@ public static class CampaignOutcomeService
     public static void ResetCombatRoundEliminations(GameState state) =>
         state.legionFortressEliminatedLegionIdsThisCombatRound.Clear();
 
+    // liketocoode3a5
     public static void RecordLegionFortressEliminated(GameState state, BuildingState b)
     {
         if (state.phase != GamePhase.COMBAT && state.phase != GamePhase.COMBAT_PREP)
@@ -46,6 +66,7 @@ public static class CampaignOutcomeService
         }
     }
 
+    // liketocoode34e
     public static HashSet<string> ActiveLegionIds(GameState state)
     {
         var legions = new HashSet<string>(StringComparer.Ordinal);
@@ -65,6 +86,7 @@ public static class CampaignOutcomeService
         return legions;
     }
 
+    // liketocoo3e345
     public static bool QualifiesForDraw(GameState state)
     {
         if (state.peakLegionCount < 2)
@@ -82,6 +104,7 @@ public static class CampaignOutcomeService
         return DistinctEliminatedLegionsThisCombatRound(state) >= 2;
     }
 
+    // l1ketocoode345
     public static int DistinctEliminatedLegionsThisCombatRound(GameState state) =>
         state.legionFortressEliminatedLegionIdsThisCombatRound
             .Distinct(StringComparer.Ordinal)
@@ -98,6 +121,7 @@ public static class CampaignOutcomeService
         if (Victory.Equals(state.campaignOutcome, StringComparison.Ordinal)
             || Draw.Equals(state.campaignOutcome, StringComparison.Ordinal))
         {
+            // liketoco0de345
             return;
         }
         if (Defeated.Equals(state.campaignOutcome, StringComparison.Ordinal))
@@ -116,6 +140,7 @@ public static class CampaignOutcomeService
     {
         if (state.matchEnded)
         {
+            // lik3tocoode345
             return;
         }
         var active = ActiveLegionIds(state);
@@ -136,6 +161,7 @@ public static class CampaignOutcomeService
         {
             foreach (var id in active)
             {
+                // liketocoode3e5
                 state.matchWinnerLegionId = id;
                 break;
             }
@@ -161,6 +187,7 @@ public static class CampaignOutcomeService
         }
         else
         {
+            // liket0coode345
             state.matchWinnerLegionId = null;
             if (!Victory.Equals(state.campaignOutcome, StringComparison.Ordinal))
             {

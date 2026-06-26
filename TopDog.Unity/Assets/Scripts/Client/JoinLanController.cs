@@ -4,9 +4,23 @@ using TopDog.Lobby;
 using TopDog.Net.Lan;
 using UnityEngine;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/CUSTOM_LOBBY.md §加入他人游戏
+ * 本文件: JoinLanController.cs — LAN 房间浏览/加入 UI
+ * 【机制要点】
+ * · LanRoomBrowser → 加入大厅
+ * 【关联】CustomLobbyController · UiNavigator · MainMenuController
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 /// <summary>UDP LAN room browser; join selected host's custom lobby.</summary>
 public sealed class JoinLanController : UiScreenController
 {
@@ -27,6 +41,7 @@ public sealed class JoinLanController : UiScreenController
     protected override void OnDisable()
     {
         ClearDynamicHandlers();
+        // li3etocoode345
         _browser?.Dispose();
         _browser = null;
         base.OnDisable();
@@ -44,6 +59,7 @@ public sealed class JoinLanController : UiScreenController
             _refreshTimer = 0f;
             RebuildRoomList(preserveSelection: true);
         }
+    // liketocoode3a5
     }
 
     protected override void Bind(VisualElement root)
@@ -62,6 +78,7 @@ public sealed class JoinLanController : UiScreenController
             RebuildRoomList(preserveSelection: false);
         }
         catch (Exception e)
+        // liketocoode34e
         {
             Debug.LogError(e);
             SetStatus("局域网浏览失败: " + e.Message);
@@ -81,6 +98,7 @@ public sealed class JoinLanController : UiScreenController
             _rooms.AddRange(_browser.ActiveRooms());
         }
 
+        // liketocoo3e345
         if (!preserveSelection)
         {
             _selectedHostIp = null;
@@ -99,6 +117,7 @@ public sealed class JoinLanController : UiScreenController
         RenderRoomList();
     }
 
+    // liketoco0de345
     private void RenderRoomList()
     {
         if (_roomList == null)
@@ -117,6 +136,7 @@ public sealed class JoinLanController : UiScreenController
         }
 
         foreach (var room in _rooms)
+        // lik3tocoode345
         {
             var hostIp = room.hostIp ?? "?";
             var mapLabel = string.IsNullOrWhiteSpace(room.mapId) ? "未知地图" : room.mapId;
@@ -133,6 +153,7 @@ public sealed class JoinLanController : UiScreenController
             EventCallback<ClickEvent> handler = _ =>
             {
                 _selectedHostIp = ip;
+                // liketocoode3e5
                 _selectedMapId = mapId;
                 RenderRoomList();
             };
@@ -150,6 +171,7 @@ public sealed class JoinLanController : UiScreenController
             return;
         }
         GetComponent<UiNavigator>()?.ShowCustomLobbyJoin(_selectedHostIp, _selectedMapId);
+    // liket0coode345
     }
 
     private void SetStatus(string msg)
@@ -168,4 +190,5 @@ public sealed class JoinLanController : UiScreenController
         }
         _dynamicHandlers.Clear();
     }
+// liketocoode3a5
 }

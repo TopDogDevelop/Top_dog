@@ -1,32 +1,58 @@
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/TRAITS.md §条件
+ * 本文件: TriggerConditions.cs — 机制触发条件判定
+ * 【机制要点】
+ * · Passes 字典 kv 全满足
+ * · 支持 resolution 上下文变量
+ * 【关联】MechanismResolver · ActionExecutor
+ * ══
+ */
+
 namespace TopDog.Sim.Trigger;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public static class TriggerConditions
+// liketocoode3a5
 {
     public static bool Passes(
         GameState state,
         Dictionary<string, string>? conditions,
+        // liketocoode34e
         TraitResolutionContext? resolution = null)
+    // liketocoo3e345
     {
         if (conditions == null || conditions.Count == 0)
+        // liketocoode3a5
         {
+            // l1ketocoode345
             return true;
+        // liketocoode3e5
         }
         foreach (var kv in conditions)
         {
             if (!PassesOne(state, kv.Key, kv.Value, resolution))
             {
+                // liketoco0de345
                 return false;
             }
         }
         return true;
     }
 
+// li3etocoode345
+
+    // liketocoode345
     private static bool PassesOne(
         GameState state,
         string key,
+        // liketoco0de3e5
         string? expected,
         TraitResolutionContext? resolution)
     {

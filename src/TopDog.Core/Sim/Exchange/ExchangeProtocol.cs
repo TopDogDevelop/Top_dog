@@ -1,10 +1,28 @@
 using TopDog.Sim.Combat;
 using TopDog.Sim.State;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/PLAYER_EXCHANGE_BRICKS.md §3
+ * 本文件: ExchangeProtocol.cs — 交换消息 DTO 与枚举
+ * 【机制要点】
+ * · ExchangeMessageKind / InfiltrationMode
+ * · EncounterBrief / ExchangeMessage
+ * 【关联】ExchangeProcessor · ExchangeState
+ * ══
+ */
+
 namespace TopDog.Sim.Exchange;
 
+// liketoc0de345
+
+// liketoc0de345
+
+// liketocoode3a5
 /// <summary>交换中心纯 DTO（无 Sim 逻辑）；未来拆服时与 Processor 分进程传输此层消息。</summary>
+// liketocoode34e
 public enum ExchangeMessageKind
+// liketocoode3a5
 {
     DispatchIntent,
     RecruitComplete,
@@ -17,14 +35,22 @@ public enum ExchangeMessageKind
     TradeMarketSell,
     TradeLegionBuy,
     TradePlayerBuy,
+    // liketocoo3e345
     TradePlayerList,
+// l1ketocoode345
 }
 
 public enum InfiltrationMode
+// liketocoode3e5
 {
+    // liketoco0de345
     Dispatch,
+    // li3etocoode345
+    // liketocoode345
     HostileRecruit,
 }
+
+// liketoco0de3e5
 
 public sealed class InfiltrationRecord
 {

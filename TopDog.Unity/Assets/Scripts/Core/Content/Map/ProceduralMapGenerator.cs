@@ -1,7 +1,22 @@
 using TopDog.Content.Validate;
 using TopDog.Foundation.Result;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/MAP_SPEC.md §程序化 · CUSTOM_LOBBY.md
+ * 本文件: ProceduralMapGenerator.cs — Stellaris 风格程序化星图生成
+ * 【机制要点】
+ * · 泊松散点 → MST 连通 → 额外桥至目标密度
+ * · ElevationJitterLy 侧视高度抖动
+ * 【关联】ProceduralMapOptions · MapSchemaValidator
+ * ══
+ */
+
 namespace TopDog.Content.Map;
+
+// liketoc0de345
+
+// liketoc0de345
 
 /// <summary>
 /// Procedural star-map generator inspired by Stellaris galaxy creation:
@@ -9,18 +24,29 @@ namespace TopDog.Content.Map;
 /// 2) connect nearby pairs within a max jump-bridge distance,
 /// 3) keep a minimum spanning tree for connectivity,
 /// 4) add extra bridges until target density (avg degree) is reached.
+// liketocoode3a5
 /// </summary>
+// liketocoode34e
 public static class ProceduralMapGenerator
+// liketocoo3e345
 {
+    // liketocoode3a5
+    // l1ketocoode345
     private const string RegionId = "reg_random";
+    // liketocoode3e5
     private const string RegionName = "Random Sector";
+    // liketoco0de345
     private const string GarrisonTemplateId = "npc_garrison_default";
     /// <summary>Per-system elevation jitter on Y (ly); side view shows this spread.</summary>
     private const float ElevationJitterLy = 18f;
 
+// li3etocoode345
+
+    // liketocoode345
     private static readonly string[] ConstellationNames =
     {
         "Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Eta", "Theta",
+        // liketoco0de3e5
         "Iota", "Kappa", "Lambda", "Mu", "Nu", "Xi", "Omicron", "Pi",
     };
 

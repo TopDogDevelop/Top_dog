@@ -45,6 +45,38 @@ public sealed class BuildingAndOutcomeTests
     }
 
     [Test]
+    public void SeedCampaignFortresses_TwoAiLegions_SameSpawn_OnlyOneFortPerSystem()
+    {
+        var state = new GameState { currentSolarSystemId = "sys_a" };
+        var project = new MapProject();
+        project.systems.Add(new SolarSystemDef { solarSystemId = "sys_a", name = "Alpha" });
+        project.systems.Add(new SolarSystemDef { solarSystemId = "sys_b", name = "Beta" });
+        state.map = new LoadedMap(project, null);
+        state.legions.Add(new LegionState
+        {
+            legionId = "legion-ai-1",
+            displayName = "AI One",
+            isAiControlled = true,
+            spawnSolarSystemId = "sys_a",
+        });
+        state.legions.Add(new LegionState
+        {
+            legionId = "legion-ai-2",
+            displayName = "AI Two",
+            isAiControlled = true,
+            spawnSolarSystemId = "sys_a",
+        });
+
+        BuildingService.SeedCampaignFortresses(state, new Random(3));
+
+        var forts = state.buildings.Where(b => BuildingService.LegionFortress.Equals(b.buildingType)).ToList();
+        Assert.That(forts, Has.Count.EqualTo(2));
+        Assert.That(forts.Select(f => f.solarSystemId).Distinct().Count(), Is.EqualTo(2));
+        Assert.That(BuildingService.HasLegionFortressInSystem(state, "sys_a"), Is.True);
+        Assert.That(BuildingService.HasLegionFortressInSystem(state, "sys_b"), Is.True);
+    }
+
+    [Test]
     public void CreateLegionFortress_DebitsLegionCoins()
     {
         var state = StateWithPlanetSystem();
