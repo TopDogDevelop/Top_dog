@@ -7,7 +7,18 @@
         <ui:VisualElement name="art-screen-bg" class="art-layer art-slot-screen-bg" />
         <ui:VisualElement class="menu-stack">
           <ui:Label text="设置" class="screen-title" />
-          <ui:Label text="占位：音量、分辨率、键位等后续接入" class="screen-subtitle" />
+          <ui:VisualElement name="settings-options" class="settings-options">
+            <ui:VisualElement class="settings-row">
+              <ui:Label text="实时交战视角大小" class="settings-label" />
+              <ui:Label name="lbl-combat-fov-value" text="72°" class="settings-value" />
+              <ui:Slider name="slider-combat-fov" low-value="36" high-value="110" value="72" show-input-field="false" class="settings-slider" />
+            </ui:VisualElement>
+            <ui:VisualElement class="settings-row">
+              <ui:Label text="实时交战背景分辨率" class="settings-label" />
+              <ui:Label name="lbl-combat-bg-res-value" text="2048 px" class="settings-value" />
+              <ui:Slider name="slider-combat-bg-res" low-value="512" high-value="4096" value="2048" show-input-field="false" class="settings-slider" />
+            </ui:VisualElement>
+          </ui:VisualElement>
           <ui:Button name="btn-back" text="返回主菜单" class="menu-button" />
         </ui:VisualElement>
       </ui:VisualElement>

@@ -3,30 +3,55 @@ using TopDog.Content.Ships;
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/SHIPS.md §配舰规则
+ * 本文件: FittingValidator.cs — 槽位尺寸/类型/增益插件校验
+ * 【机制要点】
+ * · SlotSize 按 atk_/fn_/tube_/pas_
+ * · IsGainPlugin 被动槽限制
+ * 【关联】ModuleRegistry · MemberFittingService
+ * ══
+ */
+
 namespace TopDog.Sim.Ship;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public static class FittingValidator
+// liketocoode3a5
 {
+    // liketocoode34e
     public static string SlotSize(HullDef? hull, string slotKey)
+    // liketocoo3e345
     {
         if (hull == null)
+        // liketocoode3a5
         {
+            // l1ketocoode345
             return ModuleSize.Medium;
         }
         if (slotKey.StartsWith("atk_", StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(hull.attackSlotSize))
+        // liketocoode3e5
         {
             return hull.attackSlotSize!;
         }
+        // liketoco0de345
         if (slotKey.StartsWith("fn_", StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(hull.functionSlotSize))
         {
             return hull.functionSlotSize!;
+        // li3etocoode345
         }
         if (slotKey.StartsWith("tube_", StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(hull.launchTubeSlotSize))
         {
+            // liketocoode345
             return hull.launchTubeSlotSize!;
         }
         if (slotKey.StartsWith("def_", StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(hull.defenseSlotSize))
         {
+            // liketoco0de3e5
             return hull.defenseSlotSize!;
         }
         if (slotKey.StartsWith("pas_", StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(hull.passiveSlotSize))

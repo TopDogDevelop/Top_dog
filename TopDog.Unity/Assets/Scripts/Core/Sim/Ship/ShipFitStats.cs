@@ -1,17 +1,41 @@
 using TopDog.Content.Modules;
 using TopDog.Content.Ships;
 using TopDog.Sim.Member;
+using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
+
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/SHIPS.md §战力汇总
+ * 本文件: ShipFitStats.cs — 舰体+模块综合属性计算
+ * 【机制要点】
+ * · Compute：HP/抗性/DPS/速度
+ * · 模块启用与 propulsion 标签
+ * 【关联】HullDef · ModuleRuntime
+ * ══
+ */
 
 namespace TopDog.Sim.Ship;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public sealed class ShipFitStats
+// liketocoode3a5
 {
+    // liketocoode34e
     public float shieldHp;
+    // liketocoo3e345
     public float armorHp;
+    // l1ketocoode345
+    // liketocoode3e5
     public float structureHp;
+    // liketoco0de345
     public float shieldRegenPerSec;
     public float shieldResistPct;
+    // liketocoode3a5
+    // li3etocoode345
     public float armorResistPct;
     public float structureResistPct;
     public float dps;
@@ -19,7 +43,10 @@ public sealed class ShipFitStats
     public float fittedSpeedMps;
     public string? activePropulsionLabel;
 
+// liketocoode345
+
     public static ShipFitStats Compute(
+        // liketoco0de3e5
         HullDef? hull,
         IReadOnlyDictionary<string, string>? fitted,
         ModuleRegistry? modules,
@@ -56,9 +83,12 @@ public sealed class ShipFitStats
             {
                 continue;
             }
-            if (mod.damagePerTick > 0f)
+            if (mod.damagePerTick > 0f
+                && string.Equals(mod.slotCategory, "ATTACK", StringComparison.Ordinal))
             {
-                s.dps += mod.damagePerTick * HullBonusSummary.AttackDamageMultiplier(hull, mod);
+                var cycle = mod.fireCycleSec > 0.01f ? mod.fireCycleSec : SalvoProfileService.DefaultFireCycleSec;
+                var mult = HullBonusSummary.AttackDamageMultiplier(hull, mod);
+                s.dps += mod.damagePerTick * mult / cycle;
             }
             var regenMult = entry.Key.StartsWith("def_", StringComparison.Ordinal)
                 ? HullBonusSummary.DefenseRegenMultiplier(hull)

@@ -1,7 +1,9 @@
+using TopDog.Content.Map;
 using TopDog.Content.Assets;
 using TopDog.Content.Modules;
 using TopDog.Content.Ships;
 using TopDog.Sim.Building;
+using TopDog.Sim.Combat;
 using TopDog.Sim.Economy;
 using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
@@ -31,18 +33,65 @@ public sealed class BuildingQueryServiceTests
     public void QueueAssault_OnlyPlayerFort_ReturnsNoEnemyMessage()
     {
         var state = new GameState();
+        var localId = "host-uuid";
+        state.legions.Add(new LegionState { legionId = localId, isLocal = true });
         state.buildings.Add(new BuildingState
         {
             buildingId = "b1",
             buildingType = BuildingService.LegionFortress,
             solarSystemId = "sys_a",
             playerOwned = true,
-            legionId = CampaignLegionIds.Player,
+            legionId = localId,
             eventRegionId = "er_p1",
             status = BuildingService.Normal,
         });
-        var msg = PlayerBuildingAssaultService.QueueAssaultOnSystem(state, "sys_a");
+        var msg = PlayerBuildingAssaultService.QueueAssaultOnSystem(state, "sys_a", localId);
         Assert.That(msg, Is.EqualTo("该星系无敌方建筑可约战"));
+    }
+
+    [Test]
+    public void QueueAssault_EnemyFort_CompilesToCombatQueue()
+    {
+        var state = new GameState();
+        state.map = new LoadedMap(new MapProject
+        {
+            systems =
+            {
+                new SolarSystemDef { solarSystemId = "sys_a", name = "Test" },
+            },
+        }, null);
+        var localId = "host-uuid";
+        var aiId = "ai-uuid";
+        state.legions.Add(new LegionState { legionId = localId, isLocal = true });
+        state.legions.Add(new LegionState { legionId = aiId, isAiControlled = true });
+        state.buildings.Add(new BuildingState
+        {
+            buildingId = "b_enemy",
+            buildingType = BuildingService.LegionFortress,
+            solarSystemId = "sys_a",
+            playerOwned = false,
+            legionId = aiId,
+            status = BuildingService.Normal,
+        });
+        LegionPlayerRegistry.AddMemberToLegion(state, localId, new MemberState
+        {
+            memberId = "m1",
+            legionId = localId,
+            isPlayer = true,
+            currentSolarSystemId = "sys_a",
+        });
+
+        var msg = PlayerBuildingAssaultService.QueueAssaultOnSystem(state, "sys_a", localId);
+        Assert.That(msg, Does.Contain("已发起"));
+        Assert.That(state.playerPendingAssaults, Has.Count.EqualTo(1));
+
+        CombatQueueCompiler.Compile(state, ShipRegistry.LoadDefault(), ModuleRegistry.LoadDefault());
+
+        Assert.That(state.combatQueue, Has.Count.EqualTo(1));
+        Assert.That(state.combatQueue[0].combatSubtype, Is.EqualTo(CombatSubtype.BUILDING_ASSAULT));
+        Assert.That(state.combatQueue[0].attackerLegionId, Is.EqualTo(localId));
+        Assert.That(state.combatQueue[0].defenderLegionId, Is.EqualTo(aiId));
+        Assert.That(state.playerPendingAssaults, Is.Empty);
     }
 }
 

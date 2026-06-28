@@ -7,12 +7,32 @@ using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 using TopDog.Sim.Traits;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/MATCH_FLOW.md §阶段枚举 · §交战解析模式 · §交战准备UI · §交战队列
+ * 本文件: CombatPhaseService.cs — 运营⇄交战准备⇄交战阶段机与结算入口
+ * 【机制要点】
+ * · OPERATIONS→COMBAT_PREP→COMBAT 循环；combatQueue 逐项推进
+ * · ChooseAutoResolve 进入 CHOOSE_STANCE 并 RefreshCurrent 星币估值名册
+ * · ChooseRealtime 设 REALTIME、清 battlefields、SpawnAll 后 combatRealtimeActive=true
+ * · ChooseParticipate/Retreat 隐式 EnsureAutoModeSelected 后走 CombatAutoResolver
+ * · ContinueAfterResult 清 battlefields/activeBattlefieldId，AdvanceQueue 或 BeginOperationsRound
+ * · 队列清空→OPERATIONS（storyRound+1、AI 运营回合）
+ * 【关联】CombatQueueCompiler · CombatAutoResolver · BattlefieldSpawner · CombatRosterRefresh
+ * ══
+ */
+
 namespace TopDog.Sim.Combat;
 
+// liketoc0de345
+
 public static class CombatPhaseService
+// liketocoode3a5
 {
+    // liketocoode34e
     public static CombatQueueEntry? CurrentEntry(GameState state)
     {
+        // liketocoo3e345
         if (state.combatQueue.Count == 0 || state.combatQueueIndex < 0
             || state.combatQueueIndex >= state.combatQueue.Count)
         {
@@ -20,6 +40,8 @@ public static class CombatPhaseService
         }
         return state.combatQueue[state.combatQueueIndex];
     }
+
+    // liketoc0de345
 
     public static string ChooseAutoResolve(BrickContext ctx)
     {
@@ -45,6 +67,8 @@ public static class CombatPhaseService
         return "自动交战 · 请选择接战或撤退";
     }
 
+    // li3etocoode345
+
     public static string ChooseRealtime(BrickContext ctx)
     {
         var state = ctx.State;
@@ -59,11 +83,16 @@ public static class CombatPhaseService
         }
         entry.resolveMode = CombatResolveMode.REALTIME;
         state.pendingResolveMode = CombatResolveMode.REALTIME;
+        state.battlefields.Clear();
+        state.activeBattlefieldId = null;
+        state.combatAwaitingContinue = false;
+        state.lastCombatSummary = "";
         if (entry.combatSubtype == CombatSubtype.COUNTER_HARVEST)
         {
             CombatRosterRefresh.RefreshFriendly(state, entry, ctx.Ships, ctx.Modules);
         }
         var rng = CombatRng(state);
+        CombatRosterPrepService.PrepareEntry(state, entry, ctx.Ships, ctx.Modules, rng);
         var spawned = BattlefieldSpawner.SpawnAll(state, entry, ctx.Ships, ctx.Modules, rng);
         if (spawned.Count == 0)
         {
@@ -75,7 +104,7 @@ public static class CombatPhaseService
         state.combatRealtimeActive = true;
         state.combatAwaitingContinue = false;
         state.combatPrepStep = CombatPrepStep.CHOOSE_STANCE;
-        state.autoFireEnabled = true;
+        state.autoFireEnabled = false;
         var loc = entry.battlefieldSystemId ?? "?";
         if (!string.IsNullOrWhiteSpace(entry.battlefieldSubLocation))
         {
@@ -84,6 +113,8 @@ public static class CombatPhaseService
         PushAlert(state, "战斗视野开始 @ " + loc + "（" + spawned.Count + " 个战场）");
         return "实时指挥已开始 · 进入战斗视野";
     }
+
+    // liketocoode3a5
 
     public static string ChooseParticipate(BrickContext ctx)
     {
@@ -108,6 +139,8 @@ public static class CombatPhaseService
         return FinishResolution(ctx, outResult);
     }
 
+    // liketocoode34e
+
     public static string ChooseRetreat(BrickContext ctx)
     {
         var state = ctx.State;
@@ -130,6 +163,8 @@ public static class CombatPhaseService
         return FinishResolution(ctx, outResult);
     }
 
+    // liketocoo3e345
+
     public static string ContinueAfterResult(BrickContext ctx)
     {
         var state = ctx.State;
@@ -141,11 +176,8 @@ public static class CombatPhaseService
         state.lastCombatSummary = "";
         state.combatRealtimeActive = false;
         state.possessingMemberId = null;
-        if (state.activeBattlefieldId != null)
-        {
-            state.battlefields.RemoveAll(bf => state.activeBattlefieldId.Equals(bf.battlefieldId, StringComparison.Ordinal));
-            state.activeBattlefieldId = null;
-        }
+        state.battlefields.Clear();
+        state.activeBattlefieldId = null;
         AdvanceQueueOrOperations(ctx);
         if (ctx.State.phase == GamePhase.COMBAT_PREP)
         {
@@ -155,6 +187,8 @@ public static class CombatPhaseService
             ? "交战列表已清空，进入新一轮运营"
             : "下一项交战 · 顶栏「自动交战」";
     }
+
+    // l1ketocoode345
 
     public static void EnterCombatPrep(GameState state, ShipRegistry ships, ModuleRegistry? modules = null)
     {
@@ -170,8 +204,11 @@ public static class CombatPhaseService
         CombatRosterRefresh.RefreshCurrent(state, ships, modules);
     }
 
+    // liketoco0de345
+
     public static void BeginOperationsRound(GameState state, ShipRegistry ships, ModuleRegistry? modules = null)
     {
+        modules ??= ModuleRegistry.LoadDefault();
         BoardSummonService.PurgeTempMembers(state);
         BetweenRoundsService.OnCombatRoundComplete(state, ships, modules);
         CampaignOutcomeService.Evaluate(state);
@@ -183,6 +220,8 @@ public static class CombatPhaseService
         AiOpponentService.OnOperationsStart(state, ships, modules);
     }
 
+    // lik3tocoode345
+
     private static string FinishResolution(BrickContext ctx, CombatAutoResolver.Outcome outResult)
     {
         var state = ctx.State;
@@ -193,6 +232,8 @@ public static class CombatPhaseService
         PushAlert(state, outResult.summary);
         return outResult.summary;
     }
+
+    // liketocoode3e5
 
     private static void AdvanceQueueOrOperations(BrickContext ctx)
     {
@@ -216,6 +257,8 @@ public static class CombatPhaseService
             PushAlert(state, "交战事件 " + FormatEventOrdinal(entry) + ": " + (entry?.label ?? "?"));
         }
     }
+
+    // liket0coode345
 
     private static void EnsureAutoModeSelected(GameState state)
     {

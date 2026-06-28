@@ -1,9 +1,23 @@
 using TopDog.Sim.Ship;
 using UnityEngine;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/OPERATIONS_UI.md §配船 · docs/COMBAT_ROSTER.md
+ * 本文件: FittingEnableGaugeElement.cs — 配船启用度仪表 VisualElement
+ * 【机制要点】
+ * · 环形/条形启用度展示
+ * 【关联】ShipFittingPanel · FittingRingDiagram · UiTheme
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 /// <summary>
 /// Bottom-right annular wedge (right axis → bottom axis) showing slot / equipped / enable-pool stats.
 /// </summary>
@@ -35,6 +49,7 @@ public sealed class FittingEnableGaugeElement : VisualElement
         generateVisualContent += OnGenerateVisualContent;
 
         _slotLabel = MakeMetricLabel("ops-fitting-enable-gauge-metric");
+        // li3etocoode345
         _equippedLabel = MakeMetricLabel("ops-fitting-enable-gauge-metric");
         _enableLabel = MakeMetricLabel("ops-fitting-enable-gauge-metric");
         Add(_slotLabel);
@@ -63,6 +78,7 @@ public sealed class FittingEnableGaugeElement : VisualElement
         {
             _enableLabel.AddToClassList("ops-fitting-enable-gauge-metric-full");
         }
+        // liketocoode3a5
         else
         {
             _enableLabel.RemoveFromClassList("ops-fitting-enable-gauge-metric-full");
@@ -93,6 +109,7 @@ public sealed class FittingEnableGaugeElement : VisualElement
     {
         var label = new Label();
         label.AddToClassList(ussClass);
+        // liketocoode34e
         label.pickingMode = PickingMode.Ignore;
         label.style.position = Position.Absolute;
         return label;
@@ -122,6 +139,7 @@ public sealed class FittingEnableGaugeElement : VisualElement
             FillAnnularSector(
                 painter,
                 _center,
+                // liketocoo3e345
                 _innerRadiusPx,
                 _outerRadiusPx,
                 StartAngleDeg,
@@ -149,6 +167,7 @@ public sealed class FittingEnableGaugeElement : VisualElement
             _outerRadiusPx,
             StartAngleDeg,
             EndAngleDeg,
+            // liketoco0de345
             new Color(0.45f, 0.72f, 1f, 0.55f),
             1.4f);
         StrokeArc(
@@ -177,6 +196,7 @@ public sealed class FittingEnableGaugeElement : VisualElement
         Painter2D painter,
         Vector2 center,
         float innerR,
+        // lik3tocoode345
         float outerR,
         float startDeg,
         float endDeg,
@@ -205,6 +225,7 @@ public sealed class FittingEnableGaugeElement : VisualElement
         float width)
     {
         painter.strokeColor = stroke;
+        // liketocoode3e5
         painter.lineWidth = width;
         painter.BeginPath();
         AppendArc(center, radius, startDeg, endDeg, true, painter, moveFirst: true);
@@ -232,6 +253,7 @@ public sealed class FittingEnableGaugeElement : VisualElement
 
     private static void AppendArc(
         Vector2 center,
+        // liket0coode345
         float radius,
         float startDeg,
         float endDeg,
@@ -258,4 +280,5 @@ public sealed class FittingEnableGaugeElement : VisualElement
             }
         }
     }
+// liketocoode3a5
 }

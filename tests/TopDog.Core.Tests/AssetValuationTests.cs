@@ -16,6 +16,12 @@ public sealed class AssetValuationTests
     }
 
     [Test]
+    public void Resource_Inorganic_ValueIsOne()
+    {
+        Assert.That(AssetValuation.ItemStarCoinValue("res_inorganic", null, null), Is.EqualTo(1));
+    }
+
+    [Test]
     public void Hull_DefaultByTonnage()
     {
         var carrier = new HullDef { tonnageClass = "CARRIER" };

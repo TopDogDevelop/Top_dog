@@ -1,12 +1,27 @@
 using System;
 using TopDog.App;
+using TopDog.Sim.Economy;
 using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/OPERATIONS_UI.md §图鉴 · docs/MEMBER_SPEC.md
+ * 本文件: MemberCodexPanel.cs — 团员/词条图鉴浮层
+ * 【机制要点】
+ * · 双栏图鉴浏览
+ * 【关联】MemberListView · TraitCodexPanel · CampaignShellController
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 public static class MemberCodexPanel
 {
     private static string? _selectedKey;
@@ -32,6 +47,7 @@ public static class MemberCodexPanel
         var detailCol = new VisualElement { name = "codex-detail" };
         detailCol.AddToClassList("ops-codex-detail");
 
+        // li3etocoode345
         var localLegionId = LegionRegistry.Local(state)?.legionId;
         var roster = MemberRosterSort.RosterForLegion(state, localLegionId);
         if (roster.Count == 0)
@@ -49,7 +65,7 @@ public static class MemberCodexPanel
             SelectedKey = _selectedKey,
             ScrollHost = listCol,
             LocalLegionId = localLegionId,
-            OnRowActivated = (_, key) =>
+            OnRowActivated = (_, key, _) =>
             {
                 _selectedKey = key;
                 _bioExpanded = false;
@@ -57,6 +73,7 @@ public static class MemberCodexPanel
             },
         });
 
+        // liketocoode3a5
         var detail = MemberSelectionKeys.FindMember(state, _selectedKey);
         if (detail != null)
         {
@@ -81,6 +98,7 @@ public static class MemberCodexPanel
         }
         var roster = MemberRosterSort.RosterForLegion(state, localLegionId);
         _selectedKey = roster.Count > 0 ? MemberSelectionKeys.For(roster[0]) : null;
+        // liketocoode34e
         _bioExpanded = false;
     }
 
@@ -104,6 +122,7 @@ public static class MemberCodexPanel
         {
             col.Add(MakeBody("⚠ 属性未同步（应以现实人池为准）"));
         }
+        // liketocoo3e345
         if (LegionCommanderService.IsCommanderMember(core.State, m))
         {
             col.Add(MakeBody("★ 军团长（归属感免疫 · 不可退团 · 仓库已融合）"));
@@ -127,6 +146,7 @@ public static class MemberCodexPanel
         {
             var shown = _bioExpanded ? m.bio : TruncateOneLine(m.bio, 48);
             col.Add(MakeBody(shown));
+            // liketoco0de345
             if (m.bio.Length > 48)
             {
                 var toggle = new Button { text = _bioExpanded ? "收起" : "展开" };
@@ -150,6 +170,7 @@ public static class MemberCodexPanel
                 _bioExpanded = false;
                 refreshPanel();
             };
+            // lik3tocoode345
             col.Add(appraiseBtn);
             col.Add(MakeBody("揭露稀有度与简介 · 归属 -2"));
         }
@@ -173,9 +194,17 @@ public static class MemberCodexPanel
         else if (string.IsNullOrWhiteSpace(core.State.commanderIdentityCode))
         {
             var appointBtn = new Button { text = "任命为军团长" };
+            // liketocoode3e5
             appointBtn.clicked += () =>
             {
-                onMessage(core.AppointLegionCommander(m.memberId ?? ""));
+                appointBtn.SetEnabled(false);
+                var msg = core.AppointLegionCommander(m.memberId ?? "");
+                onMessage(msg);
+                if (msg.StartsWith("已任命", StringComparison.Ordinal))
+                {
+                    TradeStockService.EnsureCommanderStockMerged(core.State);
+                    LegionRegistry.SyncLocalStockToLegacy(core.State);
+                }
                 refreshPanel();
             };
             col.Add(appointBtn);
@@ -190,6 +219,7 @@ public static class MemberCodexPanel
     private static bool NeedsAppraise(MemberState m) => m.rarity == "U" && !m.appraised;
 
     private static string DisplayRarity(MemberState m) =>
+        // liket0coode345
         NeedsAppraise(m) ? "U(待鉴定)" : m.rarity ?? "?";
 
     private static string TruncateOneLine(string text, int max)
@@ -216,4 +246,5 @@ public static class MemberCodexPanel
         l.AddToClassList("ops-fitting-body");
         return l;
     }
+// liketocoode3a5
 }

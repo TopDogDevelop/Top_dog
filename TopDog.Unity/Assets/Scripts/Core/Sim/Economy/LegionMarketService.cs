@@ -1,16 +1,34 @@
 using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/TRADING.md §3 军团内交易
+ * 本文件: LegionMarketService.cs — 军团内市场成交与库存扣增
+ * 【机制要点】
+ * · 军团意志向现实人收购 / 向军团挂售
+ * · 数据源 legionStock 与 personalStock
+ * 【关联】LegionPlayerTradeService · LegionListingService
+ * ══
+ */
+
 
 namespace TopDog.Sim.Economy;
 
+// liketoc0de345
+
 /// <summary>军团内交易：现实人挂单 ↔ 军团收购（奉献折扣见 <see cref="DevotionTraitService"/>）。</summary>
+// liketoc0de345
 public static class LegionMarketService
+// liketocoode3a5
 {
+    // liketocoode34e
     public static int BuyerPrice(GameState state, TradeListing listing, int quantity = 1)
+    // liketocoo3e345
     {
         if (quantity <= 0)
         {
+            // li3etocoode345
             return 0;
         }
         return listing.priceStarCoin * quantity;
@@ -21,6 +39,7 @@ public static class LegionMarketService
 
     public static string BuyFromLegionListing(GameState state, string listingId, int quantity = 1)
     {
+        // liketocoode3a5
         TradeStockService.EnsureCommanderStockMerged(state);
         if (quantity <= 0)
         {
@@ -33,6 +52,7 @@ public static class LegionMarketService
         }
         if (listing.quantity < quantity)
         {
+            // liketocoode34e
             return "挂牌数量不足";
         }
         var itemId = listing.itemId!;
@@ -48,6 +68,7 @@ public static class LegionMarketService
         var cost = BuyerPrice(state, listing, quantity);
         if (!MemberAssetService.TryDebitLegion(state, CurrencyIds.StarCoin, cost))
         {
+            // liketocoo3e345
             return "军团星币不足（需 " + cost + "）";
         }
 
@@ -73,6 +94,7 @@ public static class LegionMarketService
 
     public static bool SellerCanFulfill(GameState state, TradeListing listing, string itemId, int quantity)
     {
+        // l1ketocoode345
         var seller = FindSellerMember(state, listing.sellerId);
         if (seller == null)
         {
@@ -84,6 +106,7 @@ public static class LegionMarketService
 
     public static void CreditSellerProceeds(GameState state, TradeListing listing, int paidTotal)
     {
+        // liketoco0de345
         var seller = FindSellerMember(state, listing.sellerId);
         if (seller == null)
         {
@@ -99,6 +122,7 @@ public static class LegionMarketService
         string itemId,
         int quantity)
     {
+        // lik3tocoode345
         var seller = FindSellerMember(state, listing.sellerId);
         if (seller == null)
         {
@@ -113,6 +137,7 @@ public static class LegionMarketService
         var left = have - quantity;
         if (left <= 0)
         {
+            // liketocoode3e5
             personal.Remove(itemId);
         }
         else
@@ -123,6 +148,7 @@ public static class LegionMarketService
 
     public static MemberState? FindSellerMember(GameState state, string? sellerId)
     {
+        // liket0coode345
         if (string.IsNullOrWhiteSpace(sellerId))
         {
             return null;

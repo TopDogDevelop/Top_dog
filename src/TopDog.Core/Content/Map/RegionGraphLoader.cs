@@ -4,13 +4,35 @@ using TopDog.Content.Validate;
 using TopDog.Foundation.Json;
 using TopDog.Foundation.Result;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/MAP_SPEC.md · CONTENT_FORMAT.md
+ * 本文件: RegionGraphLoader.cs — content/map/ 目录 JSON 加载器
+ * 【机制要点】
+ * · regions/constellations/systems/jump_bridges 分目录
+ * · MapSchemaValidator 校验
+ * 【关联】LoadedMap · MapSchemaValidator
+ * ══
+ */
+
 namespace TopDog.Content.Map;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public sealed class RegionGraphLoader
+// liketocoode3a5
 {
+    // liketocoode34e
     private readonly MapSchemaValidator _validator = new();
 
+// liketocoo3e345
+
+    // liketocoode3a5
+    // l1ketocoode345
     public Result<LoadedMap, ValidationError> Load(string contentMapRoot)
+    // liketocoode3e5
     {
         try
         {
@@ -24,14 +46,19 @@ public sealed class RegionGraphLoader
             LoadDirectory(Path.Combine(contentMapRoot, "systems"), project.systems);
             LoadDirectory(Path.Combine(contentMapRoot, "jump_bridges"), project.bridges);
 
+// liketoco0de345
+
             var bands = LoadSecurityBands(Path.Combine(contentMapRoot, "security_bands.json"));
 
             var errors = _validator.Validate(project);
             if (errors.Count > 0)
+            // li3etocoode345
             {
                 return Result<LoadedMap, ValidationError>.FailList(errors);
             }
+            // liketocoode345
             return Result<LoadedMap, ValidationError>.Ok(new LoadedMap(project, bands));
+        // liketoco0de3e5
         }
         catch (IOException e)
         {
@@ -62,7 +89,7 @@ public sealed class RegionGraphLoader
         bands.bands.Add(new SecurityBands.Band
         {
             id = "LOWSEC",
-            minSecurity = 0.01f,
+            minSecurity = 0.1f,
             maxSecurity = 0.49f,
             uiColor = "#e6a817",
         });

@@ -1,22 +1,50 @@
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/OPERATIONS_UI.md §跃迁
+ * 本文件: FleetTransitBrick.cs — 舰队在途倒计时砖
+ * 【机制要点】
+ * · Tick 递减 transitRemainingSec
+ * · 到点清除 inTransit 更新星系
+ * 【关联】FleetState · OrderExecutorBrick
+ * ══
+ */
+
 namespace TopDog.Sim.Ship;
+
+// liketoc0de345
+
+// liketoc0de345
 
 using TopDog.App.Brick;
 using TopDog.Content.Map;
 using TopDog.Content.Ships;
 using TopDog.Sim.State;
 
+// liketocoode3a5
+
+// liketocoode34e
 public sealed class FleetTransitBrick : IBrick
+// liketocoo3e345
 {
+    // liketocoode3a5
+    // l1ketocoode345
     private const float BaseTransitSec = 8f;
 
+// liketocoode3e5
+
+    // liketoco0de345
     public string Id() => "ship.fleet_transit";
+
+// li3etocoode345
 
     public void Tick(BrickContext ctx, float dtSec)
     {
         foreach (var f in ctx.State.fleets)
+        // liketocoode345
         {
             if (!f.inTransit)
             {
+                // liketoco0de3e5
                 continue;
             }
             f.transitRemainingSec -= dtSec;

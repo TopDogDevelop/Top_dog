@@ -1,3 +1,5 @@
+using TopDog.Content.Map;
+using TopDog.Content.Ships;
 using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 
@@ -6,80 +8,143 @@ namespace TopDog.Tests;
 public sealed class TacticalWarpServiceTests
 {
     [Test]
-    public void BeginWarpSetsEtaFromDistanceAndSpeed()
+    public void TryBeginWarp_SetsTransitEtaFromDistanceAndSpeed()
     {
-        var from = new BattlefieldState
-        {
-            battlefieldId = "bf-a",
-            anchorAu = new[] { 0f, 0f, 0f },
-        };
-        var to = new BattlefieldState
-        {
-            battlefieldId = "bf-b",
-            anchorAu = new[] { 2f, 0f, 0f },
-        };
-        var unit = new BattlefieldUnit { unitId = "u1", side = UnitSide.FRIENDLY };
+        var state = NewDualBfState();
+        var from = state.battlefields[0];
+        var to = state.battlefields[1];
+        var unit = FriendlyShip("u1");
+        from.units.Add(unit);
+        BattlefieldSceneProxyService.SyncForBattlefield(state, from);
 
-        TacticalWarpService.BeginWarp(unit, from, to, new Content.Ships.HullDef { warpSpeedAups = 4f });
-
+        var err = TacticalWarpService.TryBeginWarp(state, unit, from, to, new HullDef { warpSpeedAups = 4f }, 500_000f);
+        Assert.That(err, Is.Null);
         Assert.That(unit.inTacticalWarp, Is.True);
+        Assert.That(unit.warpPhase, Is.EqualTo(TacticalWarpPhase.ApproachProxy));
         Assert.That(unit.warpTargetBfId, Is.EqualTo("bf-b"));
-        Assert.That(unit.warpEtaSec, Is.EqualTo(0.5f).Within(0.001f));
+        Assert.That(unit.warpEtaSec, Is.EqualTo(0.25f).Within(0.001f));
     }
 
     [Test]
-    public void TickCompletesWarpAndMovesUnitToTargetBattlefield()
+    public void TryBeginWarp_RejectsCrossSystem()
     {
-        var state = new GameState { combatRealtimeActive = true };
-        var from = new BattlefieldState
-        {
-            battlefieldId = "bf-a",
-            systemId = "sys1",
-            anchorAu = new[] { 0f, 0f, 0f },
-        };
+        var state = NewDualBfState();
+        var from = state.battlefields[0];
         var to = new BattlefieldState
         {
-            battlefieldId = "bf-b",
-            systemId = "sys1",
+            battlefieldId = "bf-other",
+            systemId = "sys-other",
+            eventRegionId = "reg-x",
             anchorAu = new[] { 1f, 0f, 0f },
         };
-        var unit = new BattlefieldUnit
-        {
-            unitId = "u1",
-            side = UnitSide.FRIENDLY,
-            alive = true,
-            arrivalAtSec = 0f,
-            structureHp = 100f,
-            structureMax = 100f,
-        };
-        from.units.Add(unit);
-        state.battlefields.Add(from);
         state.battlefields.Add(to);
-        TacticalWarpService.BeginWarp(unit, from, to, null);
+        var unit = FriendlyShip("u1");
+        from.units.Add(unit);
 
-        TacticalWarpService.Tick(state, from, unit.warpEtaSec + 0.01f);
-
-        Assert.That(from.units, Is.Empty);
-        Assert.That(to.units, Has.Count.EqualTo(1));
-        Assert.That(to.units[0].unitId, Is.EqualTo("u1"));
-        Assert.That(unit.inTacticalWarp, Is.False);
+        var err = TacticalWarpService.TryBeginWarp(state, unit, from, to, null, 500_000f);
+        Assert.That(err, Does.Contain("跳桥"));
     }
 
     [Test]
-    public void GateJumpTransfersAcrossSystemsInstantly()
+    public void FullPseudoWarp_MovesUnitToTargetBattlefield()
     {
-        var state = new GameState();
-        var from = new BattlefieldState { battlefieldId = "bf-a", systemId = "sys-a" };
-        var to = new BattlefieldState { battlefieldId = "bf-b", systemId = "sys-b" };
-        var unit = new BattlefieldUnit { unitId = "u1", side = UnitSide.FRIENDLY };
+        var state = NewDualBfState();
+        var from = state.battlefields[0];
+        var to = state.battlefields[1];
+        var unit = FriendlyShip("u1");
         from.units.Add(unit);
-        state.battlefields.Add(from);
-        state.battlefields.Add(to);
+        BattlefieldSceneProxyService.SyncForBattlefield(state, from);
+        BattlefieldSceneProxyService.SyncForBattlefield(state, to);
+        Assert.That(TacticalWarpService.TryBeginWarp(state, unit, from, to, null, 300_000f), Is.Null);
 
-        TacticalWarpService.GateJump(state, unit, from, to);
+        for (var i = 0; i < 300 && from.units.Contains(unit); i++)
+        {
+            TacticalWarpService.Tick(state, from, 0.05f);
+        }
 
-        Assert.That(from.units, Is.Empty);
-        Assert.That(to.units, Has.Count.EqualTo(1));
+        Assert.That(state.tacticalWarpInTransit, Has.Count.EqualTo(1));
+        state.tacticalWarpInTransit[0].remainingSec = 0f;
+        TacticalWarpService.TickInTransit(state, 0.05f);
+
+        Assert.That(to.units.Any(u => u.unitId == "u1"), Is.True);
+        unit = to.units.First(u => u.unitId == "u1");
+
+        for (var i = 0; i < 400; i++)
+        {
+            TacticalWarpService.Tick(state, to, 0.05f);
+            if (unit.warpPhase == TacticalWarpPhase.None)
+            {
+                break;
+            }
+        }
+
         Assert.That(unit.inTacticalWarp, Is.False);
+        Assert.That(unit.warpPhase, Is.EqualTo(TacticalWarpPhase.None));
+        var dist = MathF.Sqrt(unit.x * unit.x + unit.y * unit.y);
+        Assert.That(dist, Is.EqualTo(300_000f).Within(2000f));
     }
+
+    private static GameState NewDualBfState()
+    {
+        var state = new GameState
+        {
+            combatRealtimeActive = true,
+            activeBattlefieldId = "bf-a",
+            map = new LoadedMap(
+                new MapProject
+                {
+                    systems =
+                    {
+                        new SolarSystemDef
+                        {
+                            solarSystemId = "sys1",
+                            eventRegions =
+                            {
+                                new EventRegionDef
+                                {
+                                    eventRegionId = "reg-a",
+                                    kind = EventRegionKinds.Planet,
+                                    anchorAu = new[] { 0f, 0f, 0f },
+                                    radiusKm = 500,
+                                },
+                                new EventRegionDef
+                                {
+                                    eventRegionId = "reg-b",
+                                    kind = EventRegionKinds.OreBelt,
+                                    anchorAu = new[] { 1f, 0f, 0f },
+                                    radiusKm = 500,
+                                },
+                            },
+                        },
+                    },
+                },
+                securityBands: null),
+        };
+        state.battlefields.Add(new BattlefieldState
+        {
+            battlefieldId = "bf-a",
+            systemId = "sys1",
+            eventRegionId = "reg-a",
+            anchorAu = new[] { 0f, 0f, 0f },
+        });
+        state.battlefields.Add(new BattlefieldState
+        {
+            battlefieldId = "bf-b",
+            systemId = "sys1",
+            eventRegionId = "reg-b",
+            anchorAu = new[] { 1f, 0f, 0f },
+        });
+        return state;
+    }
+
+    private static BattlefieldUnit FriendlyShip(string id) => new()
+    {
+        unitId = id,
+        side = UnitSide.FRIENDLY,
+        memberId = "m1",
+        alive = true,
+        arrivalAtSec = 0f,
+        structureHp = 100f,
+        structureMax = 100f,
+    };
 }

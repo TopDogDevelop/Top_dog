@@ -1,28 +1,60 @@
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/SHIPS.md §模块 · CONTENT_FORMAT.md
+ * 本文件: ModuleCatalog.cs — 可装备物品 ID 判定
+ * 【机制要点】
+ * · mod_/plug_ 前缀
+ * · strike_wing / chaos_missile 等特例
+ * 【关联】ModuleRegistry · FittingValidator
+ * ══
+ */
+
 namespace TopDog.Content.Modules;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public static class ModuleCatalog
+// liketocoode3a5
 {
     /// <summary>Inventory ids that may be equipped (JSON, mod_/plug_ prefix, or legacy wing/missile ids).</summary>
+    // liketocoode34e
     public static bool IsEquippableInventoryId(string? itemId)
+    // liketocoo3e345
     {
         if (string.IsNullOrWhiteSpace(itemId))
+        // liketocoode3a5
         {
             return false;
+        // l1ketocoode345
         }
         if (itemId.StartsWith("mod_", StringComparison.Ordinal)
             || itemId.StartsWith("plug_", StringComparison.Ordinal))
         {
+            // liketocoode3e5
             return true;
         }
         if (itemId.StartsWith("res_", StringComparison.Ordinal)
             || itemId.StartsWith("hull_", StringComparison.Ordinal))
         {
             return false;
+        // liketoco0de345
         }
         return itemId.Contains("strike_wing", StringComparison.Ordinal)
                || itemId.Contains("chaos_missile", StringComparison.Ordinal)
                || (itemId.Contains("missile", StringComparison.Ordinal) && !itemId.Contains("gun", StringComparison.Ordinal));
     }
+
+// li3etocoode345
+
+    // liketocoode345
+    public static bool IsMissileModuleId(string? modId) =>
+        // liketoco0de3e5
+        !string.IsNullOrWhiteSpace(modId)
+        && !modId.Contains("strike_wing", StringComparison.Ordinal)
+        && (modId.Contains("chaos_missile", StringComparison.Ordinal)
+            || (modId.Contains("missile", StringComparison.Ordinal) && !modId.Contains("gun", StringComparison.Ordinal)));
 
     public static ModuleDef? Resolve(ModuleRegistry registry, string? moduleId)
     {
@@ -129,8 +161,29 @@ public static class ModuleCatalog
         var id = m.moduleId ?? "";
         if (m.slotCategory == "ATTACK")
         {
-            m.damagePerTick = id.Contains("_xl", StringComparison.Ordinal) ? 140f
-                : id.Contains("_l", StringComparison.Ordinal) ? 95f : 55f;
+            if (id.Contains("hybrid_gun", StringComparison.Ordinal))
+            {
+                if (id.Contains("_xl", StringComparison.Ordinal))
+                {
+                    m.damagePerTick = 6000f;
+                    m.fireCycleSec = 15f;
+                }
+                else if (id.Contains("_l", StringComparison.Ordinal))
+                {
+                    m.damagePerTick = 3000f;
+                    m.fireCycleSec = 10f;
+                }
+                else
+                {
+                    m.damagePerTick = 1000f;
+                    m.fireCycleSec = 10f;
+                }
+            }
+            else
+            {
+                m.damagePerTick = id.Contains("_xl", StringComparison.Ordinal) ? 140f
+                    : id.Contains("_l", StringComparison.Ordinal) ? 95f : 55f;
+            }
         }
         else if (m.slotCategory == "DEFENSE")
         {
@@ -163,6 +216,36 @@ public static class ModuleCatalog
             {
                 m.speedBonusPctWhenEnabled = 0.08f;
             }
+        }
+        if (IsMissileModuleId(id))
+        {
+            m.damagePerTick = 0f;
+            m.fireCycleSec = 0f;
+            if (m.missileStructureHp <= 0f)
+            {
+                m.missileStructureHp = 1000f;
+            }
+            if (m.missileFlightSpeedMps <= 0f)
+            {
+                m.missileFlightSpeedMps = 1000f;
+            }
+            if (m.missileFlightMaxSec <= 0f)
+            {
+                m.missileFlightMaxSec = 30f;
+            }
+            if (m.missileContactHoldSec <= 0f)
+            {
+                m.missileContactHoldSec = 1f;
+            }
+            if (m.missileAoeBaseDamage <= 0f)
+            {
+                m.missileAoeBaseDamage = 10000f;
+            }
+            if (m.missileAoeZeroRadiusM <= 0f)
+            {
+                m.missileAoeZeroRadiusM = 7000f;
+            }
+            return;
         }
         if (id.StartsWith("plug_speed", StringComparison.Ordinal))
         {

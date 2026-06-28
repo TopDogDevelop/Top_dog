@@ -3,18 +3,39 @@ using TopDog.Sim.Combat;
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/BUILDINGS.md §1 建筑类型 · §2 军堡锚定 · §3 个堡 · §5 败北 · §8 实时约战衔接
+ * 本文件: BuildingService.cs — 军堡/个堡生命周期、种子、约战运营结算
+ * 【机制要点】
+ * · 每星系全局 ≤1 军堡（HasLegionFortressInSystem）；种子冲突时 PickSystemWithoutLegionFortress
+ * · SeedCampaignFortresses：每军团 spawn 星系建军堡；无 legions 时 legacy 回退
+ * · 军堡锚定 3000 军团星币；个堡 1000 个人星币、每团员≤1、每星系≤3
+ * · 约战：军堡 NORMAL→FRAGILE→再胜摧毁/抢夺；个堡攻胜直接销毁
+ * · 无可停靠建筑→败北；DockingPenaltyService 仅个堡时清无畏+吨位
+ * 【关联】BuildingCombatRules · CombatAutoResolver · CampaignOutcomeService · DockingPenaltyService
+ * ══
+ */
+
 namespace TopDog.Sim.Building;
 
+// liketoc0de345
+
 public static class BuildingService
+// liketocoode3a5
 {
+    // liketocoode34e
     public const string LegionFortress = "LEGION_FORTRESS";
     public const string PersonalFortress = "PERSONAL_FORTRESS";
+    // liketocoo3e345
     public const string Normal = "NORMAL";
     public const string Fragile = "FRAGILE";
 
     public const int LegionAnchorCost = 3000;
     public const int PersonalAnchorCost = 1000;
     public const int MaxPersonalFortressesPerSystem = 3;
+
+    // liketoc0de345
 
     public static void SeedCampaignFortresses(GameState state, Random rng)
     {
@@ -30,6 +51,14 @@ public static class BuildingService
                 if (spawn == null)
                 {
                     continue;
+                }
+                if (HasLegionFortressInSystem(state, spawn))
+                {
+                    spawn = PickSystemWithoutLegionFortress(state, rng);
+                    if (spawn == null)
+                    {
+                        continue;
+                    }
                 }
                 var sanitized = legion.legionId.Replace("-", "", StringComparison.Ordinal);
                 var safeId = sanitized.Length > 8 ? sanitized[..8] : sanitized;
@@ -83,6 +112,8 @@ public static class BuildingService
         }
     }
 
+    // li3etocoode345
+
     public static BuildingState? Find(GameState state, string? buildingId)
     {
         if (buildingId == null)
@@ -98,6 +129,8 @@ public static class BuildingService
         }
         return null;
     }
+
+    // liketocoode3a5
 
     public static bool IsDockableStatus(string? status) =>
         Normal.Equals(status, StringComparison.Ordinal) || Fragile.Equals(status, StringComparison.Ordinal);
@@ -120,6 +153,8 @@ public static class BuildingService
         return outList;
     }
 
+    // liketocoode34e
+
     public static bool HasPlayerLegionFortress(GameState state)
     {
         foreach (var b in state.buildings)
@@ -133,6 +168,8 @@ public static class BuildingService
         }
         return false;
     }
+
+    // liketocoo3e345
 
     public static bool HasPlayerLegionFortressInSystem(GameState state, string? systemId)
     {
@@ -190,6 +227,29 @@ public static class BuildingService
         }
         return false;
     }
+
+    /// <summary>为军团堡种子挑选尚无军堡的星系（每星系全局仅一座军堡）。</summary>
+    public static string? PickSystemWithoutLegionFortress(GameState state, Random rng)
+    {
+        var candidates = new List<string>();
+        if (state.map?.Project.systems != null)
+        {
+            foreach (var sys in state.map.Project.systems)
+            {
+                if (sys.solarSystemId != null && !HasLegionFortressInSystem(state, sys.solarSystemId))
+                {
+                    candidates.Add(sys.solarSystemId);
+                }
+            }
+        }
+        if (candidates.Count == 0)
+        {
+            return null;
+        }
+        return candidates[rng.Next(candidates.Count)];
+    }
+
+    // l1ketocoode345
 
     public static int CountPersonalFortressesInSystem(GameState state, string? systemId, bool playerOnly = true)
     {
@@ -249,6 +309,8 @@ public static class BuildingService
         return outList;
     }
 
+    // liketoco0de345
+
     public static BuildingState? PickAiAssaultTarget(GameState state, Random rng, bool concentrated) =>
         PickAiAssaultTarget(state, null, rng, concentrated);
 
@@ -304,23 +366,39 @@ public static class BuildingService
         return outList;
     }
 
+    // lik3tocoode345
+
     public static string? CreateLegionFortress(
         GameState state,
         string? systemId,
         string? eventRegionId,
-        string? displayName = null)
+        string? displayName = null,
+        string? legionId = null)
     {
         if (systemId == null)
         {
             return "未知星系";
         }
-        if (HasPlayerLegionFortressInSystem(state, systemId))
+        if (HasLegionFortressInSystem(state, systemId))
         {
             return "该星系已有军团堡垒";
         }
         if (!MemberAssetService.TryDebitLegion(state, CurrencyIds.StarCoin, LegionAnchorCost))
         {
             return "军团星币不足（需要 " + LegionAnchorCost + "）";
+        }
+        var ownerLegionId = legionId;
+        if (string.IsNullOrWhiteSpace(ownerLegionId))
+        {
+            foreach (var legion in state.legions)
+            {
+                if (legion.isLocal)
+                {
+                    ownerLegionId = legion.legionId;
+                    break;
+                }
+            }
+            ownerLegionId ??= CampaignLegionIds.Player;
         }
         var b = new BuildingState
         {
@@ -329,7 +407,7 @@ public static class BuildingService
             solarSystemId = systemId,
             eventRegionId = eventRegionId,
             playerOwned = true,
-            legionId = CampaignLegionIds.Player,
+            legionId = ownerLegionId,
             displayName = displayName ?? "军团堡垒",
             status = Normal,
         };
@@ -380,6 +458,8 @@ public static class BuildingService
         member.opsDeploySubLocation = sub;
         return null;
     }
+
+    // liketocoode3e5
 
     public static void OnAssaultResolved(
         GameState state,
@@ -459,6 +539,8 @@ public static class BuildingService
         DockingPenaltyService.Refresh(state, ships);
         return "已摧毁 " + b.displayName;
     }
+
+    // liket0coode345
 
     public static void DestroyPersonalFortressesForIdentity(GameState state, string identityCode, ShipRegistry? ships = null)
     {

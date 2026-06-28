@@ -54,7 +54,7 @@ public sealed class ExchangeTradeTests
         var msg = ExchangeTradeService.ListOnPlayerMarket(state, "res_inorganic", 1);
 
         Assert.That(msg, Does.Contain("玩家间挂牌"));
-        Assert.That(state.market.playerListings, Is.Not.Empty);
+        Assert.That(state.market.pendingPlayerListings, Is.Not.Empty);
         Assert.That(stock.GetValueOrDefault("res_inorganic", 0), Is.EqualTo(2));
     }
 }

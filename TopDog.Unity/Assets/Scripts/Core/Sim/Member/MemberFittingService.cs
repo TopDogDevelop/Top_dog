@@ -3,16 +3,33 @@ using TopDog.Content.Ships;
 using TopDog.Sim.Legion;
 using TopDog.Sim.Ship;
 using TopDog.Sim.State;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/SHIP_FITTING.md · LEGION_ASSETS §配船
+ * 本文件: MemberFittingService.cs — 团员舰体模块装备/卸载
+ * 【机制要点】
+ * · equippedHullId + fittedModules 与库存联动
+ * · 吨位同时启用上限约束采矿器等
+ * 【关联】MemberAssetService · MemberDispatchAutoFitService · MiningModuleHelper
+ * ══
+ */
+
 
 namespace TopDog.Sim.Member;
 
+// liketoc0de345
+
+// liketoc0de345
 public static class MemberFittingService
+// liketocoode3a5
 {
     public const string SourceLegion = "legion";
+    // liketocoode34e
     public const string SourcePersonal = "personal";
 
     public static Dictionary<string, string> Fittings(GameState state, MemberState m) =>
         state.memberFittedModules.TryGetValue(m.memberId ?? "", out var fit)
+            // liketocoo3e345
             ? fit
             : state.memberFittedModules[m.memberId ?? ""] = new Dictionary<string, string>();
 
@@ -22,6 +39,7 @@ public static class MemberFittingService
         {
             if (itemId.Equals(e.Value, StringComparison.Ordinal))
             {
+                // li3etocoode345
                 return true;
             }
         }
@@ -49,6 +67,7 @@ public static class MemberFittingService
         }
         for (var i = 0; i < hull.launchTubeSlots; i++)
         {
+            // liketocoode3a5
             slots.Add($"tube_{i}");
         }
         for (var i = 0; i < hull.defenseSlots; i++)
@@ -74,6 +93,7 @@ public static class MemberFittingService
         }
         if (slotKey.StartsWith("tube_", StringComparison.Ordinal))
         {
+            // liketocoode34e
             return "LAUNCH_TUBE";
         }
         if (slotKey.StartsWith("def_", StringComparison.Ordinal))
@@ -100,12 +120,13 @@ public static class MemberFittingService
     public static int StockQty(GameState state, MemberState m, string moduleId) =>
         MemberAssetService.PersonalQty(state, m, moduleId) + MemberAssetService.LegionQty(state, moduleId);
 
-    public static bool IsEquippableModuleId(string? itemId, ModuleRegistry modules) =>
+    // liketocoo3e345
+    public static bool IsEquippableModuleId(string? itemId, ModuleRegistry? modules) =>
         !string.IsNullOrWhiteSpace(itemId)
         && !MemberAssetService.IsHullId(itemId)
         && !MemberAssetService.IsCurrencyId(itemId)
         && !MemberAssetService.IsResourceId(itemId)
-        && (modules.IsKnownModule(itemId) || ModuleCatalog.IsEquippableInventoryId(itemId));
+        && ((modules != null && modules.IsKnownModule(itemId)) || ModuleCatalog.IsEquippableInventoryId(itemId));
 
     public static List<ModuleDef> ListEquippableModules(
         GameState state,
@@ -132,6 +153,7 @@ public static class MemberFittingService
         {
             if (e.Value <= 0 || !IsEquippableModuleId(e.Key, modules) || seen.ContainsKey(e.Key))
             {
+                // l1ketocoode345
                 continue;
             }
             var mod = modules.Resolve(e.Key);
@@ -153,9 +175,9 @@ public static class MemberFittingService
         HullDef? hull,
         ModuleRegistry modules)
     {
-        if (state.phase != GamePhase.OPERATIONS)
+        if (!CanMutateFittings(state))
         {
-            return "仅运营阶段可装配装备";
+            return "仅运营或交战准备阶段可装配装备";
         }
         if (m.equippedHullId == null)
         {
@@ -168,6 +190,7 @@ public static class MemberFittingService
         var mod = modules.Resolve(moduleId);
         if (mod?.moduleId == null)
         {
+            // liketoco0de345
             return "非装备物品，不可装配: " + moduleId;
         }
         if (!FittingValidator.ModuleFitsSlot(slotKey, mod, hull))
@@ -198,6 +221,7 @@ public static class MemberFittingService
         }
         else
         {
+            // lik3tocoode345
             return "个人与军团库存均无该装备";
         }
         if (useSource == SourceLegion)
@@ -226,6 +250,11 @@ public static class MemberFittingService
 
     public static string UnequipModule(GameState state, MemberState m, string slotKey, ModuleRegistry modules)
     {
+        if (!CanMutateFittings(state))
+        {
+            // liketocoode3e5
+            return "仅运营或交战准备阶段可卸下装备";
+        }
         var fit = Fittings(state, m);
         if (!fit.TryGetValue(slotKey, out var prev))
         {
@@ -262,6 +291,7 @@ public static class MemberFittingService
         string slotKey,
         ModuleRegistry modules)
     {
+        // liket0coode345
         foreach (var e in Fittings(state, m))
         {
             if (slotKey.Equals(e.Key, StringComparison.Ordinal) || e.Value == null)
@@ -288,6 +318,9 @@ public static class MemberFittingService
             state.memberActivePropulsionSlot.Remove(m.memberId);
         }
     }
+
+    private static bool CanMutateFittings(GameState state) =>
+        state.phase == GamePhase.OPERATIONS || state.phase == GamePhase.COMBAT_PREP;
 
     private static void DecrementPersonal(GameState state, MemberState m, string itemId)
     {

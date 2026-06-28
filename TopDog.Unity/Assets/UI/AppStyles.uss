@@ -184,3 +184,37 @@ RadioButton {
     color: rgba(180, 210, 255, 0.85);
     -unity-text-align: middle-center;
 }
+
+.match-pause-settings-title {
+    font-size: 16px;
+    margin-top: 4px;
+    margin-bottom: 8px;
+    color: rgb(220, 230, 245);
+}
+
+.settings-options {
+    flex-direction: column;
+    margin-bottom: 16px;
+    min-width: 280px;
+}
+
+.settings-row {
+    flex-direction: column;
+    margin-bottom: 12px;
+}
+
+.settings-label {
+    font-size: 15px;
+    margin-bottom: 4px;
+    color: rgb(235, 240, 250);
+}
+
+.settings-value {
+    font-size: 14px;
+    margin-bottom: 6px;
+    color: rgb(160, 200, 255);
+}
+
+.settings-slider {
+    min-height: 20px;
+}

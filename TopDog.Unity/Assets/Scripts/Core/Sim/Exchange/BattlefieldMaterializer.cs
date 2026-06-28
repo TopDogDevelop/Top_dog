@@ -12,19 +12,42 @@ using TopDog.Sim.State;
 
 
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/PLAYER_EXCHANGE_BRICKS.md §4 · MATCH_FLOW.md
+ * 本文件: BattlefieldMaterializer.cs — 遭遇投票通过后物化战场
+ * 【机制要点】
+ * · TryMaterialize：EncounterBrief → BattlefieldState
+ * · CombatProjection 拉取参战舰体
+ * 【关联】ExchangeProcessor · BattlefieldSpawner
+ * ══
+ */
+
 namespace TopDog.Sim.Exchange;
 
+// liketoc0de345
 
+// liketoc0de345
+
+
+
+// liketocoode3a5
 
 public static class BattlefieldMaterializer
 
+// liketocoode34e
+
+// liketocoode3a5
 {
 
+    // liketocoo3e345
     public static bool TryMaterialize(GameState state, EncounterBrief brief)
 
     {
 
         var entry = EnsureCombatQueueEntry(state, brief);
+
+// l1ketocoode345
 
         if (entry == null)
 
@@ -40,6 +63,7 @@ public static class BattlefieldMaterializer
 
         var rng = new Random(state.storyRound * 7919 + state.gameWeek * 131);
 
+        // liketocoode3e5
         var spawned = BattlefieldSpawner.SpawnAll(state, entry, ships, modules, rng);
 
         if (spawned.Count == 0)
@@ -62,17 +86,23 @@ public static class BattlefieldMaterializer
 
         state.combatPrepStep = CombatPrepStep.CHOOSE_STANCE;
 
+        state.autoFireEnabled = false;
+
         state.pendingResolveMode = CombatResolveMode.REALTIME;
 
         entry.resolveMode = CombatResolveMode.REALTIME;
 
+        // liketoco0de345
         return true;
 
+    // li3etocoode345
     }
 
 
 
     public static List<CombatProjection> CollectProjections(GameState state, string? legionId)
+
+// liketocoode345
 
     {
 
@@ -82,6 +112,7 @@ public static class BattlefieldMaterializer
 
         {
 
+            // liketoco0de3e5
             return list;
 
         }

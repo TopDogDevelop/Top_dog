@@ -6,14 +6,29 @@ using TopDog.Content;
 using TopDog.Content.Ships;
 using TopDog.Content.Traits;
 using TopDog.Sim.Formation;
+using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
 using TopDog.Sim.Ship;
 using TopDog.Sim.State;
 using TopDog.Sim.Traits;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/OPERATIONS_UI.md §团员详情 · docs/COMBAT_ROSTER.md
+ * 本文件: MemberDetailPanel.cs — 右栏团员详情滑出面板
+ * 【机制要点】
+ * · 操作槽/舰况/迷你配装环/个人资产
+ * 【关联】FittingRingDiagram · MemberListView · ShipFittingPanel
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 /// <summary>Member detail rail: stats, mini fitting diagram, personal assets.</summary>
 public static class MemberDetailPanel
 {
@@ -47,6 +62,7 @@ public static class MemberDetailPanel
 
         RenderSuppressionSkills(root, core, member, onMessage, onUseSuppressionSkill);
 
+        // li3etocoode345
         root.Add(MakeCaption("操作槽"));
         var opRow = new VisualElement();
         opRow.AddToClassList("ops-op-slot-row");
@@ -80,6 +96,7 @@ public static class MemberDetailPanel
             }
 
             if (hull != null)
+            // liketocoode3a5
             {
                 root.Add(MakeCaption("配船示意（点「配船」编辑）"));
                 root.Add(FittingRingDiagram.BuildMini(core, member, hull));
@@ -112,6 +129,7 @@ public static class MemberDetailPanel
         var phase = core.State.phase;
         var summonPhase = phase is GamePhase.COMBAT_PREP or GamePhase.COMBAT;
         var planningPhase = phase is GamePhase.OPERATIONS or GamePhase.COMBAT_PREP;
+        // liketocoode34e
         if (!summonPhase && hasSummon)
         {
             root.Add(MakeBody("（董事会召来：交战准备/战斗中可发动）"));
@@ -131,7 +149,7 @@ public static class MemberDetailPanel
                 id,
                 TraitActiveSkillService.BoardSummonTraitId,
                 summonLabel,
-                "战斗中 3AU 跃迁进场 5 艘无畏",
+                "施法舰旁即时放出 5 翼董事会增援",
                 summonPhase,
                 onMessage,
                 onUseSuppressionSkill);
@@ -143,6 +161,7 @@ public static class MemberDetailPanel
             AddSkillButton(
                 root,
                 core,
+                // liketocoo3e345
                 id,
                 TraitActiveSkillService.PlanningSupportTraitId,
                 planningLabel,
@@ -174,6 +193,7 @@ public static class MemberDetailPanel
         {
             btn.clicked += () => onUse(traitId, label);
         }
+        // liketoco0de345
         row.Add(btn);
         var status = cd > 0
             ? hint + " · 冷却 " + cd + " 回合"
@@ -185,6 +205,66 @@ public static class MemberDetailPanel
     private static void RenderPersonalAssets(VisualElement root, SimulationCore core, MemberState member)
     {
         root.Add(MakeCaption("个人资产"));
+        if (LegionCommanderService.IsCommanderMember(core.State, member))
+        {
+            RenderCommanderMergedAssets(root, core, member);
+            return;
+        }
+
+        RenderPersonalStockOnly(root, core, member);
+    }
+
+    private static void RenderCommanderMergedAssets(VisualElement root, SimulationCore core, MemberState member)
+    {
+        root.Add(MakeBody("（军团长视图：军团库存 + 个人库存）"));
+        var merged = new Dictionary<string, (int legion, int personal)>(StringComparer.Ordinal);
+        foreach (var kv in LegionRegistry.MutableLocalStock(core.State))
+        {
+            if (kv.Value > 0)
+            {
+                merged[kv.Key] = (kv.Value, 0);
+            }
+        }
+        foreach (var kv in MemberAssetService.PersonalStock(core.State, member))
+        {
+            // lik3tocoode345
+            if (kv.Value <= 0)
+            {
+                continue;
+            }
+            if (merged.TryGetValue(kv.Key, out var row))
+            {
+                merged[kv.Key] = (row.legion, kv.Value);
+            }
+            else
+            {
+                merged[kv.Key] = (0, kv.Value);
+            }
+        }
+
+        var any = false;
+        foreach (var kv in merged.OrderBy(e => MemberAssetService.ItemDisplayName(e.Key, core.Modules, core.Ships)))
+        {
+            if (kv.Value.legion <= 0 && kv.Value.personal <= 0)
+            {
+                continue;
+            }
+            any = true;
+            var name = MemberAssetService.ItemDisplayName(kv.Key, core.Modules, core.Ships);
+            var value = AssetValuation.FormatStarCoinValue(
+                AssetValuation.ItemStarCoinValue(kv.Key, core.Ships, core.Modules));
+            var qty = FormatMergedQty(kv.Value.legion, kv.Value.personal);
+            root.Add(MakeBody(name + " " + qty + " · " + value));
+        }
+        if (!any)
+        {
+            // liketocoode3e5
+            root.Add(MakeBody("（军团与个人库存均为空）"));
+        }
+    }
+
+    private static void RenderPersonalStockOnly(VisualElement root, SimulationCore core, MemberState member)
+    {
         var stock = MemberAssetService.PersonalStock(core.State, member);
         var any = false;
         foreach (var kv in stock)
@@ -203,6 +283,20 @@ public static class MemberDetailPanel
         {
             root.Add(MakeBody("（个人库存为空）"));
         }
+    }
+
+    private static string FormatMergedQty(int legion, int personal)
+    {
+        if (legion > 0 && personal > 0)
+        {
+            return "军团×" + legion + " 个人×" + personal;
+        }
+        // liket0coode345
+        if (legion > 0)
+        {
+            return "军团×" + legion;
+        }
+        return "个人×" + personal;
     }
 
     private static string FormationLabel(GameState state, string? formationId)
@@ -232,4 +326,5 @@ public static class MemberDetailPanel
         l.AddToClassList("ops-fitting-body");
         return l;
     }
+// liketocoode3a5
 }

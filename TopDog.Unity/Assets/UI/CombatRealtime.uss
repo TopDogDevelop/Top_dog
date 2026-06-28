@@ -125,6 +125,25 @@
     border-width: 1px;
     border-color: rgba(255, 255, 255, 0.15);
     background-color: rgb(8, 10, 14);
+    overflow: visible;
+}
+
+.rtcombat-viewport.art-viewport-host {
+    overflow: visible;
+}
+
+.rtcombat-viewport-skybox {
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.rtcombat-space-bg {
+    -unity-background-scale-mode: stretch-to-fill;
+    -unity-background-image-tint-color: rgb(255, 255, 255);
+    opacity: 1;
+}
+
+.rtcombat-space-bg-image {
+    opacity: 1;
 }
 
 .rtcombat-tactical-grid {
@@ -141,12 +160,22 @@
     -unity-background-image-tint-color: rgb(255, 255, 255);
 }
 
+.rtcombat-edge-markers {
+    position: absolute;
+    left: 0;
+    right: 68px;
+    top: 0;
+    bottom: 0;
+    overflow: visible;
+}
+
 .rtcombat-markers {
     position: absolute;
     left: 0;
     right: 68px;
     top: 0;
     bottom: 0;
+    overflow: visible;
 }
 
 .rtcombat-marker {
@@ -166,9 +195,56 @@
 }
 
 .rtcombat-marker-offscreen {
-    opacity: 0.82;
-    border-width: 1px;
-    border-color: rgba(255, 255, 255, 0.35);
+    opacity: 1;
+}
+
+.rtcombat-edge-bracket {
+    opacity: 1;
+}
+
+.rtcombat-edge-bracket .rtcombat-marker {
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.rtcombat-edge-bracket .rtcombat-marker-chevron {
+    display: flex;
+    font-size: 18px;
+    color: rgb(255, 220, 80);
+}
+
+.rtcombat-marker-landmark .rtcombat-marker-icon {
+    -unity-background-image-tint-color: rgb(255, 220, 80);
+}
+
+.rtcombat-marker-landmark.rtcombat-marker-offscreen {
+    border-color: rgba(255, 180, 40, 0.95);
+}
+
+.rtcombat-marker-scene-proxy {
+    border-width: 2px;
+    border-color: rgba(90, 180, 255, 0.9);
+    background-color: rgba(0, 20, 40, 0.55);
+}
+
+.rtcombat-marker-scene-proxy-label {
+    position: absolute;
+    left: -36px;
+    top: 34px;
+    width: 104px;
+    font-size: 10px;
+    color: rgb(170, 220, 255);
+    -unity-text-align: middle-center;
+    white-space: normal;
+}
+
+.rtcombat-marker-chevron {
+    position: absolute;
+    left: 0;
+    top: 10px;
+    font-size: 14px;
+    color: rgb(255, 220, 80);
+    -unity-font-style: bold;
 }
 
 .rtcombat-marker-badge {
@@ -203,6 +279,34 @@
 .rtcombat-subtitle {
     font-size: 13px;
     color: rgb(200, 210, 230);
+}
+
+.rtcombat-fleet-btn:disabled,
+.rtcombat-compact-btn:disabled,
+.rtcombat-rail-toggle:disabled,
+.rtcombat-fleet-btn-wide:disabled {
+    opacity: 0.45;
+}
+
+.rtcombat-range-dial-host {
+    position: absolute;
+    align-items: center;
+    justify-content: center;
+}
+
+.rtcombat-range-dial-ring {
+    position: absolute;
+    border-width: 2px;
+    border-color: rgba(140, 200, 255, 0.55);
+    border-radius: 50%;
+    background-color: rgba(20, 30, 50, 0.35);
+}
+
+.rtcombat-range-dial-km {
+    font-size: 22px;
+    -unity-font-style: bold;
+    color: rgb(255, 255, 255);
+    -unity-text-align: middle-center;
 }
 
 .rtcombat-fleet-bar {
@@ -297,16 +401,67 @@
     align-self: stretch;
 }
 
-.rtcombat-hud-bar-fill-hp {
-    background-color: rgb(255, 230, 60);
+.rtcombat-hud-bar-fill-shield {
+    background-color: rgb(80, 160, 255);
 }
 
-.rtcombat-hud-bar-fill-capacitor {
-    background-color: rgb(120, 200, 255);
+.rtcombat-hud-bar-fill-armor {
+    background-color: rgb(255, 220, 60);
 }
 
-.rtcombat-hud-bar-fill-implant {
-    background-color: rgb(180, 120, 255);
+.rtcombat-hud-bar-fill-structure {
+    background-color: rgb(220, 90, 70);
+}
+
+.rtcombat-hud-bar-fill-enable {
+    background-color: rgb(100, 200, 140);
+}
+
+.rtcombat-hud-bar-fill-enable-time {
+    background-color: rgb(140, 170, 220);
+}
+
+.rtcombat-salvo-cd-square {
+    overflow: hidden;
+    flex-direction: column-reverse;
+    justify-content: flex-start;
+    align-items: stretch;
+    border-width: 1px;
+    border-color: rgba(255, 190, 90, 0.75);
+    background-color: rgba(0, 0, 0, 0.45);
+}
+
+.rtcombat-salvo-cd-fill {
+    background-color: rgb(255, 150, 60);
+}
+
+.rtcombat-float-damage {
+    font-size: 11px;
+    color: rgb(255, 90, 70);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.rtcombat-float-heal {
+    font-size: 11px;
+    color: rgb(90, 230, 140);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.rtcombat-combat-debug {
+    max-height: 120px;
+    margin-top: 4px;
+    border-width: 1px;
+    border-color: rgba(120, 180, 255, 0.35);
+    background-color: rgba(0, 0, 0, 0.45);
+    padding: 4px;
+}
+
+.rtcombat-combat-debug-body {
+    font-size: 10px;
+    color: rgb(180, 200, 220);
+    white-space: normal;
 }
 
 .rtcombat-ship-detail-bar-horizontal .unity-progress-bar__container {
@@ -338,19 +493,19 @@
 }
 
 .rtcombat-hud-bar-armor .unity-progress-bar__progress {
-    background-color: rgb(180, 180, 190);
+    background-color: rgb(255, 220, 60);
 }
 
 .rtcombat-hud-bar-structure .unity-progress-bar__progress {
     background-color: rgb(220, 90, 70);
 }
 
-.rtcombat-hud-bar-capacitor .unity-progress-bar__progress {
-    background-color: rgb(120, 200, 255);
+.rtcombat-hud-bar-enable .unity-progress-bar__progress {
+    background-color: rgb(100, 200, 140);
 }
 
-.rtcombat-hud-bar-implant .unity-progress-bar__progress {
-    background-color: rgb(180, 120, 255);
+.rtcombat-hud-bar-enable-time .unity-progress-bar__progress {
+    background-color: rgb(140, 170, 220);
 }
 
 .rtcombat-orbit-hud-mid {
@@ -392,6 +547,8 @@
 }
 
 .rtcombat-ship-detail-bar-capacitor,
+.rtcombat-ship-detail-bar-enable,
+.rtcombat-ship-detail-bar-enable-time,
 .rtcombat-ship-detail-bar-implant {
     width: 5px;
     height: 28px;
@@ -434,6 +591,15 @@
     picking-mode: ignore;
 }
 
+.rtcombat-ring-km-label {
+    font-size: 10px;
+    color: rgba(220, 230, 255, 0.75);
+    -unity-text-align: middle-left;
+    background-color: rgba(0, 0, 0, 0);
+    padding-left: 0;
+    padding-right: 0;
+}
+
 .rtcombat-input-overlay {
     position: absolute;
     left: 0;
@@ -453,6 +619,7 @@
     position: absolute;
     width: 32px;
     height: 32px;
+    overflow: visible;
 }
 
 .rtcombat-marker-fallback {
@@ -528,6 +695,11 @@
     flex-shrink: 1;
     min-height: 0;
     min-width: 0;
+    overflow: visible;
+}
+
+.rtcombat-star-map-host.art-viewport-host {
+    overflow: visible;
 }
 
 .rtcombat-orbit-hud-top {

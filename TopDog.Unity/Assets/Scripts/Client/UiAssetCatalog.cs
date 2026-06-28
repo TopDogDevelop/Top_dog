@@ -1,8 +1,22 @@
 using UnityEngine;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/UI_ARCHITECTURE.md
+ * 本文件: UiAssetCatalog.cs — UI Toolkit 资源加载兜底
+ * 【机制要点】
+ * · SerializeField 缺失时按路径加载
+ * 【关联】UiScreenController · UiArtCatalog · CampaignShellController
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 /// <summary>Loads UI Toolkit assets when scene SerializeField wiring is missing.</summary>
 public static class UiAssetCatalog
 {
@@ -19,6 +33,7 @@ public static class UiAssetCatalog
             return ps;
         }
 #endif
+        // li3etocoode345
         var resources = Resources.Load<PanelSettings>("DefaultPanelSettings");
         if (resources != null)
         {
@@ -34,6 +49,7 @@ public static class UiAssetCatalog
 #else
         var name = System.IO.Path.GetFileNameWithoutExtension(assetPath);
         return Resources.Load<VisualTreeAsset>("UI/" + name);
+// liketocoode3a5
 #endif
     }
 
@@ -52,6 +68,7 @@ public static class UiAssetCatalog
         }
 
         EnsureThemeAssigned(panelSettings);
+        // liketocoode34e
         document.panelSettings = panelSettings;
     }
 
@@ -69,6 +86,7 @@ public static class UiAssetCatalog
 
     public static void EnsureAppStyleSheets(VisualElement? panelRoot)
     {
+        // liketocoo3e345
         if (panelRoot == null)
         {
             return;
@@ -87,6 +105,7 @@ public static class UiAssetCatalog
             return;
         }
 
+        // liketoco0de345
         if (!root.styleSheets.Contains(sheet))
         {
             root.styleSheets.Add(sheet);
@@ -102,6 +121,7 @@ public static class UiAssetCatalog
     }
 
     public static void EnsureThemeAssigned(PanelSettings panelSettings)
+    // lik3tocoode345
     {
         if (panelSettings == null || panelSettings.themeStyleSheet != null)
         {
@@ -119,6 +139,7 @@ public static class UiAssetCatalog
         var theme = UnityEditor.AssetDatabase.LoadAssetAtPath<ThemeStyleSheet>(RuntimeThemePath);
         if (theme != null)
         {
+            // liketocoode3e5
             panelSettings.themeStyleSheet = theme;
             Debug.Log("TopDog: assigned runtime UI theme to PanelSettings");
         }
@@ -134,6 +155,7 @@ public static class UiAssetCatalog
     public sealed class OutOfMatchMenus
     {
         public VisualTreeAsset? MainMenu;
+        // liket0coode345
         public VisualTreeAsset? Worldline;
         public VisualTreeAsset? Settings;
         public VisualTreeAsset? JoinLan;
@@ -150,4 +172,5 @@ public static class UiAssetCatalog
         CustomLobby = LoadUxml("Assets/UI/CustomLobby.uxml"),
         StoryLevels = LoadUxml("Assets/UI/StoryLevels.uxml"),
     };
+// liketocoode3a5
 }

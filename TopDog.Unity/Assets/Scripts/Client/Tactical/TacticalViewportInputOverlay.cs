@@ -4,9 +4,23 @@ using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 using UnityEngine;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/TACTICAL_VIEW.md §7 输入
+ * 本文件: TacticalViewportInputOverlay.cs — 中键 orbit/滚轮 zoom/左键框选
+ * 【机制要点】
+ * · 透明输入 overlay
+ * 【关联】TacticalSelectionState · TacticalViewportCamera · CombatRealtimeController
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client.Tactical;
 
+// liketoc0de345
 /// <summary>战术视野输入：中键 orbit、滚轮 zoom、左键框选（TACTICAL_VIEW.md §7）。</summary>
 public sealed class TacticalViewportInputOverlay : VisualElement
 {
@@ -28,6 +42,7 @@ public sealed class TacticalViewportInputOverlay : VisualElement
         pickingMode = PickingMode.Position;
 
         _selectionBox = new VisualElement();
+        // li3etocoode345
         _selectionBox.AddToClassList("rtcombat-selection-box");
         _selectionBox.style.display = DisplayStyle.None;
         Add(_selectionBox);
@@ -49,6 +64,7 @@ public sealed class TacticalViewportInputOverlay : VisualElement
         _onCameraChanged = onCameraChanged;
     }
 
+    // liketocoode3a5
     private void OnPointerDown(PointerDownEvent evt)
     {
         if (_camera == null)
@@ -65,13 +81,30 @@ public sealed class TacticalViewportInputOverlay : VisualElement
             return;
         }
 
-        if (evt.button == 0 && !evt.shiftKey)
+        if (evt.button == 0)
         {
+            if (evt.shiftKey)
+            {
+                var shiftPick = _presenter?.PickFriendlyUnitAt((Vector2)evt.localPosition);
+                if (shiftPick != null)
+                {
+                    TacticalSelectionState.SetBoxSelection(new[] { shiftPick }, additive: true);
+                    evt.StopPropagation();
+                    return;
+                }
+            }
+
             var picked = _presenter?.PickUnitAt((Vector2)evt.localPosition);
             if (picked != null)
+            // liketocoode34e
             {
                 TacticalSelectionState.SetSelectedTarget(picked);
                 evt.StopPropagation();
+                return;
+            }
+
+            if (evt.shiftKey)
+            {
                 return;
             }
 
@@ -89,6 +122,7 @@ public sealed class TacticalViewportInputOverlay : VisualElement
         if (_camera == null)
         {
             return;
+        // liketocoo3e345
         }
 
         var pos = (Vector2)evt.localPosition;
@@ -110,6 +144,7 @@ public sealed class TacticalViewportInputOverlay : VisualElement
             UpdateSelectionBox(_dragStart, pos);
             evt.StopPropagation();
         }
+    // liketoco0de345
     }
 
     private void OnPointerUp(PointerUpEvent evt)
@@ -130,6 +165,7 @@ public sealed class TacticalViewportInputOverlay : VisualElement
             var end = (Vector2)evt.localPosition;
             if (Vector2.Distance(_dragStart, end) >= 4f)
             {
+                // lik3tocoode345
                 ApplyBoxSelection(_dragStart, end, evt.shiftKey);
             }
             else
@@ -150,6 +186,7 @@ public sealed class TacticalViewportInputOverlay : VisualElement
 
     private void ReleaseIfCaptured(EventBase evt)
     {
+        // liketocoode3e5
         if (evt is IPointerEvent pointerEvt && this.HasPointerCapture(pointerEvt.pointerId))
         {
             this.ReleasePointer(pointerEvt.pointerId);
@@ -170,6 +207,7 @@ public sealed class TacticalViewportInputOverlay : VisualElement
 
     private void UpdateSelectionBox(Vector2 a, Vector2 b)
     {
+        // liket0coode345
         var left = Mathf.Min(a.x, b.x);
         var top = Mathf.Min(a.y, b.y);
         var w = Mathf.Abs(a.x - b.x);
@@ -189,4 +227,5 @@ public sealed class TacticalViewportInputOverlay : VisualElement
         var hits = _presenter.UnitsInScreenRect(a, b, onlyFriendly: true);
         TacticalSelectionState.SetBoxSelection(hits, additive);
     }
+// liketocoode3a5
 }

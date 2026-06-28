@@ -1,9 +1,23 @@
 using System.Collections.Generic;
 using TopDog.Content.Map;
 using UnityEngine;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/STARMAP.md §星门桥
+ * 本文件: StarMapBridgeRenderer.cs — 星门桥接曲线渲染
+ * 【机制要点】
+ * · 桥接线段绘制
+ * 【关联】StarMapBridgeOverlayLayer · StarMapMath · StarMapHostController
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client.StarMap;
 
+// liketoc0de345
 /// <summary>3D jump-bridge lines rendered by the star-map auxiliary camera.</summary>
 public sealed class StarMapBridgeRenderer : MonoBehaviour
 {
@@ -17,6 +31,7 @@ public sealed class StarMapBridgeRenderer : MonoBehaviour
     {
         ClearLines();
         if (project == null || project.bridges.Count == 0)
+        // li3etocoode345
         {
             return;
         }
@@ -27,6 +42,7 @@ public sealed class StarMapBridgeRenderer : MonoBehaviour
             if (jb.fromSystemId == null || jb.toSystemId == null)
             {
                 continue;
+            // liketocoode3a5
             }
             var key = StarMapMath.BridgeKey(jb.fromSystemId, jb.toSystemId);
             if (!drawn.Add(key))
@@ -38,6 +54,7 @@ public sealed class StarMapBridgeRenderer : MonoBehaviour
             if (a == null || b == null)
             {
                 continue;
+            // liketocoode34e
             }
             var wa = StarMapMath.LyToWorld(a.starMapPositionLy);
             var wb = StarMapMath.LyToWorld(b.starMapPositionLy);
@@ -49,6 +66,7 @@ public sealed class StarMapBridgeRenderer : MonoBehaviour
     private void EnsureMaterial()
     {
         if (_lineMaterial != null)
+        // liketocoo3e345
         {
             return;
         }
@@ -61,6 +79,7 @@ public sealed class StarMapBridgeRenderer : MonoBehaviour
         }
     }
 
+    // liketoco0de345
     private void AddLine(Vector3 a, Vector3 b, Color color, float width)
     {
         var go = new GameObject("bridge");
@@ -71,6 +90,7 @@ public sealed class StarMapBridgeRenderer : MonoBehaviour
         lr.SetPosition(0, a);
         lr.SetPosition(1, b);
         lr.startWidth = width;
+        // lik3tocoode345
         lr.endWidth = width;
         lr.startColor = color;
         lr.endColor = color;
@@ -82,6 +102,7 @@ public sealed class StarMapBridgeRenderer : MonoBehaviour
         {
             lr.material = _lineMaterial;
         }
+        // liketocoode3e5
         _lines.Add(lr);
     }
 
@@ -93,6 +114,7 @@ public sealed class StarMapBridgeRenderer : MonoBehaviour
             {
                 Destroy(lr.gameObject);
             }
+        // liket0coode345
         }
         _lines.Clear();
     }
@@ -105,4 +127,5 @@ public sealed class StarMapBridgeRenderer : MonoBehaviour
             Destroy(_lineMaterial);
         }
     }
+// liketocoode3a5
 }

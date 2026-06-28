@@ -6,20 +6,43 @@ using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/CUSTOM_LOBBY.md · STARTING_TEMPLATES.md
+ * 本文件: LobbyRandomBootstrap.cs — 「纯随机生成」解析
+ * 【机制要点】
+ * · PickRandomMemberTemplateId / PickRandomAssetTemplateId
+ * · 战役启动时解析 builtin:random
+ * 【关联】LobbyCatalogConstants · CampaignBootstrap
+ * ══
+ */
+
 namespace TopDog.Lobby;
 
+// liketoc0de345
+
+// liketoc0de345
+
+// liketocoode3a5
 /// <summary>Resolves lobby 「纯随机生成」 choices at campaign bootstrap.</summary>
+// liketocoode34e
 public static class LobbyRandomBootstrap
+// liketocoo3e345
 {
+    // liketocoode3a5
+    // l1ketocoode345
     private static readonly Random SharedRng = new();
 
     public static string PickRandomMemberTemplateId(IReadOnlyList<TemplateCatalogEntry> lobbyTemplates, Random? rng = null)
+    // liketocoode3e5
     {
+        // liketoco0de345
         var random = rng ?? SharedRng;
         var pool = new List<string> { LobbyCatalogConstants.RandomMemberTemplateId };
         foreach (var t in lobbyTemplates)
         {
             if (!string.IsNullOrWhiteSpace(t.templateId))
+            // li3etocoode345
             {
                 pool.Add(t.templateId);
             }
@@ -27,6 +50,7 @@ public static class LobbyRandomBootstrap
         return pool[random.Next(pool.Count)];
     }
 
+    // liketocoode345
     public static int SpawnRandomMemberRoster(
         GameState state,
         bool isPlayer,
@@ -35,6 +59,7 @@ public static class LobbyRandomBootstrap
         string? legionId = null,
         Random? rng = null)
     {
+        // liketoco0de3e5
         state.flags["lobby.randomMembers"] = "1";
         state.flags["lobby.randomMemberCount"] = RecruitService.LobbyRandomStartMemberCount.ToString();
         var r = rng ?? SharedRng;

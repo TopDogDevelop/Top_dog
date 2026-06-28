@@ -7,6 +7,21 @@ namespace TopDog.Core.Tests;
 public sealed class FleetOrderApproachOrbitTests
 {
     [Test]
+    public void OrderAway_SteersAwayFromTarget()
+    {
+        var bf = NewBf();
+        var friendly = Unit("f1", UnitSide.FRIENDLY);
+        var enemy = Unit("e1", UnitSide.ENEMY);
+        bf.units.Add(friendly);
+        bf.units.Add(enemy);
+
+        var msg = FleetOrderService.OrderAway(new GameState(), bf, "e1", null);
+        Assert.That(msg, Does.Contain("远离"));
+        Assert.That(friendly.aiOrder, Is.EqualTo(UnitAiOrder.AWAY));
+        Assert.That(friendly.approachTargetUnitId, Is.EqualTo("e1"));
+    }
+
+    [Test]
     public void OrderApproach_SteersTowardEnemyTarget()
     {
         var bf = NewBf();

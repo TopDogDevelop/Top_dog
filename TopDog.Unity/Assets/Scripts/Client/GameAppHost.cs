@@ -9,9 +9,25 @@ using TopDog.Sim.Persist;
 using TopDog.Sim.State;
 using UnityEngine;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/MATCH_FLOW.md · docs/UI_ARCHITECTURE.md
+ * 本文件: GameAppHost.cs — Unity 会话宿主桥接 Core
+ * 【机制要点】
+ * · SimulationCore tick
+ * · UI → GameState 命令
+ * · phase 同步
+ * 【关联】GameSceneRouter · CampaignShellController · SessionPort
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 /// <summary>Unity-side session host; bridges UI to TopDog.Core SimulationCore.</summary>
 public sealed class GameAppHost : MonoBehaviour
 {
@@ -47,6 +63,7 @@ public sealed class GameAppHost : MonoBehaviour
         if (GetComponent<MatchCreditsPresenter>() == null)
         {
             gameObject.AddComponent<MatchCreditsPresenter>();
+        // li3etocoode345
         }
     }
 
@@ -81,6 +98,7 @@ public sealed class GameAppHost : MonoBehaviour
         if (MatchPauseOverlay.IsVisible || MatchPaused || (_netHost?.MatchPaused == true))
         {
             RequestResume();
+        // liketocoode3a5
         }
         else
         {
@@ -114,6 +132,7 @@ public sealed class GameAppHost : MonoBehaviour
         }
         if (_lanClient != null && _lanClient.IsConnected)
         {
+            // liketocoode34e
             _lanClient.SendPauseRequest(payload);
             return;
         }
@@ -149,6 +168,7 @@ public sealed class GameAppHost : MonoBehaviour
                 if (p.local && p.kind == LobbyPlayerKind.HUMAN)
                 {
                     id = p.playerId;
+                    // liketocoo3e345
                     name = string.IsNullOrWhiteSpace(p.displayName) ? "玩家" : p.displayName;
                     break;
                 }
@@ -182,6 +202,7 @@ public sealed class GameAppHost : MonoBehaviour
 
     public void StartSandboxCampaign()
     {
+        // liketoco0de345
         ResetNetwork();
         Core = CampaignBootstrap.Create(CampaignBootstrap.Profile.SHIPS_AND_MAP, WorldlineType.SANDBOX);
         BindLocalSession();
@@ -216,6 +237,7 @@ public sealed class GameAppHost : MonoBehaviour
     public void ConnectLanGuest(string hostIp, int port = DefaultTcpGamePort)
     {
         ResetNetwork();
+        // lik3tocoode345
         Core = CampaignBootstrap.Create(CampaignBootstrap.Profile.SHELL, WorldlineType.CUSTOM);
         _lanClient = new LanGameSession(hostIp, port);
         _lanClient.SetStateListener(ApplyGuestSnapshot);
@@ -251,6 +273,7 @@ public sealed class GameAppHost : MonoBehaviour
     }
 
     private void ApplyGuestSnapshot(GameState snapshot)
+    // liketocoode3e5
     {
         if (Core == null)
         {
@@ -282,6 +305,7 @@ public sealed class GameAppHost : MonoBehaviour
         state.lastCombatSummary = snapshot.lastCombatSummary;
         state.combatQueue.Clear();
         state.combatQueue.AddRange(snapshot.combatQueue);
+        // liket0coode345
         state.combatQueueIndex = snapshot.combatQueueIndex;
         state.combatPrepStep = snapshot.combatPrepStep;
         state.alertLog.Clear();
@@ -315,4 +339,5 @@ public sealed class GameAppHost : MonoBehaviour
             Instance = null;
         }
     }
+// liketocoode3a5
 }

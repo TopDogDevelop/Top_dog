@@ -1,18 +1,36 @@
 using TopDog.App.Brick;
 using TopDog.Content.Modules;
 using TopDog.Content.Ships;
+using TopDog.Sim.Legion;
 using TopDog.Sim.Ship;
 using TopDog.Sim.State;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/LEGION_ASSETS_AND_VALUATION.md §5 派遣自动填装
+ * 本文件: MemberDispatchAutoFitService.cs — 派遣前按估值上限自动配模块
+ * 【机制要点】
+ * · 派遣下达时自动填装；上限由 AssetValuation 约束
+ * · 在 MemberAutoEquipHullService 之后执行
+ * 【关联】MemberDispatchService · AssetValuation · MemberFittingService
+ * ══
+ */
+
 
 namespace TopDog.Sim.Member;
 
-/// <summary>派遣执行任务时：先卸装 → 按词条或默认规则用个人库存填装。</summary>
+// liketoc0de345
+
+/// <summary>派遣/战前：先卸装 → 按词条或默认规则用个人+军团库存填装。</summary>
+// liketoc0de345
 public static class MemberDispatchAutoFitService
+// liketocoode3a5
 {
+    // liketocoode34e
     private enum FillMode
     {
         Random,
         Luxury,
+        // liketocoo3e345
         Thrift,
     }
 
@@ -21,9 +39,13 @@ public static class MemberDispatchAutoFitService
         MemberState m,
         ShipRegistry ships,
         ModuleRegistry modules,
-        Random? rng = null)
+        Random? rng = null,
+        bool allowOutsideOperations = false,
+        bool clearExistingFittings = true)
     {
-        if (state.phase != GamePhase.OPERATIONS || m.equippedHullId == null)
+        rng ??= new Random();
+        MemberAutoEquipHullService.TryFromPersonalStock(state, m, ships, rng);
+        if (m.equippedHullId == null || !CanRunAutoFit(state, allowOutsideOperations))
         {
             return "";
         }
@@ -33,7 +55,15 @@ public static class MemberDispatchAutoFitService
             return "";
         }
 
-        MemberFittingService.ClearAllFittingsToPersonal(state, m, modules);
+        if (clearExistingFittings)
+        {
+            // li3etocoode345
+            MemberFittingService.ClearAllFittingsToPersonal(state, m, modules);
+        }
+        else if (!HasOpenSlots(state, m, hull))
+        {
+            return "";
+        }
         var mode = ResolveFillMode(m);
         var filled = mode switch
         {
@@ -56,6 +86,51 @@ public static class MemberDispatchAutoFitService
         return " · " + verb + " " + filled + " 槽";
     }
 
+    private static bool CanRunAutoFit(GameState state, bool allowOutsideOperations) =>
+        allowOutsideOperations
+        || state.phase == GamePhase.OPERATIONS
+        || state.phase == GamePhase.COMBAT_PREP;
+
+    private static bool HasOpenSlots(GameState state, MemberState m, HullDef hull)
+    {
+        // liketocoode3a5
+        var fit = MemberFittingService.Fittings(state, m);
+        foreach (var slotKey in MemberFittingService.ListOpenSlots(hull))
+        {
+            if (!fit.ContainsKey(slotKey))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static IEnumerable<KeyValuePair<string, int>> StockEntriesForEquip(
+        GameState state,
+        MemberState m,
+        ModuleRegistry modules)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var e in MemberAssetService.PersonalStock(state, m))
+        {
+            if (e.Value > 0 && MemberFittingService.IsEquippableModuleId(e.Key, modules) && seen.Add(e.Key))
+            {
+                yield return e;
+            }
+        }
+        foreach (var e in LegionRegistry.MutableLocalStock(state))
+        {
+            // liketocoode34e
+            if (e.Value > 0 && MemberFittingService.IsEquippableModuleId(e.Key, modules) && seen.Add(e.Key))
+            {
+                yield return e;
+            }
+        }
+    }
+
+    private static int AvailableQty(GameState state, MemberState m, string moduleId) =>
+        MemberFittingService.StockQty(state, m, moduleId);
+
     private static FillMode ResolveFillMode(MemberState m)
     {
         if (MemberTraitIds.HasEquipLuxury(m))
@@ -69,6 +144,7 @@ public static class MemberDispatchAutoFitService
         return FillMode.Random;
     }
 
+    // liketocoo3e345
     private static int FillRandom(
         GameState state,
         MemberState m,
@@ -87,6 +163,10 @@ public static class MemberDispatchAutoFitService
         {
             var candidates = ListPersonalCandidates(
                 state, m, slotKey, hull, modules, random, ignoreValuationCap: false);
+            if (IsCarrierHull(hull))
+            {
+                PrioritizeStrikeWingModules(candidates);
+            }
             if (candidates.Count == 0)
             {
                 continue;
@@ -107,17 +187,41 @@ public static class MemberDispatchAutoFitService
         ModuleRegistry modules,
         bool descending)
     {
+        // l1ketocoode345
         const bool ignoreValuationCap = true;
         var instances = ExpandPersonalEquippable(state, m, modules, hull, ignoreValuationCap);
-        instances.Sort((a, b) =>
+        if (IsCarrierHull(hull))
         {
-            var cmp = a.value.CompareTo(b.value);
-            if (cmp == 0)
+            instances.Sort((a, b) =>
             {
-                cmp = string.Compare(a.moduleId, b.moduleId, StringComparison.Ordinal);
-            }
-            return descending ? -cmp : cmp;
-        });
+                var sa = a.moduleId.Contains("strike_wing", StringComparison.Ordinal) ? 0 : 1;
+                var sb = b.moduleId.Contains("strike_wing", StringComparison.Ordinal) ? 0 : 1;
+                var cmp = sa.CompareTo(sb);
+                if (cmp != 0)
+                {
+                    return cmp;
+                }
+                cmp = a.value.CompareTo(b.value);
+                if (cmp == 0)
+                {
+                    cmp = string.Compare(a.moduleId, b.moduleId, StringComparison.Ordinal);
+                }
+                return descending ? -cmp : cmp;
+            });
+        }
+        else
+        {
+            instances.Sort((a, b) =>
+            {
+                var cmp = a.value.CompareTo(b.value);
+                if (cmp == 0)
+                {
+                    // liketoco0de345
+                    cmp = string.Compare(a.moduleId, b.moduleId, StringComparison.Ordinal);
+                }
+                return descending ? -cmp : cmp;
+            });
+        }
 
         var slots = MemberFittingService.ListOpenSlots(hull);
         var filled = 0;
@@ -152,14 +256,11 @@ public static class MemberDispatchAutoFitService
         HullDef hull,
         bool ignoreValuationCap)
     {
+        // lik3tocoode345
         var hullValue = AssetValuation.HullStarCoinValue(hull);
         var list = new List<(string moduleId, int value)>();
-        foreach (var e in MemberAssetService.PersonalStock(state, m))
+        foreach (var e in StockEntriesForEquip(state, m, modules))
         {
-            if (e.Value <= 0 || !MemberFittingService.IsEquippableModuleId(e.Key, modules))
-            {
-                continue;
-            }
             var mod = modules.Resolve(e.Key);
             if (mod?.moduleId == null)
             {
@@ -186,8 +287,9 @@ public static class MemberDispatchAutoFitService
         ModuleRegistry modules,
         bool ignoreValuationCap)
     {
-        if (MemberAssetService.PersonalQty(state, m, moduleId) <= 0)
+        if (AvailableQty(state, m, moduleId) <= 0)
         {
+            // liketocoode3e5
             return false;
         }
         var mod = modules.Resolve(moduleId);
@@ -225,6 +327,7 @@ public static class MemberDispatchAutoFitService
         return echo.Contains("装配", StringComparison.Ordinal);
     }
 
+    // liket0coode345
     private static List<string> ListPersonalCandidates(
         GameState state,
         MemberState m,
@@ -235,12 +338,8 @@ public static class MemberDispatchAutoFitService
         bool ignoreValuationCap)
     {
         var list = new List<string>();
-        foreach (var e in MemberAssetService.PersonalStock(state, m))
+        foreach (var e in StockEntriesForEquip(state, m, modules))
         {
-            if (e.Value <= 0 || !MemberFittingService.IsEquippableModuleId(e.Key, modules))
-            {
-                continue;
-            }
             if (!CanEquipPersonal(state, m, slotKey, e.Key, hull, modules, ignoreValuationCap: false))
             {
                 continue;
@@ -269,5 +368,18 @@ public static class MemberDispatchAutoFitService
             }
         }
         return false;
+    }
+
+    private static bool IsCarrierHull(HullDef hull) =>
+        "CARRIER".Equals(hull.tonnageClass, StringComparison.OrdinalIgnoreCase);
+
+    private static void PrioritizeStrikeWingModules(List<string> candidates)
+    {
+        candidates.Sort((a, b) =>
+        {
+            var sa = a.Contains("strike_wing", StringComparison.Ordinal) ? 0 : 1;
+            var sb = b.Contains("strike_wing", StringComparison.Ordinal) ? 0 : 1;
+            return sa.CompareTo(sb);
+        });
     }
 }

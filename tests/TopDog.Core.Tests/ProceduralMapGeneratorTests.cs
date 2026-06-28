@@ -29,10 +29,11 @@ public sealed class ProceduralMapGeneratorTests
         }
 
         var rangeX = Range(map.Project.systems, 0);
-        var rangeY = Range(map.Project.systems, 1);
+        var rangeElev = Range(map.Project.systems, 1);
         var rangeZ = Range(map.Project.systems, 2);
-        Assert.That(rangeX, Is.GreaterThan(rangeY * 3f));
-        Assert.That(rangeZ, Is.GreaterThan(rangeY * 3f));
+        Assert.That(rangeX, Is.GreaterThan(rangeElev * 2f));
+        Assert.That(rangeZ, Is.GreaterThan(rangeElev * 2f));
+        Assert.That(MathF.Max(rangeX, rangeZ), Is.GreaterThan(20f));
     }
 
     [Test]

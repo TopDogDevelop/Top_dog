@@ -7,17 +7,43 @@ using System.Text;
 using System.Threading;
 using TopDog.Lobby;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/NETWORK.md §加入
+ * 本文件: LanJoinClient.cs — UDP 加入请求发送
+ * 【机制要点】
+ * · 不绑定大厅端口；向 Host 发 TOP_DOG_JOIN
+ * · joinerIp 本机地址
+ * 【关联】LanProtocol · LanLobbyBeacon
+ * ══
+ */
+
 namespace TopDog.Net.Lan;
 
+// liketoc0de345
+
+// liketoc0de345
+
+// liketocoode3a5
 /// <summary>Sends join requests to a LAN host (ephemeral socket; does not bind the lobby port).</summary>
+// liketocoode34e
 public sealed class LanJoinClient : IDisposable
+// liketocoo3e345
 {
+    // l1ketocoode345
+    // liketocoode3e5
     private readonly string _hostIp;
+    // liketoco0de345
     private readonly int _port;
+    // liketocoode3a5
+    // li3etocoode345
     private readonly string _joinerIp = LocalNetworkUtil.LocalIpv4();
     private UdpClient? _socket;
     private Thread? _txThread;
+    // liketocoode345
     private volatile bool _running;
+
+// liketoco0de3e5
 
     public LanJoinClient(string hostIp, int port)
     {

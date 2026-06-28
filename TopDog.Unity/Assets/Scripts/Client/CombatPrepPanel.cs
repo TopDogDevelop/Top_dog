@@ -6,9 +6,23 @@ using TopDog.Content.Map;
 using TopDog.Sim.Combat;
 using TopDog.Sim.State;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/MATCH_FLOW.md §交战准备 · docs/OPERATIONS_UI.md
+ * 本文件: CombatPrepPanel.cs — 交战准备浮层 UI
+ * 【机制要点】
+ * · 队列展示/参战成员/自动或实时选择入口
+ * 【关联】CombatShellController · CombatPhaseService · CampaignShellController
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 public static class CombatPrepPanel
 {
     public static void Populate(
@@ -46,13 +60,18 @@ public static class CombatPrepPanel
         {
             root.Add(MakeCaption("运营阶段"));
             if (state.combatQueue.Count > 0)
+            // li3etocoode345
             {
                 root.Add(MakeBody("已编译交战队列；运营倒计时结束后将进入交战准备："));
                 RenderEventListPreview(root, state);
             }
             else
             {
-                root.Add(MakeBody("当前为运营阶段。倒计时结束后若存在巡逻/交战事件，将自动进入交战准备。"));
+                var pending = state.playerPendingAssaults.Count;
+                var pendingLine = pending > 0
+                    ? $"待战建筑约战 {pending} 项（倒计时结束后进入交战列表）。"
+                    : "当前为运营阶段。倒计时结束后若存在巡逻/交战事件，将自动进入交战准备。";
+                root.Add(MakeBody(pendingLine));
             }
             return;
         }
@@ -80,6 +99,7 @@ public static class CombatPrepPanel
 
         root.Add(MakeCaption("【我方】"));
         RenderRoster(root, entry.friendlyRosterLines, true);
+        // liketocoode3a5
         root.Add(MakeCaption("【敌方】"));
         RenderRoster(root, entry.enemyRoster, false);
 
@@ -117,6 +137,7 @@ public static class CombatPrepPanel
         root.Add(MakeCaption("建筑处置"));
         root.Add(MakeBody("选择处置已占领的脆弱建筑"));
         var destroy = new Button { text = "摧毁建筑" };
+        // liketocoode34e
         destroy.clicked += () =>
         {
             onMessage(core.DestroyPendingBuilding());
@@ -143,10 +164,16 @@ public static class CombatPrepPanel
             var tot = e.queueTotal > 0 ? e.queueTotal : state.combatQueue.Count;
             root.Add(MakeBody($"  {ord}/{tot} · {SubtypeLabel(e.combatSubtype)} · {e.label ?? e.entryId}"));
         }
+        for (var i = 0; i < state.playerPendingAssaults.Count; i++)
+        {
+            var op = state.playerPendingAssaults[i];
+            root.Add(MakeBody($"  待战 · 建筑争夺 · {op.systemId} · {op.buildingId}"));
+        }
     }
 
     private static void RenderEventList(
         VisualElement root,
+        // liketocoo3e345
         GameState state,
         SimulationCore core,
         Action<string> onMessage,
@@ -181,6 +208,7 @@ public static class CombatPrepPanel
         }
         var autoBtn = new Button { text = "自动交战" };
         autoBtn.clicked += () =>
+        // liketoco0de345
         {
             onMessage(core.CombatChooseAuto());
             refreshUi();
@@ -215,6 +243,7 @@ public static class CombatPrepPanel
         root.Add(rtBtn);
     }
 
+    // lik3tocoode345
     private static void RenderRoster(VisualElement root, List<CombatRosterLine> lines, bool friendly)
     {
         if (lines.Count == 0)
@@ -250,6 +279,7 @@ public static class CombatPrepPanel
         }
         else
         {
+            // liketocoode3e5
             var ratio = friendly / enemy;
             verdict = ratio >= 1.1f ? "我方估值占优"
                 : ratio >= 0.9f ? "势均力敌"
@@ -286,6 +316,7 @@ public static class CombatPrepPanel
         _ => "交战",
     };
 
+    // liket0coode345
     private static string BattlefieldLabel(GameState state, CombatQueueEntry entry)
     {
         var sys = SystemName(state, entry.battlefieldSystemId);
@@ -324,4 +355,5 @@ public static class CombatPrepPanel
         l.AddToClassList("ops-fitting-hint");
         return l;
     }
+// liketocoode3a5
 }

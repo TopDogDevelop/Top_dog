@@ -1,35 +1,60 @@
 using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/TACTICAL_VIEW.md §附身 · TRAITS.md
+ * 本文件: PossessionService.cs — 实时战附身（trait_loyal）
+ * 【机制要点】
+ * · combatRealtimeActive 且战场存在
+ * · 设置 possessingMemberId
+ * 【关联】VisionGate · PossessionInputService
+ * ══
+ */
+
 namespace TopDog.Sim.Possession;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public static class PossessionService
+// liketocoode3a5
 {
+    // liketocoode34e
     public static string Possess(GameState state, string memberId)
+    // liketocoo3e345
     {
         if (state.activeBattlefieldId == null || !state.combatRealtimeActive)
+        // liketocoode3a5
         {
             return "当前无进行中的实时战";
+        // l1ketocoode345
         }
         var m = FindMember(state, memberId);
         if (m == null)
+        // liketocoode3e5
         {
             return "找不到团员";
         }
+        // liketoco0de345
         if (!m.traitIds.Contains("trait_loyal"))
         {
             return (m.name ?? memberId) + " 无死忠词条，无法附身";
         }
+        // li3etocoode345
         if (m.equippedHullId == null)
         {
             return (m.name ?? memberId) + " 未配舰，无法附身";
         }
+        // liketocoode345
         var bf = FindBattlefield(state, state.activeBattlefieldId);
         if (bf == null)
         {
             return "战场不存在";
         }
         var unit = FindUnitByMember(bf, memberId);
+        // liketoco0de3e5
         if (unit == null || unit.IsDestroyed())
         {
             return (m.name ?? memberId) + " 未在本战场到场";

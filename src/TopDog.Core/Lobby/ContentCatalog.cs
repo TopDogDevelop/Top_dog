@@ -2,19 +2,41 @@ using TopDog.Content.Assets;
 using TopDog.Content.Map;
 using TopDog.Foundation.Io;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/CUSTOM_LOBBY.md · CONTENT_FORMAT.md
+ * 本文件: ContentCatalog.cs — 大厅地图/模板/资产目录枚举
+ * 【机制要点】
+ * · ListMaps / ListTemplates / ListAssets
+ * · ResolveLobbyMap 含程序化分支
+ * 【关联】CustomLobbyState · MapCatalogEntry
+ * ══
+ */
+
 namespace TopDog.Lobby;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public static class ContentCatalog
+// liketocoode3a5
 {
+    // liketocoode34e
     public static List<MapCatalogEntry> ListMaps()
+    // liketocoode3a5
     {
         var outList = new List<MapCatalogEntry>();
+        // liketocoo3e345
         var mapsDir = AppRoot.MapsDir();
+        // l1ketocoode345
         if (Directory.Exists(mapsDir))
         {
+            // liketocoode3e5
             foreach (var p in Directory.EnumerateDirectories(mapsDir))
             {
                 var name = Path.GetFileName(p);
+                // liketoco0de345
                 if (name == null || !name.EndsWith(".topdog-map", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
@@ -23,13 +45,16 @@ public static class ContentCatalog
                 {
                     id = name,
                     path = p,
+                    // li3etocoode345
                     displayName = ReadMapName(p),
+                // liketocoode345
                 });
             }
         }
         var builtin = AppRoot.ContentMapDir();
         if (Directory.Exists(Path.Combine(builtin, "systems")))
         {
+            // liketoco0de3e5
             outList.Insert(0, new MapCatalogEntry
             {
                 id = "builtin:tutorial",

@@ -1,6 +1,5 @@
 using TopDog.Sim.Combat;
 using TopDog.Sim.Legion;
-using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 using TopDog.Sim.Traits;
 
@@ -10,116 +9,34 @@ namespace TopDog.Core.Tests;
 public sealed class CombatActiveSkillGateTests
 {
     [Test]
-    public void ListUsableActiveSkills_RequiresLiveCombatParticipant()
+    public void ListActiveSkillCasters_InCombatPrep_WithRosterMember()
     {
-        var state = BuildState();
-        state.legions.Add(new LegionState { legionId = "PLAYER", isLocal = true });
-        state.identities["10001001"] = new IdentityState
-        {
-            identityCode = "10001001",
-            traitIds = { TraitActiveSkillService.BoardSummonTraitId },
-        };
-        state.members.Add(new MemberState
-        {
-            memberId = "m_ai_sheep",
-            name = "绵羊伸腿",
-            identityCode = "10001001",
-            legionId = "AI",
-            isAi = true,
-            traitIds = { TraitActiveSkillService.BoardSummonTraitId },
-        });
-        state.members.Add(new MemberState
-        {
-            memberId = "m_player",
-            name = "奥法凯",
-            identityCode = "20002002",
-            legionId = "PLAYER",
-            isPlayer = true,
-        });
-
-        Assert.That(CombatActiveSkillGate.ListUsableActiveSkills(
-            state, TraitActiveSkillService.BoardSummonTraitId).ToList(), Is.Empty);
-    }
-
-    [Test]
-    public void ListUsableActiveSkills_OneSheepAltOnField_IsEnough()
-    {
-        var state = BuildState();
+        var state = new GameState { phase = GamePhase.COMBAT_PREP, storyRound = 1 };
         state.legions.Add(new LegionState { legionId = "VIP", isLocal = true });
         state.identities["10001001"] = new IdentityState
         {
             identityCode = "10001001",
             traitIds = { TraitActiveSkillService.BoardSummonTraitId },
         };
-        state.members.Add(new MemberState
+        var caster = new MemberState
         {
-            memberId = "m_sheep_a",
-            name = "绵羊伸腿",
+            memberId = "1000100101",
             identityCode = "10001001",
             legionId = "VIP",
-            isPlayer = true,
-            traitIds = { TraitActiveSkillService.BoardSummonTraitId },
-        });
-        state.members.Add(new MemberState
-        {
-            memberId = "m_sheep_b",
-            name = "绵羊控股",
-            identityCode = "10001001",
-            legionId = "VIP",
-            isPlayer = true,
-            traitIds = { TraitActiveSkillService.BoardSummonTraitId },
-        });
-        var bf = state.battlefields[0];
-        bf.units.Add(new BattlefieldUnit
-        {
-            unitId = "u1",
-            memberId = "m_sheep_a",
-            side = UnitSide.FRIENDLY,
-            alive = true,
-        });
-
-        var skills = CombatActiveSkillGate.ListUsableActiveSkills(
-            state, TraitActiveSkillService.BoardSummonTraitId).ToList();
-        Assert.That(skills, Has.Count.EqualTo(1));
-        Assert.That(skills[0].Caster.memberId, Is.EqualTo("m_sheep_a"));
-    }
-
-    [Test]
-    public void ListUsableActiveSkills_RosterOnlyWithoutSpawn_IsEmpty()
-    {
-        var state = BuildState();
-        state.legions.Add(new LegionState { legionId = "VIP", isLocal = true });
-        state.identities["10001001"] = new IdentityState
-        {
-            identityCode = "10001001",
-            traitIds = { TraitActiveSkillService.BoardSummonTraitId },
         };
-        state.members.Add(new MemberState
+        state.members.Add(caster);
+        state.combatQueue.Add(new CombatQueueEntry
         {
-            memberId = "m_sheep",
-            name = "绵羊伸腿",
-            identityCode = "10001001",
-            legionId = "VIP",
-            isPlayer = true,
-            traitIds = { TraitActiveSkillService.BoardSummonTraitId },
+            entryId = "e1",
+            friendlyMemberIds = { "1000100101" },
         });
+        state.combatQueueIndex = 0;
 
-        Assert.That(CombatActiveSkillGate.ListUsableActiveSkills(
-            state, TraitActiveSkillService.BoardSummonTraitId).ToList(), Is.Empty);
-    }
+        var list = CombatActiveSkillGate.ListActiveSkillCasters(
+            state,
+            TraitActiveSkillService.BoardSummonTraitId).ToList();
 
-    private static GameState BuildState()
-    {
-        var state = new GameState
-        {
-            combatRealtimeActive = true,
-            phase = GamePhase.COMBAT,
-        };
-        state.battlefields.Add(new BattlefieldState
-        {
-            battlefieldId = "bf1",
-            systemId = "sys1",
-        });
-        return state;
+        Assert.That(list, Has.Count.EqualTo(1));
+        Assert.That(list[0].Caster.memberId, Is.EqualTo("1000100101"));
     }
 }

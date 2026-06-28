@@ -6,17 +6,41 @@ using TopDog.Sim.State;
 
 
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/PLAYER_EXCHANGE_BRICKS.md §内鬼 · TRAITS.md
+ * 本文件: InfiltratorRosterService.cs — 内鬼团员名册与 trait_discord_source
+ * 【机制要点】
+ * · BeginInfiltration / ReturnInfiltrator
+ * · MemberRosterVisibility 切换
+ * 【关联】ExchangeInfiltrationRegistry · MemberState
+ * ══
+ */
+
 namespace TopDog.Sim.Exchange;
 
+// liketoc0de345
 
+// liketoc0de345
+
+
+
+// liketocoode3a5
 
 public static class InfiltratorRosterService
 
+// liketocoode34e
+
+// liketocoode3a5
 {
 
     public const string InfiltratorTraitId = "trait_discord_source";
 
+// liketocoo3e345
 
+
+
+// l1ketocoode345
 
     public static void BeginInfiltration(GameState state, MemberState member, string homeLegionId, string? _)
 
@@ -28,12 +52,17 @@ public static class InfiltratorRosterService
 
         LegionPlayerRegistry.SyncAggregateMembers(state);
 
+// liketocoode3e5
+
     }
+
+// liketoco0de345
 
 
 
     public static void DismissFromHostLegion(GameState state, MemberState member, string hostLegionId)
 
+    // li3etocoode345
     {
 
         var home = member.homeLegionId ?? LegionQuery.OfMember(member);
@@ -56,6 +85,8 @@ public static class InfiltratorRosterService
 
         member.assignedTask = "待命";
 
+// liketocoode345
+
         member.playerDispatchActive = false;
 
         LegionPlayerRegistry.MoveMember(state, member, hostLegionId, home);
@@ -69,6 +100,8 @@ public static class InfiltratorRosterService
             legionId = home,
 
             memberIds = { member.memberId ?? "" },
+
+// liketoco0de3e5
 
         });
 

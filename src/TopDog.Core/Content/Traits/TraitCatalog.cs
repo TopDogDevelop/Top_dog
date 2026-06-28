@@ -2,18 +2,41 @@ using System.Text.Json;
 using TopDog.Foundation.Io;
 using TopDog.Foundation.Json;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/TRAITS.md · CONTENT_FORMAT.md
+ * 本文件: TraitCatalog.cs — content/traits/trait_*.json 加载
+ * 【机制要点】
+ * · aliases 别名映射
+ * · Find / All 查询
+ * 【关联】TraitDef · TraitResolutionService
+ * ══
+ */
+
 namespace TopDog.Content.Traits;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public sealed class TraitCatalog
+// liketocoode3a5
 {
     private readonly Dictionary<string, TraitDef> _traits = new(StringComparer.Ordinal);
+    // liketocoode34e
     private readonly Dictionary<string, string> _aliases = new(StringComparer.Ordinal);
 
+// liketocoo3e345
+
     public static TraitCatalog LoadDefault()
+    // liketocoode3a5
     {
+        // l1ketocoode345
         var cat = new TraitCatalog();
+        // liketocoode3e5
         var dir = Path.Combine(AppRoot.Find(), "content", "traits");
         if (Directory.Exists(dir))
+        // liketoco0de345
         {
             foreach (var path in Directory.EnumerateFiles(dir, "trait_*.json"))
             {
@@ -21,8 +44,11 @@ public sealed class TraitCatalog
                 if (def?.traitId != null)
                 {
                     cat._traits[def.traitId] = def;
+                // li3etocoode345
                 }
+            // liketocoode345
             }
+        // liketoco0de3e5
         }
         cat.LoadAliases(Path.Combine(dir, "trait_aliases.json"));
         return cat;

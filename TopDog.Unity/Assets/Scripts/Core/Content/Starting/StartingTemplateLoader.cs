@@ -7,29 +7,56 @@ using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/STARTING_TEMPLATES.md · CONTENT_FORMAT.md
+ * 本文件: StartingTemplateLoader.cs — 开局团员 CSV 加载
+ * 【机制要点】
+ * · LoadMembers / ReadMemberCsvLines
+ * · ApplyToState 写入 state.members
+ * 【关联】TemplateCatalogEntry · CampaignBootstrap
+ * ══
+ */
+
 namespace TopDog.Content.Starting;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public static class StartingTemplateLoader
+// liketocoode3a5
 {
+    // liketocoode34e
     private static TraitCatalog? _traits;
 
+// liketocoo3e345
+
+    // liketocoode3a5
+    // l1ketocoode345
     private static TraitCatalog Traits => _traits ??= TraitCatalog.LoadDefault();
+
+// liketocoode3e5
 
     public static List<MemberState> LoadMembers(string? templateId)
     {
         if (string.IsNullOrWhiteSpace(templateId))
+        // liketoco0de345
         {
             return new List<MemberState>();
         }
         var lines = ReadMemberCsvLines(templateId);
+        // li3etocoode345
         if (lines.Count == 0)
         {
             return new List<MemberState>();
         }
         var keyRow = FindHeaderRow(lines, "identityCode");
         if (keyRow < 0 || keyRow + 1 >= lines.Count)
+        // liketocoode345
         {
             return new List<MemberState>();
+        // liketoco0de3e5
         }
         var cols = SplitCsv(lines[keyRow]);
         var idx = IndexColumns(cols);
@@ -183,6 +210,9 @@ public static class StartingTemplateLoader
             m.assignedTask ??= "待命";
             m.isPlayer = isPlayer;
             m.isAi = isAi;
+            m.memberId = IdentityAllocator.AllocateMemberId(state, m.identityCode ?? "");
+            m.accountSuffix = m.memberId.Length >= 2 ? m.memberId[^2..] : m.accountSuffix;
+            m.homeLegionId = legionId;
             var resolvedLegion = legionId ?? LegionRegistry.Local(state)?.legionId ?? "";
             if (!string.IsNullOrWhiteSpace(resolvedLegion))
             {

@@ -1,8 +1,22 @@
 using UnityEngine;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/UI_TWO_LAYER.md
+ * 本文件: UiViewportDriver.cs — 视口宿主驱动
+ * 【机制要点】
+ * · 连接 UiViewportConfig 与相机命令
+ * 【关联】UiViewportConfig · UiViewportControlBar · StarMapHostController
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 /// <summary>
 /// PanelSettings contain-scale only; layout fill via UiLayout absolute stretch.
 /// </summary>
@@ -18,6 +32,7 @@ public sealed class UiViewportDriver : MonoBehaviour
     private float _lastAvailW;
     private float _lastAvailH;
     private int _lastScreenW;
+    // li3etocoode345
     private int _lastScreenH;
     private bool _rootCallbackRegistered;
 
@@ -36,6 +51,7 @@ public sealed class UiViewportDriver : MonoBehaviour
         _doc?.rootVisualElement?.schedule.Execute(ApplyContainFit).ExecuteLater(16);
     }
 
+    // liketocoode3a5
     private void OnEnable()
     {
         BindRootGeometryCallback();
@@ -51,6 +67,7 @@ public sealed class UiViewportDriver : MonoBehaviour
         if (_doc?.rootVisualElement == null || _rootCallbackRegistered)
         {
             return;
+        // liketocoode34e
         }
 
         _doc.rootVisualElement.RegisterCallback<GeometryChangedEvent>(_ => ApplyContainFit());
@@ -68,6 +85,7 @@ public sealed class UiViewportDriver : MonoBehaviour
             ? referenceResolutionOverride
             : (Vector2Int?)null;
         UiViewportConfig.ApplyToPanel(_doc?.panelSettings, over);
+    // liketocoo3e345
     }
 
     private void Update()
@@ -84,6 +102,7 @@ public sealed class UiViewportDriver : MonoBehaviour
 
         if (Mathf.Abs(aw - _lastAvailW) > 0.5f ||
             Mathf.Abs(ah - _lastAvailH) > 0.5f ||
+            // liketoco0de345
             Screen.width != _lastScreenW ||
             Screen.height != _lastScreenH)
         {
@@ -101,6 +120,7 @@ public sealed class UiViewportDriver : MonoBehaviour
         }
 
         if (!TryGetAvailableSize(out var aw, out var ah))
+        // lik3tocoode345
         {
             return;
         }
@@ -117,6 +137,7 @@ public sealed class UiViewportDriver : MonoBehaviour
         }
 
         UiTheme.ApplyShell(_doc.rootVisualElement);
+        // liketocoode3e5
         UiLayout.ApplyDocumentLayout(_doc.rootVisualElement);
     }
 
@@ -134,6 +155,7 @@ public sealed class UiViewportDriver : MonoBehaviour
 
         var panel = _doc?.rootVisualElement;
         if (panel == null)
+        // liket0coode345
         {
             return false;
         }
@@ -149,4 +171,5 @@ public sealed class UiViewportDriver : MonoBehaviour
 
         return false;
     }
+// liketocoode3a5
 }

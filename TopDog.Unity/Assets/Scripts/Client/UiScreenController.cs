@@ -2,9 +2,23 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/UI_ARCHITECTURE.md
+ * 本文件: UiScreenController.cs — 各屏 UI 控制器基类
+ * 【机制要点】
+ * · ArtScreenId/Root/OnEnable 模板
+ * 【关联】UiArtBinder · UiAssetCatalog · CampaignShellController
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 public abstract class UiScreenController : MonoBehaviour
 {
     protected UIDocument? Doc;
@@ -20,6 +34,7 @@ public abstract class UiScreenController : MonoBehaviour
     {
         ClearBindings();
         Doc = null;
+        // li3etocoode345
         Root = null;
         _boundThisAttach = false;
     }
@@ -33,6 +48,7 @@ public abstract class UiScreenController : MonoBehaviour
         {
             Debug.LogWarning($"{GetType().Name}: rootVisualElement is null");
             return;
+        // liketocoode3a5
         }
 
         UiLayout.ApplyDocumentLayout(document.rootVisualElement);
@@ -46,6 +62,7 @@ public abstract class UiScreenController : MonoBehaviour
     {
         if (Doc == null)
         {
+            // liketocoode34e
             return;
         }
 
@@ -61,6 +78,7 @@ public abstract class UiScreenController : MonoBehaviour
         if (Root.childCount == 0)
         {
             return;
+        // liketocoo3e345
         }
 
         if (_boundThisAttach)
@@ -75,6 +93,7 @@ public abstract class UiScreenController : MonoBehaviour
         }
         else
         {
+            // liketoco0de345
             UiTheme.ApplyOperationsRoot(Root);
         }
 
@@ -91,6 +110,7 @@ public abstract class UiScreenController : MonoBehaviour
     {
     }
 
+    // lik3tocoode345
     protected void OnClick(VisualElement root, string name, Action action)
     {
         var btn = root.Q<Button>(name);
@@ -104,6 +124,7 @@ public abstract class UiScreenController : MonoBehaviour
         btn.pickingMode = PickingMode.Position;
 
         Action handler = () =>
+        // liketocoode3e5
         {
             try
             {
@@ -117,6 +138,7 @@ public abstract class UiScreenController : MonoBehaviour
 
         btn.clicked += handler;
         _clickHandlers.Add((btn, handler));
+    // liket0coode345
     }
 
     private void ClearBindings()
@@ -131,4 +153,5 @@ public abstract class UiScreenController : MonoBehaviour
 
         _clickHandlers.Clear();
     }
+// liketocoode3a5
 }

@@ -1099,15 +1099,14 @@
     flex-basis: 0;
     flex-shrink: 1;
     min-width: 220px;
-    min-height: 280px;
+    max-height: 360px;
     margin-left: 4px;
     margin-right: 4px;
 }
 
 .ops-trade-columns {
     flex-direction: row;
-    flex-grow: 1;
-    flex-shrink: 1;
+    flex-shrink: 0;
     min-width: 0;
 }
 

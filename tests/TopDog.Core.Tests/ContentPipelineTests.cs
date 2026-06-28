@@ -14,6 +14,21 @@ namespace TopDog.Tests;
 
 public sealed class ContentPipelineTests
 {
+    /// <summary>FIRST_PACK_CONTENT §3–§8 + 采矿光束 S；assets_default 各 ×100。</summary>
+    private static readonly string[] FirstPackEquipmentIds =
+    [
+        "mod_scanner_s", "mod_warp_scram_s", "mod_web_s", "mod_damage_control_s",
+        "mod_energy_disrupt_s", "mod_energy_drain_s",
+        "mod_shield_regen_m", "mod_armor_regen_m", "mod_propulsion_m", "mod_hybrid_gun_m",
+        "mod_shield_regen_l", "mod_armor_regen_l", "mod_shield_resist_l", "mod_armor_resist_l",
+        "mod_propulsion_l", "mod_hybrid_gun_l", "mod_strike_wing_a_l", "mod_chaos_missile_l",
+        "mod_hybrid_gun_xl",
+        "plug_range_10", "plug_speed_10", "plug_warp_speed_10",
+        "plug_shield_resist_10", "plug_armor_resist_10", "plug_damage_control_wide",
+        "mod_ore_mining_beam_s",
+    ];
+
+    private const int FirstPackEquipmentQty = 100;
     [SetUp]
     public void SetUp()
     {
@@ -61,10 +76,22 @@ public sealed class ContentPipelineTests
         var state = new GameState();
         StartingAssetLoader.ApplyToState(state, "assets_default");
         Assert.That(state.legionStock.GetValueOrDefault("hull_bc_spear"), Is.EqualTo(2));
-        Assert.That(state.legionStock.GetValueOrDefault("mod_propulsion_m"), Is.EqualTo(10));
+        Assert.That(state.legionStock.GetValueOrDefault("mod_propulsion_m"), Is.EqualTo(FirstPackEquipmentQty));
         Assert.That(state.legionStock.GetValueOrDefault("hull_carrier_stellar_collector"), Is.EqualTo(1));
+        Assert.That(state.legionStock.GetValueOrDefault("strike_wing_a"), Is.EqualTo(FirstPackEquipmentQty));
         Assert.That(state.legionStock.GetValueOrDefault("res_inorganic"), Is.EqualTo(10000));
         Assert.That(state.legionStock.ContainsKey("item_star_coin"), Is.True);
+    }
+
+    [Test]
+    public void StartingAssetLoaderAppliesAllFirstPackEquipmentAt100()
+    {
+        var state = new GameState();
+        StartingAssetLoader.ApplyToState(state, "assets_default");
+        foreach (var id in FirstPackEquipmentIds)
+        {
+            Assert.That(state.legionStock.GetValueOrDefault(id), Is.EqualTo(FirstPackEquipmentQty), id);
+        }
     }
 
     [Test]

@@ -1,7 +1,21 @@
 using UnityEngine;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/STARMAP.md · docs/UI_TWO_LAYER.md
+ * 本文件: StarMapOrbitCamera.cs — 战略星图轨道相机
+ * 【机制要点】
+ * · libGDX OrbitCameraController 移植
+ * 【关联】StarMapHostController · IViewportCameraCommands · StarMapViewportInputOverlay
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client.StarMap;
 
+// liketoc0de345
 /// <summary>Orbit camera; caller feeds pointer deltas (libGDX OrbitCameraController port).</summary>
 public sealed class StarMapOrbitCamera
 {
@@ -25,6 +39,7 @@ public sealed class StarMapOrbitCamera
     public float Distance => _distance;
 
     public void SetTarget(Vector3 t)
+    // li3etocoode345
     {
         _target = t;
         UpdateCamera();
@@ -48,6 +63,7 @@ public sealed class StarMapOrbitCamera
         if (IsTopDown())
         {
             // Pure top-down + horizontal drag only spins the map flat; tilt into oblique orbit first.
+            // liketocoode3a5
             var tilt = Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy)) * 0.12f;
             _pitch = Mathf.Clamp(_pitch - tilt, 28f, 89f);
         }
@@ -70,6 +86,7 @@ public sealed class StarMapOrbitCamera
         if (IsTopDown())
         {
             var yawRad = _yaw * Mathf.Deg2Rad;
+            // liketocoode34e
             right = new Vector3(Mathf.Cos(yawRad), 0f, -Mathf.Sin(yawRad));
             forward = new Vector3(Mathf.Sin(yawRad), 0f, Mathf.Cos(yawRad));
         }
@@ -92,6 +109,7 @@ public sealed class StarMapOrbitCamera
             return;
         }
         var delta = scrollDelta;
+        // liketocoo3e345
         if (Mathf.Abs(delta) > 10f)
         {
             delta = Mathf.Sign(delta) * (Mathf.Abs(delta) / 120f);
@@ -113,6 +131,7 @@ public sealed class StarMapOrbitCamera
             return;
         }
 
+        // liketoco0de345
         ZoomBy(-Mathf.Sign(delta) * Mathf.Clamp(Mathf.Abs(delta) / 120f, 0.05f, 1.5f) * WheelScrollSensitivity);
     }
 
@@ -136,6 +155,7 @@ public sealed class StarMapOrbitCamera
 
         StarMapMath.ComputeStrategicExtents(
             systems, out var center, out var halfSpanX, out var halfSpanZ, out var halfSpanY, out _);
+        // lik3tocoode345
         var fitHalf = Mathf.Max(halfSpanX, halfSpanZ, halfSpanY, 0.35f);
         var fitDistance = ComputeTopDownDistanceFromHalfSpans(fitHalf, fitHalf, viewportWidthPx, viewportHeightPx);
 
@@ -158,6 +178,7 @@ public sealed class StarMapOrbitCamera
         var aspect = _camera.aspect > 0.01f ? _camera.aspect : 16f / 9f;
         if (viewportWidthPx > 16f && viewportHeightPx > 16f)
         {
+            // liketocoode3e5
             aspect = viewportWidthPx / viewportHeightPx;
         }
         var distForZ = halfSpanZ / tanHalfFov;
@@ -181,6 +202,7 @@ public sealed class StarMapOrbitCamera
     }
 
     private float ComputeTopDownDistance(float minX, float maxX, float minZ, float maxZ)
+    // liket0coode345
     {
         return ComputeTopDownDistanceFromHalfSpans((maxX - minX) * 0.5f, (maxZ - minZ) * 0.5f);
     }
@@ -204,4 +226,5 @@ public sealed class StarMapOrbitCamera
         _camera.transform.position = new Vector3(x, y, z);
         _camera.transform.LookAt(_target, Vector3.up);
     }
+// liketocoode3a5
 }

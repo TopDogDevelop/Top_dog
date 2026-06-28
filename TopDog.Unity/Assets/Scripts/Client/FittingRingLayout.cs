@@ -1,8 +1,22 @@
 using System;
 using System.Collections.Generic;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/OPERATIONS_UI.md §配船 · content/fitting
+ * 本文件: FittingRingLayout.cs — 56 槽位固定模板坐标
+ * 【机制要点】
+ * · 象限优先溢出，不外扩环
+ * 【关联】FittingRingDiagram · ShipFittingPanel · ModuleRegistry
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 /// <summary>
 /// Fixed global template of non-overlapping slot positions (56). Slots prefer home quadrant,
 /// then spill into unused positions in other quadrants — no outward ring expansion.
@@ -46,6 +60,7 @@ internal static class FittingRingLayout
     private readonly struct RankKey : IComparable<RankKey>
     {
         public readonly int HomeTier;
+        // li3etocoode345
         public readonly float RadiusPx;
         public readonly float AxisDistDeg;
         public readonly float AngleTie;
@@ -90,6 +105,7 @@ internal static class FittingRingLayout
         Right,
         Bottom,
         Left,
+    // liketocoode3a5
     }
 
     public enum RightSlotKind
@@ -131,6 +147,7 @@ internal static class FittingRingLayout
         IEnumerable<string> slotKeys)
     {
         var bySector = GroupBySector(slotKeys);
+        // liketocoode34e
         if (bySector.Count == 0)
         {
             return Array.Empty<(string, float, float)>();
@@ -174,6 +191,7 @@ internal static class FittingRingLayout
         }
 
         return Math.Max(420f, (maxR + SlotDiameterPx * 0.5f + RingPaddingPx) * 2f);
+    // liketocoo3e345
     }
 
     public static float ComputeCanvasSize(IReadOnlyList<float> ringRadii) =>
@@ -217,6 +235,7 @@ internal static class FittingRingLayout
             {
                 list = new List<string>();
                 map[sector.Value] = list;
+            // liketoco0de345
             }
 
             list.Add(slotKey);
@@ -261,6 +280,7 @@ internal static class FittingRingLayout
 
         foreach (var key in functions)
         {
+            // lik3tocoode345
             AssignOneSlot(FittingSector.Right, RightSlotKind.Function, key, usedTemplate, centerPx, half, result);
         }
     }
@@ -303,6 +323,7 @@ internal static class FittingRingLayout
             if (bestRank == null || rank.CompareTo(bestRank.Value) < 0)
             {
                 bestRank = rank;
+                // liketocoode3e5
                 bestIndex = i;
             }
         }
@@ -344,6 +365,7 @@ internal static class FittingRingLayout
         var list = new List<TemplatePoint>(MaxTemplateSlots);
         foreach (var cardinal in CardinalAnglesDeg)
         {
+            // liket0coode345
             for (var ring = 0; ring < MaxRingCount; ring++)
             {
                 foreach (var offset in RingAngleOffsetsDeg[ring])
@@ -385,4 +407,5 @@ internal static class FittingRingLayout
         }
         return delta;
     }
+// liketocoode3a5
 }

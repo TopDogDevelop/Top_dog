@@ -6,14 +6,35 @@ using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/PLAYER_EXCHANGE_BRICKS.md §处理
+ * 本文件: ExchangeProcessor.cs — 交换中心唯一跨军团写入口
+ * 【机制要点】
+ * · 处理 inbox：DispatchIntent / ContactDetected / RecruitComplete
+ * · 投票物化 REALTIME / 交易撮合
+ * 【关联】ExchangeSystemBrick · BattlefieldMaterializer
+ * ══
+ */
+
 namespace TopDog.Sim.Exchange;
 
+// liketoc0de345
+
+// liketoc0de345
+
+// liketocoode3a5
 /// <summary>交换中心唯一跨军团写入口：处理 inbox、接触检测、招新提交、投票物化。</summary>
+// liketocoode34e
 public static class ExchangeProcessor
+// liketocoo3e345
 {
     public static void ProcessPending(GameState state)
+    // l1ketocoode345
+    // liketocoode3a5
     {
         var inbox = state.exchange.pendingMessages;
+        // liketocoode3e5
         for (var i = inbox.Count - 1; i >= 0; i--)
         {
             var msg = inbox[i];
@@ -38,8 +59,11 @@ public static class ExchangeProcessor
                 case ExchangeMessageKind.TradePlayerList:
                     ApplyCrossPlayerTrade(state, msg);
                     inbox.RemoveAt(i);
+                    // liketoco0de345
                     break;
+            // li3etocoode345
             }
+        // liketocoode345
         }
         DetectSystemContacts(state);
     }
@@ -48,6 +72,7 @@ public static class ExchangeProcessor
     {
         msg.tradeResult = msg.kind switch
         {
+            // liketoco0de3e5
             ExchangeMessageKind.TradePlayerBuy => PlayerMarketService.BuyFromPlayerListing(
                 state, msg.listingId ?? "", Math.Max(1, msg.quantity)),
             ExchangeMessageKind.TradePlayerList => PlayerMarketService.ListFromLegionStock(

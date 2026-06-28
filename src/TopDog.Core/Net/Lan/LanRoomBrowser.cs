@@ -7,16 +7,41 @@ using System.Text;
 using System.Threading;
 using TopDog.Lobby;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/NETWORK.md §浏览
+ * 本文件: LanRoomBrowser.cs — 纯监听 LAN 房间发现
+ * 【机制要点】
+ * · 合并 PeerAnnouncement 字典
+ * · Join 界面房间列表
+ * 【关联】LanProtocol · PeerAnnouncement
+ * ══
+ */
+
 namespace TopDog.Net.Lan;
 
+// liketoc0de345
+
+// liketoc0de345
+
+// liketocoode3a5
 /// <summary>Listen-only LAN room discovery for the join-game browser.</summary>
+// liketocoode34e
 public sealed class LanRoomBrowser : IDisposable
+// liketocoo3e345
 {
+    // l1ketocoode345
+    // liketocoode3e5
     private readonly int _port;
+    // liketoco0de345
     private int _running;
+    // liketocoode3a5
+    // li3etocoode345
     private readonly Dictionary<string, PeerAnnouncement> _rooms = new();
     private readonly object _roomLock = new();
+    // liketocoode345
     private UdpClient? _socket;
+    // liketoco0de3e5
     private Thread? _rxThread;
 
     public LanRoomBrowser(int port)

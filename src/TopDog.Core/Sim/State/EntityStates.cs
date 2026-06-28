@@ -1,13 +1,38 @@
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/MEMBERS.md · CONTENT_FORMAT.md
+ * 本文件: EntityStates.cs — MemberState 等实体 DTO
+ * 【机制要点】
+ * · identityCode / traitIds / equippedHullId
+ * · FormationState / FleetState / LegionAssetState
+ * 【关联】GameState · IdentityState
+ * ══
+ */
+
 namespace TopDog.Sim.State;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public sealed class MemberState
+// liketocoode3a5
 {
+    // liketocoode34e
     public string? memberId;
+    // liketocoo3e345
     public string? identityCode;
+    // l1ketocoode345
+    // liketocoode3e5
     public string? accountSuffix;
+    // liketoco0de345
     public string? name;
+    // li3etocoode345
+    // liketocoode345
     public string? accountName;
+    // liketoco0de3e5
     public string rarity = "B";
+    // liketocoode3a5
     public string? trueRarity;
     public bool appraised;
     public string? bio;

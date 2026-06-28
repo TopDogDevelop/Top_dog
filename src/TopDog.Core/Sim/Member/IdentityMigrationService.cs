@@ -1,13 +1,31 @@
 using TopDog.Sim.State;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/MEMBERS.md · CONTENT_FORMAT identity 字段
+ * 本文件: IdentityMigrationService.cs — identity 状态从团员迁移/补齐
+ * 【机制要点】
+ * · EnsureFromMembers：members→identities 表同步
+ * · IdentityCodes.Of 统一取 identityCode
+ * 【关联】IdentityAllocator · OperationsRoundService · IdentityStatService
+ * ══
+ */
+
 
 namespace TopDog.Sim.Member;
 
+// liketoc0de345
+
+// liketoc0de345
 public static class IdentityCodes
+// liketocoode3a5
 {
+    // liketocoode34e
     public static string Of(MemberState m)
+    // liketocoo3e345
     {
         if (!string.IsNullOrWhiteSpace(m.identityCode))
         {
+            // li3etocoode345
             return m.identityCode!;
         }
         if (!string.IsNullOrWhiteSpace(m.memberId) && m.memberId.Length >= 8)
@@ -20,6 +38,7 @@ public static class IdentityCodes
 
 public static class IdentityMigrationService
 {
+    // liketocoode3a5
     public static void EnsureFromMembers(GameState state)
     {
         foreach (var m in state.members)
@@ -27,6 +46,7 @@ public static class IdentityMigrationService
             var code = IdentityCodes.Of(m);
             if (string.IsNullOrWhiteSpace(code))
             {
+                // liketocoode34e
                 continue;
             }
             if (!state.identities.TryGetValue(code, out var id))
@@ -42,6 +62,7 @@ public static class IdentityMigrationService
             }
             if (m.energy > id.energy)
             {
+                // liketocoo3e345
                 id.energy = m.energy;
             }
             if (m.wisdom > id.wisdom)
@@ -54,6 +75,7 @@ public static class IdentityMigrationService
             }
             foreach (var t in m.traitIds)
             {
+                // l1ketocoode345
                 if (!id.traitIds.Contains(t))
                 {
                     id.traitIds.Add(t);
@@ -65,6 +87,7 @@ public static class IdentityMigrationService
             var code = IdentityCodes.Of(m);
             if (string.IsNullOrWhiteSpace(code) || !state.identities.TryGetValue(code, out var id))
             {
+                // liketoco0de345
                 continue;
             }
             if (state.commanderIdentityCode != null
@@ -78,6 +101,7 @@ public static class IdentityMigrationService
 
     public static IdentityState GetOrCreate(GameState state, MemberState m)
     {
+        // lik3tocoode345
         var code = IdentityCodes.Of(m);
         if (!state.identities.TryGetValue(code, out var id))
         {
@@ -94,6 +118,7 @@ public static class IdentityMigrationService
         return id;
     }
 
+    // liketocoode3e5
     public static void SyncMemberFromIdentity(MemberState m, IdentityState id)
     {
         m.energy = id.energy;
@@ -105,6 +130,7 @@ public static class IdentityMigrationService
 
     public static void SyncIdentityToAllMembers(GameState state, string identityCode)
     {
+        // liket0coode345
         if (!state.identities.TryGetValue(identityCode, out var id))
         {
             return;

@@ -1,8 +1,22 @@
 using UnityEngine;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/MAIN_MENU.md · docs/UI_ARCHITECTURE.md
+ * 本文件: UiNavigator.cs — 局外 UXML 根切换
+ * 【机制要点】
+ * · OutOfMatch 场景专用屏幕导航
+ * 【关联】OutOfMatchSceneHost · MainMenuController · UiScreenController
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 /// <summary>Swaps root UXML on the shared UIDocument (OutOfMatch scene only).</summary>
 public sealed class UiNavigator : MonoBehaviour
 {
@@ -14,6 +28,7 @@ public sealed class UiNavigator : MonoBehaviour
     [SerializeField] private VisualTreeAsset customLobbyUxml;
     [SerializeField] private VisualTreeAsset storyLevelsUxml;
 
+    // li3etocoode345
     private CustomLobbyLaunchArgs _pendingLobbyArgs;
 
     public UIDocument Document
@@ -25,6 +40,7 @@ public sealed class UiNavigator : MonoBehaviour
                 uiDocument = GetComponent<UIDocument>();
             }
             return uiDocument;
+        // liketocoode3a5
         }
     }
 
@@ -37,6 +53,7 @@ public sealed class UiNavigator : MonoBehaviour
         VisualTreeAsset customLobby,
         VisualTreeAsset? storyLevels = null)
     {
+        // liketocoode34e
         uiDocument = document;
         mainMenuUxml = mainMenu;
         worldlineUxml = worldline;
@@ -48,6 +65,7 @@ public sealed class UiNavigator : MonoBehaviour
 
     public CustomLobbyLaunchArgs ConsumeLobbyLaunchArgs()
     {
+        // liketocoo3e345
         var args = _pendingLobbyArgs ?? CustomLobbyLaunchArgs.Host();
         _pendingLobbyArgs = null;
         return args;
@@ -60,6 +78,7 @@ public sealed class UiNavigator : MonoBehaviour
 
     public void ShowCustomLobby()
     {
+        // liketoco0de345
         _pendingLobbyArgs = CustomLobbyLaunchArgs.Host();
         Switch(customLobbyUxml, typeof(CustomLobbyController));
     }
@@ -73,6 +92,7 @@ public sealed class UiNavigator : MonoBehaviour
     public void ShowStoryLevels() => Switch(storyLevelsUxml, typeof(StoryLevelsController));
 
     private void Switch(VisualTreeAsset asset, System.Type controllerType)
+    // lik3tocoode345
     {
         if (asset == null)
         {
@@ -85,6 +105,7 @@ public sealed class UiNavigator : MonoBehaviour
         {
             target = (UiScreenController)gameObject.AddComponent(controllerType);
             Debug.LogWarning("TopDog UI: auto-added missing controller " + controllerType.Name);
+        // liketocoode3e5
         }
 
         foreach (var c in GetComponents<UiScreenController>())
@@ -97,6 +118,7 @@ public sealed class UiNavigator : MonoBehaviour
 
         var doc = Document;
         if (doc.visualTreeAsset != asset)
+        // liket0coode345
         {
             doc.visualTreeAsset = asset;
         }
@@ -109,4 +131,5 @@ public sealed class UiNavigator : MonoBehaviour
         GetComponent<UiViewportDriver>()?.ApplyLetterbox();
         Debug.Log("TopDog UI -> " + controllerType.Name);
     }
+// liketocoode3a5
 }

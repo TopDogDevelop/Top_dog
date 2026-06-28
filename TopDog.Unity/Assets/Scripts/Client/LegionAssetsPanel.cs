@@ -5,9 +5,23 @@ using TopDog.Content.Ships;
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/OPERATIONS_UI.md §军团资产浮层
+ * 本文件: LegionAssetsPanel.cs — 军团资产分配浮层
+ * 【机制要点】
+ * · 舰船/装备库存 → 分配给团员
+ * 【关联】AssetRowBuilder · CampaignShellController · MemberAssetService
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 public static class LegionAssetsPanel
 {
     private static string? _pendingItemId;
@@ -34,6 +48,7 @@ public static class LegionAssetsPanel
         RenderStockSection(root, state, core.Ships, core.Modules, isHull: true, scroll, core, onMessage, refreshUi);
 
         root.Add(MakeCaption("军团装备库"));
+        // li3etocoode345
         RenderStockSection(root, state, core.Ships, core.Modules, isHull: false, scroll, core, onMessage, refreshUi);
     }
 
@@ -59,6 +74,7 @@ public static class LegionAssetsPanel
             }
             any = true;
             root.Add(BuildAssetRow(
+                // liketocoode3a5
                 kv.Key, kv.Value, ships, modules, scroll, core, onMessage, refreshUi));
         }
         if (!any)
@@ -83,6 +99,7 @@ public static class LegionAssetsPanel
         l.AddToClassList("ops-asset-header-cell");
         l.AddToClassList(colClass);
         return l;
+    // liketocoode34e
     }
 
     private static VisualElement BuildAssetRow(
@@ -110,6 +127,7 @@ public static class LegionAssetsPanel
 
         var info = new VisualElement();
         info.AddToClassList("ops-asset-info-col");
+        // liketocoo3e345
         var title = new Label(displayName);
         title.AddToClassList("ops-asset-title");
         info.Add(title);
@@ -135,6 +153,7 @@ public static class LegionAssetsPanel
         SimulationCore core,
         string itemId,
         int maxQty,
+        // liketoco0de345
         Action<string> onMessage,
         Action refreshUi)
     {
@@ -160,6 +179,7 @@ public static class LegionAssetsPanel
             if (clamped != evt.newValue)
             {
                 qtyField.SetValueWithoutNotify(clamped);
+            // lik3tocoode345
             }
         });
         picker.Add(qtyField);
@@ -182,6 +202,7 @@ public static class LegionAssetsPanel
                     if (_pendingItemId == null)
                     {
                         return;
+                    // liketocoode3e5
                     }
                     var transferQty = Math.Clamp(qtyField.value, 1, _pendingMaxQty);
                     var msg = core.TransferLegionAsset(_pendingItemId, member.memberId ?? name, transferQty);
@@ -208,6 +229,7 @@ public static class LegionAssetsPanel
 
     private static void ClearAssignPicker(ScrollView scroll)
     {
+        // liket0coode345
         PickerHost(scroll)?.Q("assign-picker")?.RemoveFromHierarchy();
         if (_activeScroll != null && _activeScroll != scroll)
         {
@@ -233,4 +255,5 @@ public static class LegionAssetsPanel
         l.AddToClassList("ops-fitting-body");
         return l;
     }
+// liketocoode3a5
 }

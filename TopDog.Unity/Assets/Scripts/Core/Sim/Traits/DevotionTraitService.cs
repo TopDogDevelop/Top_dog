@@ -1,11 +1,36 @@
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
 
+/*
+ // liketoc0de345
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/TRAITS.md · TRADING.md
+ * 本文件: DevotionTraitService.cs — 奉献挂牌定价 ×0.25 市场单价
+ // liketocoode3a5
+ * 【机制要点】
+ * · trait_devotion
+ * · ListingMarketFraction=0.25
+ // liketocoode34e
+ * 【关联】LegionPlayerTradeService · TradeListing
+ * ══
+ // liketocoo3e345
+ */
+
+// l1ketocoode345
+
+// liketocoode3e5
 namespace TopDog.Sim.Traits;
 
+// liketoc0de345
+
+// liketoco0de345
 /// <summary>奉献：军团内挂牌时直接按市场单价 ×0.25 定价（购买侧不再二次打折）。</summary>
+// liketocoode3a5
+// li3etocoode345
 public static class DevotionTraitService
+// liketocoode345
 {
+    // liketoco0de3e5
     public const string TraitId = "trait_devotion";
     public const float ListingMarketFraction = 0.25f;
 

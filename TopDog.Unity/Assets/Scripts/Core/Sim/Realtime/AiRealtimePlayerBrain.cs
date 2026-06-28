@@ -1,4 +1,16 @@
+using TopDog.Sim.Combat;
 using TopDog.Sim.State;
+
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/TACTICAL_VIEW.md §AI 对手 · docs/BUILDINGS.md §8 约战
+ * 本文件: AiRealtimePlayerBrain.cs — 敌方/AI 守军实时战术 AI
+ * 【机制要点】
+ * · 攻方 ENEMY 侧始终 tick；约战守方（建筑同侧且 AI 军团）也 tick
+ * · 30s 重选目标 + RALLY/FOLLOW/ORBIT 编队
+ * 【关联】FleetOrderService · AutoFireTargetingService · BuildingCombatRules
+ * ══
+ */
 
 namespace TopDog.Sim.Realtime;
 
@@ -8,7 +20,81 @@ public static class AiRealtimePlayerBrain
 
     public static void Tick(GameState state, BattlefieldState bf, float dtSec)
     {
-        TickSide(state, bf, UnitSide.ENEMY, dtSec);
+        if (ShouldTickSide(state, bf, UnitSide.ENEMY))
+        {
+            TickSide(state, bf, UnitSide.ENEMY, dtSec);
+        }
+
+        if (ShouldTickSide(state, bf, UnitSide.FRIENDLY))
+        {
+            TickSide(state, bf, UnitSide.FRIENDLY, dtSec);
+        }
+    }
+
+    private static bool ShouldTickSide(GameState state, BattlefieldState bf, UnitSide side)
+    {
+        if (side == UnitSide.ENEMY)
+        {
+            return HasMovableUnits(bf, UnitSide.ENEMY);
+        }
+
+        if (bf.combatSubtype != CombatSubtype.BUILDING_ASSAULT || bf.targetBuildingId == null)
+        {
+            return false;
+        }
+
+        var building = BuildingCombatRules.FindBuildingUnit(bf, bf.targetBuildingId);
+        if (building == null || building.side != side)
+        {
+            return false;
+        }
+
+        foreach (var u in bf.units)
+        {
+            if (u.side != side || u.IsDestroyed() || u.isBuilding || u.IsBallisticMissile())
+            {
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(u.memberId))
+            {
+                return true;
+            }
+
+            var member = FindMember(state, u.memberId);
+            if (member != null && CombatHullPrepService.IsAiMember(state, member))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasMovableUnits(BattlefieldState bf, UnitSide side)
+    {
+        foreach (var u in bf.units)
+        {
+            if (u.side == side && !u.IsDestroyed() && !u.isBuilding && !u.IsBallisticMissile())
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static MemberState? FindMember(GameState state, string memberId)
+    {
+        foreach (var m in state.members)
+        {
+            if (memberId.Equals(m.memberId, StringComparison.Ordinal))
+            {
+                return m;
+            }
+        }
+
+        return null;
     }
 
     private static void TickSide(GameState state, BattlefieldState bf, UnitSide side, float dtSec)
@@ -19,7 +105,8 @@ public static class AiRealtimePlayerBrain
             return;
         }
 
-        if (!state.aiRetargetCooldownSec.TryGetValue(bf.battlefieldId ?? "", out var cd))
+        var cdKey = (bf.battlefieldId ?? "") + ":" + (int)side;
+        if (!state.aiRetargetCooldownSec.TryGetValue(cdKey, out var cd))
         {
             cd = 0f;
         }
@@ -31,7 +118,9 @@ public static class AiRealtimePlayerBrain
             {
                 foreach (var u in bf.units)
                 {
-                    if (u.side == side && !u.IsDestroyed() && !u.isBuilding)
+                    if (u.side == side && !u.IsDestroyed() && !u.isBuilding && !u.IsBallisticMissile()
+                        && u.aiOrder != UnitAiOrder.STOP && u.aiOrder != UnitAiOrder.MANUAL
+                        && u.aiOrder != UnitAiOrder.RECALL)
                     {
                         u.targetUnitId = nearest.unitId;
                         u.explicitFocus = true;
@@ -41,12 +130,15 @@ public static class AiRealtimePlayerBrain
             }
             cd = RetargetIntervalSec;
         }
-        state.aiRetargetCooldownSec[bf.battlefieldId ?? ""] = cd;
+        state.aiRetargetCooldownSec[cdKey] = cd;
 
         FleetOrderService.RallySide(bf, side, possessor);
         foreach (var u in bf.units)
         {
-            if (u.side != side || u.IsDestroyed() || u.isBuilding || ReferenceEquals(u, possessor))
+            if (u.side != side || u.IsDestroyed() || u.isBuilding || u.IsBallisticMissile()
+                || ReferenceEquals(u, possessor)
+                || u.aiOrder == UnitAiOrder.STOP || u.aiOrder == UnitAiOrder.MANUAL
+                || u.aiOrder == UnitAiOrder.RECALL)
             {
                 continue;
             }
@@ -70,7 +162,8 @@ public static class AiRealtimePlayerBrain
         var bestWeight = -1f;
         foreach (var u in bf.units)
         {
-            if (u.side != side || u.IsDestroyed() || !u.Arrived(bf.timeSec) || u.isBuilding)
+            if (u.side != side || u.IsDestroyed() || !u.Arrived(bf.timeSec) || u.isBuilding
+                || u.IsBallisticMissile())
             {
                 continue;
             }
@@ -90,7 +183,9 @@ public static class AiRealtimePlayerBrain
         var bestDist = float.MaxValue;
         foreach (var other in bf.units)
         {
-            if (other.side == self.side || other.IsDestroyed() || other.isBuilding || !other.Arrived(bf.timeSec))
+            if (other.side == self.side || other.IsDestroyed() || other.isBuilding
+                || !other.Arrived(bf.timeSec) || other.IsBallisticMissile()
+                || BattlefieldSceneProxyService.IsSceneProxy(other))
             {
                 continue;
             }

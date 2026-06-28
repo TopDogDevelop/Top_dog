@@ -31,6 +31,7 @@ public sealed class TraitActiveSkillTests
         var echo = TraitActiveSkillService.TryUse(state, caster, TraitActiveSkillService.BoardSummonTraitId);
         Assert.That(echo, Does.Contain("已预约"));
         Assert.That(state.pendingBoardSummonLegionId, Is.EqualTo("VIP"));
+        Assert.That(state.pendingBoardSummonCasterMemberId, Is.EqualTo("1000100101"));
         Assert.That(
             TraitActiveSkillService.CooldownRoundsRemaining(
                 state,

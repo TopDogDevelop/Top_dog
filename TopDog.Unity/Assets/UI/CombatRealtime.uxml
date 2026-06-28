@@ -8,7 +8,8 @@
       <ui:VisualElement name="root" class="rtcombat-root screen-root-layered">
         <ui:VisualElement name="art-screen-bg" class="art-layer art-slot-screen-bg" />
         <ui:VisualElement class="rtcombat-topbar">
-          <ui:Button name="btn-view-toggle" text="星图" class="rtcombat-compact-btn" />
+          <ui:Button name="btn-view-toggle" text="星图" class="ops-shortcut-btn rtcombat-compact-btn" />
+          <ui:Button name="btn-battle-reports" text="战报" class="ops-shortcut-btn rtcombat-compact-btn" />
           <ui:Label name="lbl-broadcast" text="播报" class="rtcombat-subtitle" />
           <ui:ScrollView name="overview-scroll" class="rtcombat-overview">
             <ui:Label name="lbl-overview" text="未选中目标" />
@@ -18,7 +19,7 @@
         </ui:VisualElement>
         <ui:VisualElement name="rtcombat-body-row" class="rtcombat-body-row">
           <ui:VisualElement name="tactical-viewport-host" class="rtcombat-viewport art-viewport-host">
-            <ui:VisualElement name="art-viewport-bg" class="art-layer art-slot-viewport-bg" style="display: none;" />
+            <ui:VisualElement name="art-viewport-bg" class="art-layer art-slot-viewport-bg" />
             <ui:VisualElement name="tactical-grid" class="rtcombat-tactical-grid" style="display: none;" />
             <ui:VisualElement name="tactical-markers" class="rtcombat-markers" />
             <ui:VisualElement name="viewport-controls" class="ops-viewport-controls ops-viewport-controls-front">
@@ -28,6 +29,7 @@
               <ui:Button name="btn-vp-orbit-down" text="▼" class="ops-vp-btn" tooltip="俯仰下" />
               <ui:Button name="btn-vp-zoom-in" text="+" class="ops-vp-btn" tooltip="放大" />
               <ui:Button name="btn-vp-zoom-out" text="−" class="ops-vp-btn" tooltip="缩小" />
+              <ui:Button name="btn-vp-reset" text="归位" class="ops-vp-btn" tooltip="俯视归位战场" />
             </ui:VisualElement>
             <ui:VisualElement name="virtual-joystick-host" class="rtcombat-joystick-host" style="display: none;" />
           </ui:VisualElement>
@@ -43,7 +45,7 @@
               <ui:Button name="btn-vp-zoom-in-sm" text="+" class="ops-vp-btn" tooltip="放大" />
               <ui:Button name="btn-vp-zoom-out-sm" text="−" class="ops-vp-btn" tooltip="缩小" />
               <ui:Button name="btn-vp-frame-sm" text="全图" class="ops-vp-btn" tooltip="全图" />
-              <ui:Button name="btn-vp-reset-sm" text="归零" class="ops-vp-btn" tooltip="归零" />
+              <ui:Button name="btn-vp-reset-sm" text="归位" class="ops-vp-btn" tooltip="俯视归位战场" />
             </ui:VisualElement>
           </ui:VisualElement>
           <ui:VisualElement name="right-rail" class="rtcombat-right-rail">
@@ -51,26 +53,31 @@
               <ui:Label name="lbl-vision-rail-hint" text="可降临战场" class="rtcombat-subtitle" style="display: none;" />
             </ui:ScrollView>
             <ui:ScrollView name="object-overview-scroll" class="rtcombat-vision-rail" style="display: none;" />
-            <ui:Button name="btn-rail-mode-toggle" text="切换：物体总览" class="rtcombat-rail-toggle" />
+            <ui:Button name="btn-rail-mode-toggle" text="切换：物体总览" class="ops-shortcut-btn rtcombat-rail-toggle" />
           </ui:VisualElement>
         </ui:VisualElement>
         <ui:Label name="lbl-possession" text="角色状态" class="rtcombat-body" />
+        <ui:VisualElement name="range-dial-host" class="rtcombat-range-dial-host" picking-mode="Position" />
         <ui:VisualElement name="fleet-command-bar" class="rtcombat-fleet-bar">
-          <ui:Button name="btn-possess-friendly" text="切换视野" class="rtcombat-fleet-btn" />
-          <ui:Button name="btn-rally" text="集合" class="rtcombat-fleet-btn" />
-          <ui:Button name="btn-follow" text="接近" class="rtcombat-fleet-btn" />
-          <ui:Button name="btn-follow-attack" text="跟随攻击" class="rtcombat-fleet-btn" />
-          <ui:Button name="btn-focus" text="集火" class="rtcombat-fleet-btn" />
-          <ui:Button name="btn-scatter" text="散开" class="rtcombat-fleet-btn" />
-          <ui:Button name="btn-orbit" text="环绕" class="rtcombat-fleet-btn" />
-          <ui:Button name="btn-warp" text="集体跃迁" class="rtcombat-fleet-btn" />
-          <ui:Button name="btn-stop" text="停船" class="rtcombat-fleet-btn" />
-          <ui:Button name="btn-stop-all" text="集体停船" class="rtcombat-fleet-btn" />
-          <ui:Button name="btn-retreat" text="撤退" class="rtcombat-fleet-btn" />
-          <ui:Button name="btn-auto-fire" text="自开火" class="rtcombat-fleet-btn" />
-          <ui:Button name="btn-continue" text="继续" class="rtcombat-fleet-btn-wide" />
+          <ui:Button name="btn-possess-friendly" text="切换视野" class="ops-shortcut-btn rtcombat-fleet-btn" />
+          <ui:Button name="btn-rally" text="集合" class="ops-shortcut-btn rtcombat-fleet-btn" />
+          <ui:Button name="btn-default-dist" text="默认距离" class="ops-shortcut-btn rtcombat-fleet-btn" tooltip="按住拖动罗盘设定接近/远离/环绕/跃迁的默认距离" />
+          <ui:Button name="btn-follow" text="接近" class="ops-shortcut-btn rtcombat-fleet-btn" />
+          <ui:Button name="btn-away" text="远离" class="ops-shortcut-btn rtcombat-fleet-btn" />
+          <ui:Button name="btn-follow-attack" text="跟随攻击" class="ops-shortcut-btn rtcombat-fleet-btn" />
+          <ui:Button name="btn-focus" text="集火" class="ops-shortcut-btn rtcombat-fleet-btn" />
+          <ui:Button name="btn-cease-fire" text="停火" class="ops-shortcut-btn rtcombat-fleet-btn" />
+          <ui:Button name="btn-scatter" text="散开" class="ops-shortcut-btn rtcombat-fleet-btn" />
+          <ui:Button name="btn-orbit" text="环绕" class="ops-shortcut-btn rtcombat-fleet-btn" />
+          <ui:Button name="btn-warp" text="集体跃迁" class="ops-shortcut-btn rtcombat-fleet-btn" />
+          <ui:Button name="btn-enter-building" text="进入建筑" class="ops-shortcut-btn rtcombat-fleet-btn" />
+          <ui:Button name="btn-stop" text="停船" class="ops-shortcut-btn rtcombat-fleet-btn" />
+          <ui:Button name="btn-stop-all" text="集体停船" class="ops-shortcut-btn rtcombat-fleet-btn" />
+          <ui:Button name="btn-retreat" text="撤退" class="ops-shortcut-btn rtcombat-fleet-btn" />
+          <ui:Button name="btn-auto-fire" text="自开火" class="ops-shortcut-btn rtcombat-fleet-btn" />
+          <ui:Button name="btn-continue" text="继续" class="ops-shortcut-btn rtcombat-fleet-btn-wide" />
         </ui:VisualElement>
-        <ui:Button name="btn-abort" text="中止实时战（调试）" class="rtcombat-fleet-btn-wide" />
+        <ui:Button name="btn-abort" text="中止实时战（调试）" class="ops-shortcut-btn rtcombat-fleet-btn-wide" />
         <ui:Label name="lbl-status" text="" class="rtcombat-status" />
       </ui:VisualElement>
     </ui:VisualElement>

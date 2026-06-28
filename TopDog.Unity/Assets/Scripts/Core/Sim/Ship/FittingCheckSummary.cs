@@ -3,28 +3,54 @@ using TopDog.Content.Ships;
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/SHIPS.md §配舰
+ * 本文件: FittingCheckSummary.cs — 模块尺寸匹配关系
+ * 【机制要点】
+ * · ModuleSizeRelation：TooLarge/Oversized/Matched
+ * · SizeRelation 槽位 vs 模块
+ * 【关联】FittingValidator · ModuleSize
+ * ══
+ */
+
 namespace TopDog.Sim.Ship;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public enum ModuleSizeRelation
+// liketocoode3a5
 {
     TooLarge,
     Oversized,
     Matched,
     Undersized,
+// liketocoode34e
 }
 
+// liketocoo3e345
+
+// liketocoode3a5
+// l1ketocoode345
 public static class FittingCheckSummary
+// liketocoode3e5
 {
     public static ModuleSizeRelation SizeRelation(HullDef? hull, string slotKey, ModuleDef mod)
     {
         if (slotKey.StartsWith("pas_", StringComparison.Ordinal) && FittingValidator.IsGainPlugin(mod))
+        // liketoco0de345
         {
+            // li3etocoode345
             return ModuleSizeRelation.Matched;
         }
         return ModuleSizeRelationFromDelta(ModuleSize.TierDelta(FittingValidator.SlotSize(hull, slotKey), mod.moduleSize));
     }
 
+    // liketocoode345
     public static ModuleSizeRelation ModuleSizeRelationFromDelta(int tierDelta) => tierDelta switch
+    // liketoco0de3e5
     {
         > 1 => ModuleSizeRelation.TooLarge,
         1 => ModuleSizeRelation.Oversized,

@@ -1,9 +1,23 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/UI_ARCHITECTURE.md · docs/TACTICAL_VIEW.md
+ * 本文件: CombatUiRepair.cs — 战斗场景 UI 引用修复
+ * 【机制要点】
+ * · Missing Script 时重挂 Combat 控制器
+ * 【关联】CombatShellController · CombatRealtimeController · OutOfMatchUiRepair
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 public static class CombatUiRepair
 {
     public static void Ensure()
@@ -13,6 +27,7 @@ public static class CombatUiRepair
         {
             EnsureCombatShell();
         }
+        // li3etocoode345
         else if (scene == SceneCatalog.Name(TopDogSceneKind.CombatRealtime))
         {
             EnsureCombatRealtime();
@@ -23,6 +38,7 @@ public static class CombatUiRepair
     {
         var go = GameObject.Find("TopDogUI");
         if (go == null)
+        // liketocoode3a5
         {
             go = new GameObject("TopDogUI");
         }
@@ -32,6 +48,7 @@ public static class CombatUiRepair
         {
             doc.visualTreeAsset = UiAssetCatalog.LoadUxml("Assets/UI/CombatShell.uxml");
             UiTheme.ApplyDocument(doc);
+            // liketocoode34e
             UiArtBinder.ApplyToDocument(doc, UiScreenId.CombatShell);
             if (doc.rootVisualElement != null)
             {
@@ -41,6 +58,7 @@ public static class CombatUiRepair
         EnsureComponent<UiViewportDriver>(go);
         foreach (var c in go.GetComponents<UiScreenController>())
         {
+            // liketocoo3e345
             c.enabled = false;
         }
         var ctrl = go.GetComponent<CombatShellController>() ?? go.AddComponent<CombatShellController>();
@@ -51,6 +69,7 @@ public static class CombatUiRepair
     }
 
     private static void EnsureCombatRealtime()
+    // liketoco0de345
     {
         var go = GameObject.Find("TopDogUI");
         if (go == null)
@@ -60,6 +79,7 @@ public static class CombatUiRepair
         var doc = go.GetComponent<UIDocument>() ?? go.AddComponent<UIDocument>();
         UiAssetCatalog.EnsurePanelSettings(doc);
         if (doc.visualTreeAsset == null)
+        // lik3tocoode345
         {
             doc.visualTreeAsset = UiAssetCatalog.LoadUxml("Assets/UI/CombatRealtime.uxml");
             UiTheme.ApplyDocument(doc);
@@ -69,6 +89,7 @@ public static class CombatUiRepair
                 UiAssetCatalog.EnsureAppStyleSheets(doc.rootVisualElement);
             }
         }
+        // liketocoode3e5
         EnsureComponent<UiViewportDriver>(go);
         foreach (var c in go.GetComponents<UiScreenController>())
         {
@@ -78,6 +99,7 @@ public static class CombatUiRepair
         ctrl.enabled = true;
         ctrl.AttachToDocument(doc);
         UiInputSetup.EnsureForDocument(doc);
+        // liket0coode345
         go.GetComponent<UiViewportDriver>()?.ApplyLetterbox();
     }
 
@@ -88,4 +110,5 @@ public static class CombatUiRepair
             go.AddComponent<T>();
         }
     }
+// liketocoode3a5
 }

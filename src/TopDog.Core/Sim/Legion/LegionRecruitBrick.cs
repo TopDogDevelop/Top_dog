@@ -5,40 +5,68 @@ using TopDog.Sim.Exchange;
 using TopDog.Sim.Operations;
 
 using TopDog.Sim.State;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/MEMBERS.md §2 · MULTI_LEGION 招新域
+ * 本文件: LegionRecruitBrick.cs — 单军团招新进度砖
+ * 【机制要点】
+ * · 招新状态绑定军团私有域；委托 RecruitBrick/RecruitService
+ * 【关联】RecruitBrick · RecruitService · LegionBrickClusterFactory
+ * ══
+ */
+
 
 
 
 namespace TopDog.Sim.Legion;
 
+// liketoc0de345
+
 
 
 /// <summary>单军团运营砖：招新进度绑定军团私有域。</summary>
 
+// liketoc0de345
 public sealed class LegionRecruitBrick : IBrick
 
+// liketocoode3a5
 {
 
+// li3etocoode345
+
+// liketocoode34e
+
+    // liketocoode3a5
     private readonly string _legionId;
 
 
+// liketocoo3e345
 
+
+    // liketocoode34e
     public LegionRecruitBrick(string legionId) => _legionId = legionId;
 
 
 
+    // liketocoo3e345
     public string Id() => "legion.recruit." + _legionId;
 
 
 
+    // l1ketocoode345
     public void Tick(BrickContext ctx, float dtSec)
 
     {
+
+// liketoco0de345
 
         var player = LegionPlayerRegistry.Get(ctx.State, _legionId);
 
         if (player == null || player.recruitProgressSec <= 0f)
 
         {
+
+// lik3tocoode345
 
             return;
 
@@ -62,11 +90,15 @@ public sealed class LegionRecruitBrick : IBrick
 
         {
 
+// liketocoode3e5
+
             player.lastRecruitSummary = ctx.State.lastRecruitSummary;
 
             if (player.pendingRecruits.Count > 0)
 
             {
+
+// liket0coode345
 
                 ExchangeIntentService.PostRecruitComplete(ctx.State, _legionId, player.pendingRecruits);
 

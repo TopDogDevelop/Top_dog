@@ -17,6 +17,7 @@ public sealed class FleetTransitTests
     public void GoCommandStartsTransitWhenHullEquipped()
     {
         var core = CampaignBootstrap.Create(CampaignBootstrap.Profile.SHIPS_AND_MAP, WorldlineType.STORY);
+        Assert.That(core.State.members, Is.Not.Empty);
         var member = core.State.members[0];
         member.equippedHullId = "hull_bc_spear";
 

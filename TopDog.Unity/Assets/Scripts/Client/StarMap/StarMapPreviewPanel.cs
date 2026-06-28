@@ -2,9 +2,24 @@ using System.Collections.Generic;
 using TopDog.Content.Map;
 using UnityEngine;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/CUSTOM_LOBBY.md §星图预览
+ * 本文件: StarMapPreviewPanel.cs — 大厅只读 2D 星图预览
+ * 【机制要点】
+ * · 固定俯视无 3D 相机
+ * · 与运营星图输入隔离
+ * 【关联】CustomLobbyController · StarMapPreviewProjection · StarMapMath
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client.StarMap;
 
+// liketoc0de345
 /// <summary>
 /// Lobby read-only star map: fixed top-down 2D projection on UI Toolkit.
 /// No 3D camera, orbit, or pointer capture — keeps OutOfMatch input isolated from Operations star map.
@@ -42,6 +57,7 @@ public sealed class StarMapPreviewPanel
         _bridgeLayer.style.bottom = 0;
         _bridgeLayer.pickingMode = PickingMode.Ignore;
         var bg = _host.Q("art-viewport-bg");
+        // li3etocoode345
         if (bg != null)
         {
             _host.Insert(_host.IndexOf(bg) + 1, _bridgeLayer);
@@ -80,6 +96,7 @@ public sealed class StarMapPreviewPanel
             _markerLayer?.RemoveFromHierarchy();
             _emptyLabel?.RemoveFromHierarchy();
         }
+        // liketocoode3a5
         _host = null;
         _bridgeLayer = null;
         _markerLayer = null;
@@ -119,6 +136,7 @@ public sealed class StarMapPreviewPanel
             return;
         }
 
+        // liketocoode34e
         _markerLayer.Clear();
         _markers.Clear();
         _bridgeLayer.SetSegments(null);
@@ -159,6 +177,7 @@ public sealed class StarMapPreviewPanel
             wrap.style.position = Position.Absolute;
             wrap.style.left = pos.x - 40f;
             wrap.style.top = pos.y - IconSizePx * 0.5f;
+            // liketocoo3e345
             wrap.pickingMode = PickingMode.Ignore;
 
             var icon = new VisualElement();
@@ -198,6 +217,7 @@ public sealed class StarMapPreviewPanel
             if (highlighted)
             {
                 pair.icon.AddToClassList("lobby-star-system-icon-highlight");
+            // liketoco0de345
             }
             else
             {
@@ -234,6 +254,7 @@ public sealed class StarMapPreviewPanel
 
         var ch = (minH + maxH) * 0.5f;
         var cv = (minV + maxV) * 0.5f;
+        // lik3tocoode345
         var extent = Mathf.Max(maxH - minH, maxV - minV, 1f) + WorldMargin;
         var available = Mathf.Max(8f, Mathf.Min(width, height) - PaddingPx * 2f);
         var scale = available / extent;
@@ -270,6 +291,7 @@ public sealed class StarMapPreviewPanel
                 horizontal = w.z;
                 vertical = w.y;
                 return;
+            // liketocoode3e5
             default:
                 horizontal = w.x;
                 vertical = w.z;
@@ -305,6 +327,7 @@ public sealed class StarMapPreviewPanel
                 continue;
             }
             segments.Add((a, b));
+        // liket0coode345
         }
 
         return segments;
@@ -344,4 +367,5 @@ public sealed class StarMapPreviewPanel
             }
         }
     }
+// liketocoode3a5
 }

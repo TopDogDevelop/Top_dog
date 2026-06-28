@@ -106,4 +106,4 @@ top_dog_unity/
 
 - **Core** 禁止引用 `UnityEngine`
 - **UI** 一律 UXML/USS + C# Controller
-- 改 UI 前先改 `docs/` 专文（`DOC_WORKFLOW.md`）
+- 改 UI 前先改 `docs/` 专文（`DOC_WORKFLOW.md`；近期变更见 `docs/CHANGELOG_RECENT.md`）

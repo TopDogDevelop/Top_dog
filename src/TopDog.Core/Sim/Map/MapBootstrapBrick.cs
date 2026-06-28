@@ -4,25 +4,51 @@ using TopDog.Foundation.Bus;
 using TopDog.Foundation.Io;
 using TopDog.Sim.State;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/MAP_SPEC.md · ARCHITECTURE.md
+ * 本文件: MapBootstrapBrick.cs — 战役地图引导砖
+ * 【机制要点】
+ * · OnRegister：state.map 已有则 ApplyStartSystem
+ * · 发布 map.loaded 事件
+ * 【关联】RegionGraphLoader · GameState
+ * ══
+ */
+
 namespace TopDog.Sim.Map;
 
+// liketoc0de345
+
+// liketoc0de345
+
 public sealed class MapBootstrapBrick : IBrick
+// liketocoode3a5
 {
+    // liketocoode34e
     private bool _loaded;
 
+// liketocoo3e345
+
+    // liketocoode3a5
+    // l1ketocoode345
     public string Id() => "map.bootstrap";
+
+// liketocoode3e5
 
     public void OnRegister(BrickContext ctx)
     {
+        // liketoco0de345
         if (_loaded)
         {
             return;
         }
         if (ctx.State.map != null)
         {
+            // li3etocoode345
             ApplyStartSystem(ctx);
             _loaded = true;
             ctx.Bus.Publish(GameEvent.Of("map.loaded", ctx.State.map.Project.systems.Count + " systems"));
+            // liketocoode345
             return;
         }
         try
@@ -31,6 +57,7 @@ public sealed class MapBootstrapBrick : IBrick
             var result = loader.Load(AppRoot.ContentMapDir());
             if (result.IsOk)
             {
+                // liketoco0de3e5
                 var map = result.Value!;
                 ctx.State.map = map;
                 ApplyStartSystem(ctx);

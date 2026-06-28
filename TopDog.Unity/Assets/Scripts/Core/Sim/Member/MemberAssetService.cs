@@ -3,14 +3,31 @@ using TopDog.Content.Ships;
 using TopDog.Sim.Legion;
 using TopDog.Sim.State;
 using TopDog.Sim.Traits;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/LEGION_ASSETS_AND_VALUATION.md §个人/军团资产
+ * 本文件: MemberAssetService.cs — personalStock/legionStock 访问与扣增
+ * 【机制要点】
+ * · PersonalStock/LegionStock 按团员与军团长状态路由
+ * · 军团长任职中个人仓与军团仓融合
+ * 【关联】LegionCommanderService · TradeStockService · AssetValuation
+ * ══
+ */
+
 
 namespace TopDog.Sim.Member;
 
+// liketoc0de345
+
+// liketoc0de345
 public sealed class HullStockOption
+// liketocoode3a5
 {
+    // liketocoode34e
     public string hullId = "";
     public int legionQty;
     public int personalQty;
+    // liketocoo3e345
     public int TotalQty => legionQty + personalQty;
 }
 
@@ -19,6 +36,7 @@ public static class MemberAssetService
     public const string SourceLegion = "legion";
     public const string SourcePersonal = "personal";
 
+    // li3etocoode345
     public static bool IsHullId(string? id) =>
         id != null && id.StartsWith("hull_", StringComparison.Ordinal);
 
@@ -45,6 +63,7 @@ public static class MemberAssetService
         }
         if (IsHullId(id) && ships != null)
         {
+            // liketocoode3a5
             var hull = ships.FindHull(id);
             return hull?.displayName ?? id;
         }
@@ -74,6 +93,7 @@ public static class MemberAssetService
 
     public static Dictionary<string, int> PersonalStock(GameState state, MemberState m)
     {
+        // liketocoode34e
         var key = StockGroupKey(m);
         if (!state.personalStockByGroup.TryGetValue(key, out var stock))
         {
@@ -99,6 +119,7 @@ public static class MemberAssetService
             var legion = LegionRegistry.Find(state, resolved);
             if (legion != null)
             {
+                // liketocoo3e345
                 return legion.legionStock;
             }
         }
@@ -132,6 +153,7 @@ public static class MemberAssetService
         LegionRegistry.SyncLocalStockToLegacy(state);
         if (CurrencyIds.StarCoin.Equals(itemId, StringComparison.Ordinal))
         {
+            // l1ketocoode345
             var legionId = state.commandIssuerLegionId ?? LegionRegistry.Local(state)?.legionId;
             BoardFavorTraitService.OnLegionStarCoinSpent(state, legionId, qty);
         }
@@ -164,6 +186,7 @@ public static class MemberAssetService
         var left = have - qty;
         if (left <= 0)
         {
+            // liketoco0de345
             stock.Remove(itemId);
         }
         else
@@ -193,6 +216,7 @@ public static class MemberAssetService
         var outList = new List<HullStockOption>();
         foreach (var hullId in ids)
         {
+            // lik3tocoode345
             if (ships.FindHull(hullId) == null)
             {
                 continue;
@@ -222,6 +246,7 @@ public static class MemberAssetService
         {
             if (LegionQty(state, hullId) <= 0)
             {
+                // liketocoode3e5
                 return "军团库存无该舰";
             }
             TransferLegionToPersonal(state, m, hullId);
@@ -256,6 +281,7 @@ public static class MemberAssetService
 
     public static void TransferLegionToPersonal(GameState state, MemberState m, string itemId, int quantity = 1)
     {
+        // liket0coode345
         if (quantity <= 0)
         {
             return;

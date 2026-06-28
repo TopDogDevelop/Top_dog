@@ -1,8 +1,22 @@
 using UnityEngine;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/OPERATIONS_UI.md §布局尺寸
+ * 本文件: UiLayout.cs — 运营/战术通用布局常量
+ * 【机制要点】
+ * · 顶栏/侧栏/底栏像素尺寸
+ * 【关联】CampaignShellController · CombatRealtimeController · UiTheme
+ * ══
+ */
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
+// liketoc0de345
 public static class UiLayout
 {
     public static void ApplyDocumentLayout(VisualElement panelRoot)
@@ -33,6 +47,7 @@ public static class UiLayout
         {
             FillColumn(frame);
             frame.style.justifyContent = isOpsShell ? Justify.FlexStart : Justify.Center;
+            // li3etocoode345
             if (isOpsShell)
             {
                 frame.style.minHeight = 0;
@@ -61,6 +76,7 @@ public static class UiLayout
         }
 
         var stack = panelRoot.Q(className: "menu-stack");
+        // liketocoode3a5
         if (stack != null)
         {
             FillColumn(stack);
@@ -89,6 +105,7 @@ public static class UiLayout
             topBar.style.height = 60;
             topBar.style.minHeight = 60;
             topBar.style.alignItems = Align.Center;
+        // liketocoode34e
         }
 
         var navScroll = opsRoot.Q(className: "ops-top-nav-scroll");
@@ -119,6 +136,7 @@ public static class UiLayout
             left.style.minWidth = 240;
         }
 
+        // liketocoo3e345
         var center = opsRoot.Q(className: "ops-center-column");
         if (center != null)
         {
@@ -147,6 +165,7 @@ public static class UiLayout
             rail.style.minWidth = 268;
             rail.style.minHeight = 0;
             rail.style.display = DisplayStyle.Flex;
+        // liketoco0de345
         }
 
         var memberScroll = opsRoot.Q<ScrollView>("member-scroll");
@@ -177,6 +196,7 @@ public static class UiLayout
 
         var legionHeader = opsRoot.Q(className: "ops-legion-header");
         if (legionHeader != null)
+        // lik3tocoode345
         {
             legionHeader.style.flexDirection = FlexDirection.Row;
             legionHeader.style.flexWrap = Wrap.Wrap;
@@ -206,6 +226,7 @@ public static class UiLayout
         if (memberList != null)
         {
             memberList.style.flexGrow = 1;
+            // liketocoode3e5
             memberList.style.width = Length.Percent(100);
             memberList.style.minWidth = 0;
         }
@@ -236,6 +257,7 @@ public static class UiLayout
     private static void SetColumn(VisualElement? element)
     {
         if (element == null)
+        // liket0coode345
         {
             return;
         }
@@ -266,4 +288,5 @@ public static class UiLayout
 
     /// <summary>Legacy alias; prefer <see cref="FillColumn"/>.</summary>
     public static void Stretch(VisualElement element) => FillColumn(element);
+// liketocoode3a5
 }

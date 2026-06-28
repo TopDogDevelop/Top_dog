@@ -14,6 +14,20 @@ using TopDog.Sim.Vision;
 using UnityEngine;
 using UnityEngine.UIElements;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/TACTICAL_VIEW.md · docs/TACTICAL_WARP_AND_ORDERS.md · docs/MATCH_FLOW.md · docs/BATTLE_REPORT.md
+ * 本文件: CombatRealtimeController.cs — 实时战术 UI 主控（视口/星图切换/战报/舰队底栏）
+ * 【机制要点】
+ * · 战术视口：TacticalViewportPresenter + TacticalPlaneOverlay（30~300km 环）
+ * · 星图切换：StarMapHostController 屏外标记边缘钳制
+ * · combatAwaitingContinue 时底栏「继续」→ CombatContinue
+ * · 战报浮层 BattleReportWindow 按吨位分组；选中摘要含舰载机/导弹归属
+ * · 默认 autoFireEnabled=false 进入战场
+ * 【关联】FleetCommandBar · GameSceneRouter · CombatPhaseService
+ * ══
+ */
+
 namespace TopDog.Client;
 
 /// <summary>战斗视野（阶段 4 实时战术 UI）。</summary>
@@ -42,7 +56,13 @@ public sealed class CombatRealtimeController : UiScreenController
     private StarMapHostController _starMap;
     private readonly ITacticalInputSource _inputSource = new KeyboardTacticalInputSource();
     private PossessionInputBridge _inputBridge;
+    private CombatFloatingTextPresenter _floatingText;
+    private BattleReportWindow _battleReportWindow;
+    private CombatSpaceBackgroundPresenter? _spaceBackground;
+    private ScrollView _combatDebugScroll;
+    private Label _combatDebugLabel;
     private float _nextRefresh;
+    private string? _lastFollowedBattlefieldId;
     private EventCallback<KeyDownEvent>? _keyHandler;
 
     protected override void Bind(VisualElement root)
@@ -55,6 +75,7 @@ public sealed class CombatRealtimeController : UiScreenController
 
         _viewportCamera = GetComponent<TacticalViewportCamera>()
                           ?? gameObject.AddComponent<TacticalViewportCamera>();
+        _viewportCamera.ActiveBattlefieldProvider = () => ActiveBf(GameAppHost.Instance?.Core?.State);
         _viewportHost = root.Q<VisualElement>("tactical-viewport-host");
         _starMapHost = root.Q<VisualElement>("star-map-host");
         _fleetCommandBar = root.Q<VisualElement>("fleet-command-bar");
@@ -62,14 +83,13 @@ public sealed class CombatRealtimeController : UiScreenController
         var markersHost = root.Q<VisualElement>("tactical-markers");
         if (markersHost != null)
         {
-            markersHost.pickingMode = PickingMode.Position;
+            markersHost.pickingMode = PickingMode.Ignore;
         }
 
         var artBg = root.Q<VisualElement>("art-viewport-bg");
-        if (artBg != null)
+        if (artBg != null && _viewportHost != null)
         {
-            artBg.style.backgroundImage = StyleKeyword.None;
-            artBg.style.backgroundColor = new StyleColor(new Color(0.03f, 0.04f, 0.06f, 1f));
+            _spaceBackground = new CombatSpaceBackgroundPresenter(_viewportHost, artBg, _viewportCamera, this);
         }
 
         _planeOverlay = new TacticalPlaneOverlay(_viewportCamera);
@@ -86,7 +106,16 @@ public sealed class CombatRealtimeController : UiScreenController
             }
         }
 
-        _viewportPresenter = new TacticalViewportPresenter(markersHost, _viewportCamera);
+        var edgeMarkersHost = new VisualElement { name = "tactical-edge-markers" };
+        edgeMarkersHost.AddToClassList("rtcombat-markers");
+        edgeMarkersHost.AddToClassList("rtcombat-edge-markers");
+        edgeMarkersHost.pickingMode = PickingMode.Ignore;
+        if (_viewportHost != null)
+        {
+            _viewportHost.Add(edgeMarkersHost);
+        }
+        _viewportPresenter = new TacticalViewportPresenter(markersHost, _viewportCamera, edgeMarkersHost);
+        _floatingText = new CombatFloatingTextPresenter(markersHost, _viewportCamera);
         _skillBar = root.Q<VisualElement>("skill-bar");
         _rightRail = new TacticalRightRail(root.Q<VisualElement>("right-rail") ?? root);
         _fleetBar = new FleetCommandBar(
@@ -99,8 +128,18 @@ public sealed class CombatRealtimeController : UiScreenController
         _inputOverlay = new TacticalViewportInputOverlay();
         if (_viewportHost != null)
         {
-            _viewportHost.Insert(_viewportHost.childCount - 1, _inputOverlay);
+            var markersIdx = markersHost != null ? _viewportHost.IndexOf(markersHost) : _viewportHost.childCount;
+            _viewportHost.Insert(Mathf.Max(0, markersIdx), _inputOverlay);
             _inputOverlay.Bind(_viewportCamera, _viewportPresenter, RefreshAll);
+            RegisterTacticalWheel(_viewportHost);
+            if (markersHost != null)
+            {
+                RegisterTacticalWheel(markersHost);
+            }
+            RegisterTacticalWheel(_planeOverlay);
+            edgeMarkersHost?.BringToFront();
+            _inputOverlay.BringToFront();
+            root.Q<VisualElement>("viewport-controls")?.BringToFront();
         }
 
         UiViewportControlBar.BindWithin(_viewportHost ?? root, root, _viewportCamera, RefreshAll);
@@ -128,6 +167,18 @@ public sealed class CombatRealtimeController : UiScreenController
             };
         }
 
+        OnClick(root, "btn-battle-reports", () =>
+        {
+            var core = GameAppHost.Instance?.Core;
+            if (core == null)
+            {
+                return;
+            }
+            _battleReportWindow ??= new BattleReportWindow(root);
+            _battleReportWindow.Show(core.State);
+            SetStatus("战报");
+        });
+
         OnClick(root, "btn-abort", () =>
         {
             var core = GameAppHost.Instance?.Core;
@@ -137,13 +188,32 @@ public sealed class CombatRealtimeController : UiScreenController
                 core.SetPhase(GamePhase.COMBAT_PREP);
             }
         });
+        EnsureCombatDebugPanel(root);
         BindKeyboard(root);
         ApplyViewMode();
+        var core = GameAppHost.Instance?.Core?.State;
+        if (core?.combatRealtimeActive == true)
+        {
+            CombatSpaceBackgroundState.EnsureForBattlefield(core.activeBattlefieldId);
+        }
         RefreshAll();
+        ClientGameSettings.CombatViewFovChanged += OnCombatViewSettingsChanged;
+        ClientGameSettings.CombatBackgroundResolutionChanged += OnCombatViewSettingsChanged;
+    }
+
+    public void RefreshViewportNow() => RefreshAll();
+
+    private void OnCombatViewSettingsChanged()
+    {
+        if (isActiveAndEnabled)
+        {
+            RefreshAll();
+        }
     }
 
     private void OnCombatStarMapSystemPicked(string systemId)
     {
+        // liketoc0de345
         var core = GameAppHost.Instance?.Core;
         if (core == null)
         {
@@ -186,6 +256,7 @@ public sealed class CombatRealtimeController : UiScreenController
 
     private void ApplyViewMode()
     {
+        // liketocoode3a5
         var starMap = CombatViewModeState.Mode == CombatViewMode.StarMap;
         if (_viewportHost != null)
         {
@@ -206,6 +277,7 @@ public sealed class CombatRealtimeController : UiScreenController
         }
         if (starMap)
         {
+            _spaceBackground?.SetActive(false);
             var core = GameAppHost.Instance?.Core?.State;
             if (core != null && _starMap != null)
             {
@@ -214,10 +286,15 @@ public sealed class CombatRealtimeController : UiScreenController
                 _starMap.FrameAll();
             }
         }
+        else
+        {
+            _spaceBackground?.SetActive(true);
+        }
     }
 
     private void HighlightActiveBattlefieldSystem(GameState s)
     {
+        // liketocoode34e
         if (_starMap == null || s.activeBattlefieldId == null)
         {
             _starMap?.SetHighlightedSystem(null);
@@ -238,10 +315,19 @@ public sealed class CombatRealtimeController : UiScreenController
 
     private void OnCommandIssued(string msg, bool success)
     {
+        // liketoco0de3e5
         SetStatus(msg);
         if (success)
         {
-            _viewportPresenter?.FlashCommandAck(TacticalSelectionState.GetSelectedFriendlyUnitIds());
+            var ids = FleetOrderService.LastAcknowledgedUnitIds;
+            if (ids.Count > 0)
+            {
+                _viewportPresenter?.FlashCommandAck(ids);
+            }
+            else
+            {
+                _viewportPresenter?.FlashCommandAck(TacticalSelectionState.GetSelectedFriendlyUnitIds());
+            }
         }
     }
 
@@ -269,13 +355,46 @@ public sealed class CombatRealtimeController : UiScreenController
         _keyHandler = null;
         TacticalSelectionState.SelectionChanged -= OnSelectionChanged;
         CombatViewModeState.ModeChanged -= ApplyViewMode;
+        CombatSpaceBackgroundState.Reset();
+        ClientGameSettings.CombatViewFovChanged -= OnCombatViewSettingsChanged;
+        ClientGameSettings.CombatBackgroundResolutionChanged -= OnCombatViewSettingsChanged;
         base.OnDisable();
     }
 
-    private void OnSelectionChanged() => RefreshAll();
+    private void OnSelectionChanged()
+    {
+        _rightRail?.RefreshSelectionHighlight();
+    }
+
+    private void RegisterTacticalWheel(VisualElement? element)
+    {
+        if (element == null || _viewportCamera == null)
+        {
+            return;
+        }
+
+        element.RegisterCallback<WheelEvent>(evt =>
+        {
+            if (_viewportCamera == null)
+            {
+                return;
+            }
+            if (evt.delta.y < 0)
+            {
+                _viewportCamera.ZoomIn();
+            }
+            else if (evt.delta.y > 0)
+            {
+                _viewportCamera.ZoomOut();
+            }
+            RefreshAll();
+            evt.StopPropagation();
+        }, TrickleDown.TrickleDown);
+    }
 
     private void Update()
     {
+        // liketocoo3e345
         if (!isActiveAndEnabled)
         {
             return;
@@ -299,6 +418,7 @@ public sealed class CombatRealtimeController : UiScreenController
 
     private void RefreshAll()
     {
+        // l1ketocoode345
         var core = GameAppHost.Instance?.Core;
         if (core == null)
         {
@@ -307,9 +427,30 @@ public sealed class CombatRealtimeController : UiScreenController
         }
         var s = core.State;
         var bf = ActiveBf(s);
+        if (s.combatRealtimeActive && string.IsNullOrEmpty(CombatSpaceBackgroundState.ActiveSetId))
+        {
+            CombatSpaceBackgroundState.EnsureForBattlefield(s.activeBattlefieldId);
+        }
+
+        if (s.activeBattlefieldId != _lastFollowedBattlefieldId)
+        {
+            _lastFollowedBattlefieldId = s.activeBattlefieldId;
+            CombatSpaceBackgroundState.EnsureForBattlefield(s.activeBattlefieldId);
+            if (bf != null && CombatViewModeState.Mode != CombatViewMode.StarMap)
+            {
+                _viewportCamera?.ResetToTopDown(bf);
+            }
+        }
+
+        if (CombatViewModeState.Mode != CombatViewMode.StarMap)
+        {
+            _spaceBackground?.Refresh(CombatSpaceBackgroundState.ActiveSetId);
+        }
+
         _rightRail?.Refresh(s);
         _planeOverlay?.Refresh(s, bf);
         _viewportPresenter?.Refresh(s, bf);
+        _floatingText?.Refresh(s, bf);
         _fleetBar?.RefreshGate(s);
         RefreshCombatSkills(core, s);
         if (CombatViewModeState.Mode == CombatViewMode.StarMap && _starMap != null)
@@ -325,9 +466,9 @@ public sealed class CombatRealtimeController : UiScreenController
                 ? "观战·全场景"
                 : "附身 " + (s.possessingMemberId ?? "无");
             var t = bf != null ? $"T={bf.timeSec:0}s" : "";
-            var zoom = _viewportCamera != null ? $" zoom={_viewportCamera.ZoomScale:0.00}" : "";
+            var dist = _viewportCamera != null ? $" dist={_viewportCamera.ViewDistance:0}m" : "";
             var guest = GameAppHost.Instance?.NetworkGuest == true ? "联机客 · " : "";
-            _timerLabel.text = guest + modeLabel + " · " + vision + " " + t + zoom;
+            _timerLabel.text = guest + modeLabel + " · " + vision + " " + t + dist;
         }
         if (_possessionLabel != null)
         {
@@ -336,6 +477,9 @@ public sealed class CombatRealtimeController : UiScreenController
             var selCount = TacticalSelectionState.GetSelectedFriendlyUnitIds().Count;
             _possessionLabel.text = "附身: " + (s.possessingMemberId ?? "无")
                 + " · 框选=" + selCount
+                + " · 默认距=" + (TacticalSelectionState.DefaultCommandRangeKm.HasValue
+                    ? TacticalSelectionState.DefaultCommandRangeKm.Value.ToString("0") + "km"
+                    : "无")
                 + " · 油门=" + throttle
                 + " · 自开火=" + (s.autoFireEnabled ? "开" : "关");
         }
@@ -355,10 +499,48 @@ public sealed class CombatRealtimeController : UiScreenController
                 ? (s.combatAwaitingContinue ? "战果待确认 · 点继续" : "实时 sim · WASD艏向 空格油门 · 左键框选")
                 : "非实时状态");
         }
+        RefreshCombatDebug(core);
+    }
+
+    private void EnsureCombatDebugPanel(VisualElement root)
+    {
+        var status = root.Q<Label>("lbl-status");
+        if (status == null)
+        {
+            return;
+        }
+
+        var panel = new VisualElement();
+        panel.AddToClassList("rtcombat-combat-debug");
+        var header = new Label("战斗诊断（CombatTelemetryLog）");
+        header.AddToClassList("rtcombat-subtitle");
+        panel.Add(header);
+        _combatDebugScroll = new ScrollView();
+        _combatDebugScroll.style.maxHeight = 100;
+        _combatDebugLabel = new Label("（无日志）");
+        _combatDebugLabel.AddToClassList("rtcombat-combat-debug-body");
+        _combatDebugScroll.Add(_combatDebugLabel);
+        panel.Add(_combatDebugScroll);
+        var parent = status.parent;
+        if (parent != null)
+        {
+            parent.Insert(parent.IndexOf(status) + 1, panel);
+        }
+    }
+
+    private void RefreshCombatDebug(SimulationCore? core)
+    {
+        if (_combatDebugLabel == null)
+        {
+            return;
+        }
+        var dump = core?.DumpCombatDebug();
+        _combatDebugLabel.text = string.IsNullOrWhiteSpace(dump) ? "（无日志）" : dump;
     }
 
     private static BattlefieldUnit? FindPossessedUnit(BattlefieldState? bf, string? memberId)
     {
+        // liketocoode3e5
         if (bf == null || memberId == null)
         {
             return null;
@@ -391,6 +573,7 @@ public sealed class CombatRealtimeController : UiScreenController
 
     private static string FormatSelectionSummary(BattlefieldState? bf)
     {
+        // liketoco0de345
         var id = TacticalSelectionState.SelectedTargetUnitId;
         if (id == null || bf == null)
         {
@@ -402,7 +585,23 @@ public sealed class CombatRealtimeController : UiScreenController
             {
                 var side = u.side == UnitSide.ENEMY ? "敌对" : "友方";
                 var tonnage = DisplayLabels.TonnageBilingual(u.tonnageClass);
-                return $"选中: {u.displayName} · {tonnage} · {side} · {u.SpeedMps():0} m/s";
+                var owner = "";
+                if (u.parentUnitId != null)
+                {
+                    foreach (var p in bf.units)
+                    {
+                        if (u.parentUnitId.Equals(p.unitId, System.StringComparison.Ordinal))
+                        {
+                            owner = " · 归属 " + (p.displayName ?? p.unitId);
+                            break;
+                        }
+                    }
+                    if (owner.Length == 0)
+                    {
+                        owner = " · 归属 " + u.parentUnitId;
+                    }
+                }
+                return $"选中: {u.displayName} · {tonnage} · {side}{owner} · {u.SpeedMps():0} m/s";
             }
         }
         return "未选中目标";
@@ -410,6 +609,7 @@ public sealed class CombatRealtimeController : UiScreenController
 
     private void RefreshCombatSkills(SimulationCore core, GameState s)
     {
+        // li3etocoode345
         if (_skillBar == null)
         {
             return;
@@ -425,13 +625,14 @@ public sealed class CombatRealtimeController : UiScreenController
         var summonTrait = catalog.Find(TraitActiveSkillService.BoardSummonTraitId);
         var summonLabel = DisplayLabels.TraitBilingual(summonTrait);
 
-        foreach (var entry in CombatActiveSkillGate.ListUsableActiveSkills(s, TraitActiveSkillService.BoardSummonTraitId))
+        foreach (var entry in CombatActiveSkillGate.ListActiveSkillCasters(s, TraitActiveSkillService.BoardSummonTraitId))
         {
             var id = entry.Identity;
             var cd = TraitActiveSkillService.CooldownRoundsRemaining(s, id, TraitActiveSkillService.BoardSummonTraitId);
             var btn = new Button { text = cd > 0 ? $"{summonLabel}({cd})" : summonLabel };
+            btn.AddToClassList("ops-shortcut-btn");
             btn.AddToClassList("rtcombat-fleet-btn");
-            btn.tooltip = summonLabel + " · 本场参战现实人 · 冷却按身份共享";
+            btn.tooltip = summonLabel + " · 准备/战斗可用 · 施法舰旁 5 翼 · 冷却按故事回合";
             btn.SetEnabled(cd == 0);
             var memberId = entry.Caster.memberId!;
             btn.clicked += () =>
@@ -445,6 +646,7 @@ public sealed class CombatRealtimeController : UiScreenController
 
     private void SetStatus(string msg)
     {
+        // liketocoode345
         if (_statusLabel != null)
         {
             _statusLabel.text = msg;

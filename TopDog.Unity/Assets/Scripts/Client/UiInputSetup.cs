@@ -5,13 +5,28 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/UI_TWO_LAYER.md · docs/UI_ARCHITECTURE.md
+ * 本文件: UiInputSetup.cs — 统一 EventSystem + PanelRaycaster
+ * 【机制要点】
+ * · 单输入路径
+ * · 禁 viewport CapturePointer
+ * 【关联】UiArtBinder · StarMapHostController · TacticalViewportInputOverlay
+ * ══
+ */
 
 
 
+
+
+// liketoc0de345
+// liketocoode3a5
 namespace TopDog.Client;
 
 
 
+// liketoc0de345
 /// <summary>
 
 /// Single input path: one EventSystem + PanelRaycaster per UIDocument.
@@ -32,6 +47,7 @@ public static class UiInputSetup
 
     public static void Ensure()
 
+    // li3etocoode345
     {
 
         if (_installed && EventSystem.current != null)
@@ -52,6 +68,7 @@ public static class UiInputSetup
 
             go.AddComponent<EventSystem>();
 
+            // liketocoode3a5
             go.AddComponent<StandaloneInputModule>();
 
             Object.DontDestroyOnLoad(go);
@@ -72,6 +89,7 @@ public static class UiInputSetup
 
     {
 
+        // liketocoode34e
         Ensure();
 
         if (document == null)
@@ -94,6 +112,7 @@ public static class UiInputSetup
 
             document.rootVisualElement.RegisterCallback<AttachToPanelEvent>(_ => WirePanelPickers(document));
 
+            // liketocoo3e345
             document.rootVisualElement.schedule.Execute(() => WirePanelPickers(document)).ExecuteLater(1);
 
             document.rootVisualElement.schedule.Execute(() => WirePanelPickers(document)).ExecuteLater(50);
@@ -114,6 +133,7 @@ public static class UiInputSetup
 
         {
 
+            // liketoco0de345
             return;
 
         }
@@ -136,6 +156,7 @@ public static class UiInputSetup
 
         if (eventSystem == null)
 
+        // lik3tocoode345
         {
 
             return;
@@ -156,6 +177,7 @@ public static class UiInputSetup
 
         var go = new GameObject(document.name + " UI Panel");
 
+        // liketocoode3e5
         go.transform.SetParent(eventSystem.transform, false);
 
 
@@ -180,6 +202,7 @@ public static class UiInputSetup
 
 
 
+    // liket0coode345
     private static bool IsPanelWired(IRuntimePanel runtimePanel, IPanel panel)
     {
         if (runtimePanel.selectableGameObject == null)
@@ -190,5 +213,5 @@ public static class UiInputSetup
         var handler = runtimePanel.selectableGameObject.GetComponent<PanelEventHandler>();
         return handler != null && handler.panel == panel;
     }
+// liketocoode3a5
 }
-

@@ -1,26 +1,32 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using TopDog.App;
-using TopDog.Sim.Possession;
 using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 using TopDog.Sim.Vision;
 using UnityEngine.UIElements;
+
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/TACTICAL_WARP_AND_ORDERS.md §3 底栏舰队指令 · §3.4 舰载机指挥
+ * 本文件: FleetCommandBar.cs — 实时战术底栏舰队指令（含刻度盘/进入建筑/停火）
+ * 【机制要点】
+ * · 接近/远离/环绕/跃迁：单击即下令（用「默认距离」）
+ * · btn-cease-fire → OrderCeaseFire（舰载机 RECALL）
+ * · btn-default-dist + TacticalCommandRangeDial：仅设定默认距离
+ * · btn-enter-building → OrderEnterBuilding（跨星系跳桥）
+ * 【关联】FleetOrderService · StrikeWingOrderService · TacticalSelectionState · CombatRealtimeController
+ * ══
+ */
 
 namespace TopDog.Client.Tactical;
 
 /// <summary>底栏舰队指令（TACTICAL_WARP_AND_ORDERS.md §3 · 框选子集）。</summary>
 public sealed class FleetCommandBar
 {
-    private readonly Button _focusBtn;
-    private readonly Button _followBtn;
-    private readonly Button _followAttackBtn;
-    private readonly Button _scatterBtn;
-    private readonly Button _orbitBtn;
-    private readonly Button _warpBtn;
     private readonly Func<SimulationCore> _core;
     private readonly Action<string, bool> _status;
+    private readonly TacticalCommandRangeDial _rangeDial;
 
     public FleetCommandBar(
         VisualElement root,
@@ -30,32 +36,22 @@ public sealed class FleetCommandBar
     {
         _core = core;
         _status = statusWithSuccess ?? ((msg, _) => status(msg));
-        _focusBtn = root.Q<Button>("btn-focus");
-        _followBtn = root.Q<Button>("btn-follow");
-        _followAttackBtn = root.Q<Button>("btn-follow-attack");
-        _scatterBtn = root.Q<Button>("btn-scatter");
-        _orbitBtn = root.Q<Button>("btn-orbit");
-        _warpBtn = root.Q<Button>("btn-warp");
+        _rangeDial = new TacticalCommandRangeDial(root);
 
-        Bind(root, "btn-rally", () => WithBf((s, bf) => FleetOrderService.RallyToBattlefield(s, bf, Sel())));
-        Bind(root, "btn-follow", () => WithBf((s, bf) =>
-        {
-            var id = TacticalSelectionState.SelectedTargetUnitId;
-            return FleetOrderService.OrderApproach(s, bf, id, Sel());
-        }));
-        Bind(root, "btn-focus", () => WithBf((s, bf) => FleetOrderService.OrderFocus(s, bf, TacticalSelectionState.SelectedTargetUnitId, Sel())));
-        Bind(root, "btn-follow-attack", () => WithBf((s, bf) => FleetOrderService.OrderFollowAttack(s, bf, TacticalSelectionState.SelectedTargetUnitId, Sel())));
-        Bind(root, "btn-scatter", () => WithBf((s, bf) => FleetOrderService.OrderScatter(s, bf, new Random(), Sel())));
-        Bind(root, "btn-orbit", () => WithBf((s, bf) =>
-        {
-            var id = TacticalSelectionState.SelectedTargetUnitId;
-            return id != null ? FleetOrderService.OrderOrbit(s, bf, id, Sel()) : "请先选择目标";
-        }));
-        Bind(root, "btn-stop", () => WithBf((s, bf) => FleetOrderService.OrderStop(s, bf, false, Sel())));
-        Bind(root, "btn-stop-all", () => WithBf((s, bf) => FleetOrderService.OrderStop(s, bf, true, Sel())));
-        Bind(root, "btn-retreat", () => WithBf((s, bf) => FleetOrderService.OrderRetreat(s, bf)));
-        Bind(root, "btn-warp", WarpToAlternateBattlefield);
-        Bind(root, "btn-auto-fire", () =>
+        BindSimple(root, "btn-rally", () => WithBf((s, bf) => FleetOrderService.RallyToBattlefield(s, bf, Sel())));
+        BindSimple(root, "btn-scatter", () => WithBf((s, bf) => FleetOrderService.OrderScatter(s, bf, new Random(), Sel())));
+        BindSimple(root, "btn-stop", () => WithBf((s, bf) => FleetOrderService.OrderStop(s, bf, false, Sel())));
+        BindSimple(root, "btn-stop-all", () => WithBf((s, bf) => FleetOrderService.OrderStop(s, bf, true, Sel())));
+        BindSimple(root, "btn-retreat", () => WithBf((s, bf) => FleetOrderService.OrderRetreat(s, bf)));
+        BindSimple(root, "btn-focus", () =>
+            WithBf((s, bf) => FleetOrderService.OrderFocus(s, bf, TacticalSelectionState.SelectedTargetUnitId, Sel())));
+        BindSimple(root, "btn-cease-fire", () =>
+            WithBf((s, bf) => FleetOrderService.OrderCeaseFire(s, bf, Sel())));
+        BindSimple(root, "btn-follow-attack", () =>
+            WithBf((s, bf) => FleetOrderService.OrderFollowAttack(s, bf, TacticalSelectionState.SelectedTargetUnitId, Sel())));
+        BindSimple(root, "btn-enter-building", () =>
+            WithBf((s, bf) => FleetOrderService.OrderEnterBuilding(s, bf, TacticalSelectionState.SelectedTargetUnitId, Sel())));
+        BindSimple(root, "btn-auto-fire", () =>
         {
             var c = _core();
             if (c != null)
@@ -63,7 +59,7 @@ public sealed class FleetCommandBar
                 Emit(c.ToggleAutoFire(), true);
             }
         });
-        Bind(root, "btn-possess-friendly", () =>
+        BindSimple(root, "btn-possess-friendly", () =>
         {
             var c = _core();
             if (c == null)
@@ -78,67 +74,75 @@ public sealed class FleetCommandBar
                 return;
             }
 
-            var next = VisionAnchorService.CyclePossession(c.State, bf);
-            if (next == null)
+            var focus = VisionAnchorService.CycleTacticalFocus(c.State, bf);
+            if (focus == null)
             {
-                Emit("无可附身友舰", false);
+                Emit("无可切换友方单位", false);
                 return;
             }
 
-            Emit(c.PossessMember(next), true);
+            Emit("视野: " + (focus.displayName ?? focus.unitId), true);
         });
-        Bind(root, "btn-continue", () =>
+        BindSimple(root, "btn-continue", () =>
         {
             var c = _core();
             Emit(c != null ? c.CombatContinue() : "模拟未启动", c != null);
         });
+
+        BindRangeCommand(root, "btn-follow", (s, bf, km) =>
+            FleetOrderService.OrderApproach(s, bf, TacticalSelectionState.SelectedTargetUnitId, Sel(), km));
+        BindRangeCommand(root, "btn-away", (s, bf, km) =>
+            FleetOrderService.OrderAway(s, bf, TacticalSelectionState.SelectedTargetUnitId, Sel(), km));
+        BindRangeCommand(root, "btn-orbit", (s, bf, km) =>
+            FleetOrderService.OrderOrbit(s, bf, TacticalSelectionState.SelectedTargetUnitId, Sel(), km));
+        BindRangeCommand(root, "btn-warp", (s, bf, km) => IssueWarp(s, bf, km));
+        BindDefaultDistanceDial(root);
     }
 
     public void RefreshGate(GameState state)
     {
-        var hasTarget = TacticalSelectionState.SelectedTargetUnitId != null;
-        if (_focusBtn != null) _focusBtn.SetEnabled(hasTarget);
-        if (_followBtn != null) _followBtn.SetEnabled(hasTarget);
-        if (_followAttackBtn != null) _followAttackBtn.SetEnabled(hasTarget);
-        if (_orbitBtn != null) _orbitBtn.SetEnabled(hasTarget);
-        var hasAltBf = false;
-        if (state != null && state.activeBattlefieldId != null)
-        {
-            hasAltBf = VisionGate.ListVisibleBattlefields(state)
-                .Any(b => b.battlefieldId != null
-                    && !b.battlefieldId.Equals(state.activeBattlefieldId, StringComparison.Ordinal));
-        }
-        if (_warpBtn != null) _warpBtn.SetEnabled(hasAltBf);
-        if (_scatterBtn != null) _scatterBtn.SetEnabled(state != null && state.combatRealtimeActive);
+        // 实时战底栏始终可点；星图模式由 CombatRealtimeController 整栏 SetEnabled。
     }
 
-    private static IReadOnlyCollection<string> Sel() => TacticalSelectionState.GetSelectedFriendlyUnitIds();
-
-    private void WarpToAlternateBattlefield()
+    public void SetBarEnabled(bool enabled)
     {
+        // 预留：CombatRealtimeController 星图模式调用
+    }
+
+    private string IssueWarp(GameState s, BattlefieldState bf, float? landingKm)
+    {
+        var sel = TacticalSelectionState.SelectedTargetUnitId;
+        if (!FleetOrderService.TryResolveWarpTargetScene(bf, sel, out var systemId, out var eventRegionId))
+        {
+            return "0 艘执行跃迁";
+        }
+
         var c = _core();
         if (c == null)
         {
-            return;
+            return "模拟未启动";
         }
-        var s = c.State;
-        var bf = ActiveBf(s);
-        if (bf == null)
+
+        var target = TacticalSceneBattlefieldService.EnsureSceneBattlefield(s, systemId, eventRegionId);
+        if (target.battlefieldId == null)
         {
-            Emit("无活跃战场", false);
-            return;
+            return "0 艘执行跃迁";
         }
-        var target = VisionGate.ListVisibleBattlefields(s)
-            .FirstOrDefault(b => b.battlefieldId != null
-                && !b.battlefieldId.Equals(s.activeBattlefieldId, StringComparison.Ordinal));
-        if (target?.battlefieldId == null)
-        {
-            Emit("无其他可跃迁战场", false);
-            return;
-        }
-        var msg = FleetOrderService.OrderWarp(s, bf, target.battlefieldId, c.Ships, allFriendly: Sel().Count == 0, Sel());
-        Emit(msg, msg.StartsWith("跃迁", StringComparison.Ordinal));
+
+        return FleetOrderService.OrderWarp(
+            s,
+            bf,
+            target.battlefieldId,
+            c.Ships,
+            allFriendly: Sel().Count == 0,
+            Sel(),
+            landingKm);
     }
+
+    private IReadOnlyCollection<string> Sel() =>
+        TacticalSelectionState.GetSelectedFriendlyUnitIds();
+
+    private static float? CommandRangeKm() => TacticalSelectionState.DefaultCommandRangeKm;
 
     private void WithBf(Func<GameState, BattlefieldState, string> action)
     {
@@ -147,16 +151,16 @@ public sealed class FleetCommandBar
         {
             return;
         }
+
         var bf = ActiveBf(c.State);
         if (bf == null)
         {
             Emit("无活跃战场", false);
             return;
         }
+
         var msg = action(c.State, bf);
-        Emit(msg, !msg.StartsWith("请先", StringComparison.Ordinal)
-            && !msg.StartsWith("无", StringComparison.Ordinal)
-            && !msg.Contains("非收割"));
+        Emit(msg, msg.StartsWith("已下令", StringComparison.Ordinal));
     }
 
     private void Emit(string msg, bool success) => _status(msg, success);
@@ -167,6 +171,7 @@ public sealed class FleetCommandBar
         {
             return null;
         }
+
         foreach (var bf in s.battlefields)
         {
             if (s.activeBattlefieldId.Equals(bf.battlefieldId, StringComparison.Ordinal))
@@ -174,15 +179,79 @@ public sealed class FleetCommandBar
                 return bf;
             }
         }
+
         return null;
     }
 
-    private static void Bind(VisualElement root, string name, Action action)
+    private void BindSimple(VisualElement root, string name, Action action)
     {
         var btn = root.Q<Button>(name);
         if (btn != null)
         {
             btn.clicked += action;
         }
+    }
+
+    private void BindRangeCommand(
+        VisualElement root,
+        string name,
+        Func<GameState, BattlefieldState, float?, string> issue)
+    {
+        var btn = root.Q<Button>(name);
+        if (btn == null)
+        {
+            return;
+        }
+
+        btn.clicked += () =>
+        {
+            var c = _core();
+            if (c == null)
+            {
+                return;
+            }
+
+            var bf = ActiveBf(c.State);
+            if (bf == null)
+            {
+                Emit("无活跃战场", false);
+                return;
+            }
+
+            var km = CommandRangeKm();
+            var msg = issue(c.State, bf, km);
+            Emit(msg, msg.StartsWith("已下令", StringComparison.Ordinal));
+        };
+    }
+
+    private void BindDefaultDistanceDial(VisualElement root)
+    {
+        var btn = root.Q<Button>("btn-default-dist");
+        if (btn == null)
+        {
+            return;
+        }
+
+        btn.RegisterCallback<PointerDownEvent>(evt =>
+        {
+            if (evt.button != 0)
+            {
+                return;
+            }
+
+            evt.StopPropagation();
+            var initial = TacticalSelectionState.DefaultCommandRangeKm;
+            _rangeDial.Begin(btn, km =>
+            {
+                if (!km.HasValue)
+                {
+                    Emit("在罗盘上拖动设置默认距离", false);
+                    return;
+                }
+
+                TacticalSelectionState.DefaultCommandRangeKm = km;
+                Emit($"默认距离 {km.Value:0} km", true);
+            }, initial);
+        });
     }
 }

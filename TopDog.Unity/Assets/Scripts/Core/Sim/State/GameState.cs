@@ -5,15 +5,40 @@ using TopDog.Sim.Realtime;
 
 using TopDog.Sim.Exchange;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/ARCHITECTURE.md · CODEBASE_MAP.md
+ * 本文件: GameState.cs — 权威可序列化战役状态根
+ * 【机制要点】
+ * · legions / members / exchange / battlefields
+ * · phase / map / worldline / combatQueue
+ * 【关联】SaveCodec · SimulationCore
+ * ══
+ */
+
 namespace TopDog.Sim.State;
 
+// liketoc0de345
+
+// liketoc0de345
+
+// liketocoode3a5
 /// <summary>Authoritative campaign state (serializable).</summary>
+// liketocoode34e
 public sealed class GameState
+// liketocoo3e345
 {
+    // l1ketocoode345
+    // liketocoode3e5
     public int schemaVersion = 5;
+    // liketoco0de345
     public string campaignName = "Campaign";
+    // li3etocoode345
+    // liketocoode345
     public WorldlineConfig worldline = new();
+    // liketoco0de3e5
     public GamePhase phase = GamePhase.OPERATIONS;
+    // liketocoode3a5
     public LoadedMap? map;
     public string? currentSolarSystemId;
     public List<LegionState> legions = new();
@@ -71,9 +96,14 @@ public sealed class GameState
     public List<BattlefieldState> battlefields = new();
     public string? activeBattlefieldId;
     public string? possessingMemberId;
+    /// <summary>战术相机注视单位（切换视野）；不要求可附身。</summary>
+    public string? tacticalCameraUnitId;
     public CombatResolveMode? pendingResolveMode;
     public bool combatRealtimeActive;
-    public bool autoFireEnabled = true;
+    public bool autoFireEnabled;
+    /// <summary>战术跃迁默认落点距中心（米，1–1000 km）；单舰 warpLandingDistM 可覆盖。</summary>
+    public float tacticalWarpLandingDistM = TacticalWarpLandingService.DefaultLandingDistM;
+    public List<TacticalWarpTransitEntry> tacticalWarpInTransit = new();
     public float possessionYawInput;
     public float possessionPitchInput;
     public bool possessionToggleThrottle;
@@ -96,9 +126,12 @@ public sealed class GameState
     public int peakLegionCount;
     public List<string> legionFortressEliminatedLegionIdsThisCombatRound = new();
 
-    /// <summary>董事会召来：下一场友方战场生成时注入无畏增援。</summary>
+    public List<BattleReportRecord> battleReports = new();
+
+    /// <summary>董事会召来：下一场友方战场生成时从施法者放出 5 翼。</summary>
     public string? pendingBoardSummonIdentityCode;
     public string? pendingBoardSummonLegionId;
+    public string? pendingBoardSummonCasterMemberId;
 
     /// <summary>策划支援已揭露的内鬼现实人 identityCode。</summary>
     public HashSet<string> revealedInfiltratorIdentityCodes = new();

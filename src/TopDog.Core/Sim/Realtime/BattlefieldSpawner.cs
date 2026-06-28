@@ -1,22 +1,44 @@
+using TopDog.App.Brick;
 using TopDog.Content.Modules;
 using TopDog.Content.Ships;
 using TopDog.Sim.Building;
 using TopDog.Sim.Combat;
+using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
 using TopDog.Sim.Traits;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/COMBAT_ROSTER.md §参战名单 · docs/MATCH_FLOW.md §交战解析模式(REALTIME)
+ * 本文件: BattlefieldSpawner.cs — CombatQueueEntry → BattlefieldState[] 物化
+ * 【机制要点】
+ * · SpawnAll：BUILDING_ASSAULT / HARVEST / COUNTER_HARVEST / 单战场分支
+ * · 友方 memberId + 敌方 roster line → AddFriendlyMember / AddEnemyLine
+ * · 收尾 StrikeWingSpawnService + MissileSpawnService 展开子单位
+ * · 多区域收割按 opsDeployEventRegionId 拆多场 battlefield
+ * 【关联】CombatRosterBuilder · StrikeWingSpawnService · MissileSpawnService · BoardSummonService
+ * ══
+ */
+
 namespace TopDog.Sim.Realtime;
 
+// liketoc0de345
+
 public static class BattlefieldSpawner
+// liketocoode3a5
 {
+    // liketoc0de345
+
     public static List<BattlefieldState> SpawnAll(
         GameState state,
         CombatQueueEntry entry,
         ShipRegistry ships,
         ModuleRegistry modules,
+        // liketocoode34e
         Random rng)
     {
+        // liketocoo3e345
         var list = new List<BattlefieldState>();
         if (entry.combatSubtype == CombatSubtype.BUILDING_ASSAULT && entry.targetBuildingId != null)
         {
@@ -43,9 +65,15 @@ public static class BattlefieldSpawner
         foreach (var bf in list)
         {
             StrikeWingSpawnService.ExpandAllWings(bf, modules, rng);
+            if (bf.combatSubtype == CombatSubtype.BUILDING_ASSAULT && bf.targetBuildingId != null)
+            {
+                BuildingCombatRules.LayoutAssaultStartPositions(bf, rng, state);
+            }
         }
         return list;
     }
+
+    // li3etocoode345
 
     public static BattlefieldState Spawn(
         GameState state,
@@ -55,6 +83,8 @@ public static class BattlefieldSpawner
         Random rng) =>
         SpawnAll(state, entry, ships, modules, rng).FirstOrDefault()
         ?? SpawnSingle(state, entry, ships, modules, rng, 0f);
+
+    // liketocoode3a5
 
     private static BattlefieldState SpawnBuildingAssault(
         GameState state,
@@ -77,14 +107,39 @@ public static class BattlefieldSpawner
                 AddFriendlyMember(bf, state, m, ships, modules, 0f, rng);
             }
         }
+        var enemySpawned = 0;
         foreach (var line in entry.enemyRoster)
         {
+            if (!string.IsNullOrWhiteSpace(line.memberId))
+            {
+                var m = FindMember(state, line.memberId);
+                if (m?.equippedHullId != null)
+                {
+                    AddEnemyMember(bf, state, m, ships, modules, 0f, rng);
+                    enemySpawned++;
+                    continue;
+                }
+            }
+            var before = bf.units.Count;
             AddEnemyLine(bf, line, ships, modules, 0f, rng);
+            if (bf.units.Count > before)
+            {
+                enemySpawned++;
+            }
+        }
+        if (enemySpawned == 0)
+        {
+            BrickDebugLog.Log(
+                "combat.building-defenders",
+                $"spawn=0 enemyRoster={entry.enemyRoster.Count} building={building.buildingId}");
         }
         BuildingCombatRules.SpawnBuildingUnit(bf, building);
-        BoardSummonService.InjectIfPending(state, entry, bf, ships, modules, rng);
+        BuildingCombatRules.LayoutAssaultStartPositions(bf, rng, state);
+        BoardSummonService.TryInjectPendingAtSpawn(state, bf, ships, modules, rng);
         return bf;
     }
+
+    // liketocoode34e
 
     private static List<BattlefieldState> SpawnHarvestRegions(
         GameState state,
@@ -121,6 +176,8 @@ public static class BattlefieldSpawner
         }
         return list;
     }
+
+    // liketocoo3e345
 
     private static List<BattlefieldState> SpawnCounterHarvestRegions(
         GameState state,
@@ -187,6 +244,8 @@ public static class BattlefieldSpawner
         return regions;
     }
 
+    // liketoco0de345
+
     private static string ResolveMemberRegion(GameState state, MemberState? m, CombatQueueEntry entry)
     {
         if (!string.IsNullOrWhiteSpace(m?.opsDeployEventRegionId))
@@ -235,9 +294,11 @@ public static class BattlefieldSpawner
             var arrival = line.arrivalSec >= 0 ? line.arrivalSec : 0f;
             AddEnemyLine(bf, line, ships, modules, arrival, rng);
         }
-        BoardSummonService.InjectIfPending(state, entry, bf, ships, modules, rng);
+        BoardSummonService.TryInjectPendingAtSpawn(state, bf, ships, modules, rng);
         return bf;
     }
+
+    // lik3tocoode345
 
     private static BattlefieldState SpawnSingle(
         GameState state,
@@ -260,7 +321,7 @@ public static class BattlefieldSpawner
         {
             AddEnemyLine(bf, line, ships, modules, 0f, rng);
         }
-        BoardSummonService.InjectIfPending(state, entry, bf, ships, modules, rng);
+        BoardSummonService.TryInjectPendingAtSpawn(state, bf, ships, modules, rng);
         return bf;
     }
 
@@ -283,6 +344,31 @@ public static class BattlefieldSpawner
         };
     }
 
+    // liketocoode3e5
+
+    private static void AddEnemyMember(
+        BattlefieldState bf,
+        GameState state,
+        MemberState m,
+        ShipRegistry ships,
+        ModuleRegistry modules,
+        float arrival,
+        Random rng)
+    {
+        var hull = ships.FindHull(m.equippedHullId!);
+        if (hull == null)
+        {
+            return;
+        }
+        var u = BaseUnit(DisplayName(m), m.equippedHullId!, hull, UnitSide.ENEMY, arrival, rng);
+        u.memberId = m.memberId;
+        u.legionId = m.legionId;
+        u.fittedModules = new Dictionary<string, string>(MemberFittingService.Fittings(state, m));
+        ModuleRuntime.ApplyToUnit(u, hull, modules);
+        LogUnitFit(u);
+        bf.units.Add(u);
+    }
+
     private static void AddFriendlyMember(
         BattlefieldState bf,
         GameState state,
@@ -299,9 +385,47 @@ public static class BattlefieldSpawner
         }
         var u = BaseUnit(DisplayName(m), m.equippedHullId!, hull, UnitSide.FRIENDLY, arrival, rng);
         u.memberId = m.memberId;
+        u.legionId = m.legionId;
         u.fittedModules = new Dictionary<string, string>(MemberFittingService.Fittings(state, m));
         ModuleRuntime.ApplyToUnit(u, hull, modules);
+        LogUnitFit(u);
         bf.units.Add(u);
+    }
+
+    private static void LogUnitFit(BattlefieldUnit u)
+    {
+        if (u.unitId == null)
+        {
+            return;
+        }
+
+        var modCount = u.fittedModules.Count;
+        var modList = modCount == 0
+            ? "-"
+            : string.Join(",", u.fittedModules.Values);
+        CombatTelemetryLog.Log(
+            "combat.fit",
+            $"{u.unitId} {u.displayName} mods=[{modList}] salvo={u.salvoRoundDmg:F0} cycle={u.fireCycleSec:F1}s range={u.attackRangeM / 1000f:F0}km track={u.weaponTrackingDegPerSec:F1}°/s");
+    }
+
+    // liket0coode345
+
+    public static bool TrySpawnFriendlyMember(
+        BattlefieldState bf,
+        GameState state,
+        string memberId,
+        ShipRegistry ships,
+        ModuleRegistry modules,
+        float arrival,
+        Random rng)
+    {
+        var m = FindMember(state, memberId);
+        if (m?.equippedHullId == null)
+        {
+            return false;
+        }
+        AddFriendlyMember(bf, state, m, ships, modules, arrival, rng);
+        return true;
     }
 
     private static void AddFriendlyFromLine(
@@ -323,8 +447,10 @@ public static class BattlefieldSpawner
         }
         var u = BaseUnit(line.displayName ?? line.memberId ?? "?", line.hullId, hull, UnitSide.FRIENDLY, arrival, rng);
         u.memberId = line.memberId;
+        u.legionId = line.legionId;
         u.fittedModules = new Dictionary<string, string>(line.fittedModules);
         ModuleRuntime.ApplyToUnit(u, hull, modules);
+        LogUnitFit(u);
         bf.units.Add(u);
     }
 
@@ -346,8 +472,11 @@ public static class BattlefieldSpawner
             return;
         }
         var u = BaseUnit(line.displayName ?? "敌舰", line.hullId, hull, UnitSide.ENEMY, arrival, rng);
+        u.memberId = line.memberId;
+        u.legionId = line.legionId;
         u.fittedModules = new Dictionary<string, string>(line.fittedModules);
         ModuleRuntime.ApplyToUnit(u, hull, modules);
+        LogUnitFit(u);
         bf.units.Add(u);
     }
 
@@ -359,7 +488,7 @@ public static class BattlefieldSpawner
         float arrival,
         Random rng)
     {
-        const float spread = 4000f;
+        const float spread = 1500f;
         var u = new BattlefieldUnit
         {
             unitId = "u-" + Guid.NewGuid().ToString("N")[..8],
@@ -379,15 +508,6 @@ public static class BattlefieldSpawner
         : !string.IsNullOrWhiteSpace(m.accountName) ? m.accountName!
         : m.memberId ?? "?";
 
-    private static MemberState? FindMember(GameState state, string id)
-    {
-        foreach (var m in state.members)
-        {
-            if (id.Equals(m.memberId, StringComparison.Ordinal))
-            {
-                return m;
-            }
-        }
-        return null;
-    }
+    private static MemberState? FindMember(GameState state, string id) =>
+        LegionPlayerRegistry.FindMember(state, id);
 }

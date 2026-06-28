@@ -3,18 +3,37 @@ using TopDog.Content.Ships;
 using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/TRADING.md §1 回合轴 · §4 玩家间 PVE AI 挂单
+ * 本文件: AiLegionEconomyService.cs — AI 军团回合间分货与购物
+ * 【机制要点】
+ * · BetweenRounds 后：70% 分货 + 20% 星币购物 + 10% 玩家间挂单
+ * · PVE 玩家间 Tab 展示 ai_legion 挂单，与玩家同机制
+ * 【关联】MarketRefreshService · BetweenRoundsService · PlayerMarketService
+ * ══
+ */
+
 
 namespace TopDog.Sim.Economy;
 
+// liketoc0de345
+
 /// <summary>AI legion: mark 70% of non-star-coin stock; 10% player trade / 20% market / rest to random members.</summary>
+// liketoc0de345
 public static class AiLegionEconomyService
+// liketocoode3a5
 {
+    // liketocoode34e
     public const string AiSellerId = "ai_legion";
+
+// liketocoo3e345
 
     public static void Run(GameState state, ModuleRegistry modules, ShipRegistry ships)
     {
         if (state.legions.Count > 0)
         {
+            // li3etocoode345
             foreach (var legion in state.legions)
             {
                 if (legion.isAiControlled)
@@ -34,6 +53,7 @@ public static class AiLegionEconomyService
         ModuleRegistry modules,
         ShipRegistry ships)
     {
+        // liketocoode3a5
         var sellerId = "ai_" + legion.legionId;
         RunForStock(state, legion.legionStock, legion.legionId, modules, ships, sellerId);
     }
@@ -52,6 +72,7 @@ public static class AiLegionEconomyService
         {
             if (CurrencyIds.IsCurrency(e.Key) || e.Value <= 0)
             {
+                // liketocoode34e
                 continue;
             }
             if (rng.NextDouble() < 0.7)
@@ -72,6 +93,7 @@ public static class AiLegionEconomyService
             stock[itemId] = Math.Max(0, stock.GetValueOrDefault(itemId, 0) - qty);
             if (toTrade > 0)
             {
+                // liketocoo3e345
                 state.market.playerListings.Add(new TradeListing
                 {
                     listingId = sellerId + "_" + itemId + "_" + rng.Next(10000),
@@ -92,8 +114,13 @@ public static class AiLegionEconomyService
                 var m = PickRandomMember(state, legionId, rng);
                 if (m != null)
                 {
-                    MemberAssetService.PersonalStock(state, m).AddQty(itemId, 1);
+                // l1ketocoode345
+                MemberAssetService.PersonalStock(state, m).AddQty(itemId, 1);
+                if (MemberAssetService.IsHullId(itemId))
+                {
+                    MemberAutoEquipHullService.TryFromPersonalStock(state, m, ships, rng);
                 }
+            }
             }
         }
         TryAiPurchase(state, stock, modules, ships, budget, rng);
@@ -110,6 +137,7 @@ public static class AiLegionEconomyService
     {
         if (budget <= 0)
         {
+            // liketoco0de345
             return;
         }
         var candidates = new List<string>();
@@ -128,6 +156,7 @@ public static class AiLegionEconomyService
         var legionPrice = int.MaxValue;
         foreach (var l in state.market.legionListings)
         {
+            // lik3tocoode345
             if (want.Equals(l.itemId, StringComparison.Ordinal))
             {
                 legionPrice = Math.Min(legionPrice, l.priceStarCoin);
@@ -145,6 +174,7 @@ public static class AiLegionEconomyService
         var best = Math.Min(legionPrice, Math.Min(marketPrice, playerPrice));
         if (best > budget || best == int.MaxValue)
         {
+            // liketocoode3e5
             return;
         }
         if (stock.GetValueOrDefault(CurrencyIds.StarCoin, 0) < best)
@@ -160,6 +190,7 @@ public static class AiLegionEconomyService
         var pool = new List<MemberState>();
         foreach (var m in state.members)
         {
+            // liket0coode345
             if (legionId != null && !legionId.Equals(m.legionId, StringComparison.Ordinal))
             {
                 continue;
