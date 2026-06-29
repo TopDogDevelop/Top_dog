@@ -166,10 +166,10 @@ public sealed class CombatViewSettingsBinder
         {
             _bgSetIds.Add(ClientGameSettings.CombatBackgroundSetRandom);
             _bgSetLabels.Add("随机");
-            foreach (var setId in CombatBackgroundCatalog.MainSetIds)
+            for (var i = 0; i < CombatBackgroundCatalog.MainSetIds.Length; i++)
             {
-                _bgSetIds.Add(setId);
-                _bgSetLabels.Add(CombatBackgroundCatalog.GetSetDisplayLabel(setId));
+                _bgSetIds.Add(CombatBackgroundCatalog.MainSetIds[i]);
+                _bgSetLabels.Add($"{i + 1}号背景");
             }
         }
 
