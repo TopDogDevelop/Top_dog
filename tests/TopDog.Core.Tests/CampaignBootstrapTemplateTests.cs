@@ -133,6 +133,20 @@ public sealed class CampaignBootstrapTemplateTests
     }
 
     [Test]
+    public void SandboxCampaignSeedsPineappleInLegionStock()
+    {
+        var core = CampaignBootstrap.Create(CampaignBootstrap.Profile.SHIPS_AND_MAP, WorldlineType.SANDBOX);
+        Assert.That(core.State.legionStock.GetValueOrDefault("hull_frigate_pineapple"), Is.EqualTo(1));
+    }
+
+    [Test]
+    public void StoryShipsAndMap_DoesNotSeedSandboxPineapple()
+    {
+        var core = CampaignBootstrap.Create(CampaignBootstrap.Profile.SHIPS_AND_MAP, WorldlineType.STORY);
+        Assert.That(core.State.legionStock.GetValueOrDefault("hull_frigate_pineapple", 0), Is.EqualTo(0));
+    }
+
+    [Test]
     public void LobbyListsOnlyPlayableLegionTemplates()
     {
         var lobbyTemplates = ContentCatalog.ListLobbyMemberTemplates();

@@ -1,5 +1,6 @@
 using TopDog.Content.Modules;
 using TopDog.Content.Ships;
+using TopDog.Sim.Combat;
 using TopDog.Sim.Member;
 using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
@@ -98,4 +99,73 @@ public sealed class BoardSummonWingTests
         var spawned = BoardSummonWingService.SpawnFromCasterUnit(bf, caster, new Random(1));
         Assert.That(spawned, Is.EqualTo(0));
     }
+
+    [Test]
+    public void PendingInject_MultiRegionHarvest_SpawnsOnCastersBattlefield()
+    {
+        var state = new GameState { storyRound = 2, phase = GamePhase.COMBAT_PREP };
+        state.pendingBoardSummonCasterMemberId = "m2";
+        state.pendingBoardSummonLegionId = "VIP";
+        state.members.Add(Member("m1", "region_a"));
+        state.members.Add(Member("m2", "region_b"));
+        var entry = new CombatQueueEntry
+        {
+            entryId = "e1",
+            combatSubtype = CombatSubtype.HARVEST,
+            battlefieldSystemId = "sys1",
+            friendlyMemberIds = { "m1", "m2" },
+            enemyRoster =
+            {
+                new CombatRosterLine { displayName = "守军", hullId = "hull_bc_spear", tonnageClass = "BATTLECRUISER" },
+            },
+        };
+        var ships = ShipRegistry.LoadDefault();
+        var modules = ModuleRegistry.LoadDefault();
+
+        var spawned = BattlefieldSpawner.SpawnAll(state, entry, ships, modules, new Random(1));
+
+        Assert.That(spawned, Has.Count.EqualTo(2));
+        var casterBf = spawned.First(b => b.eventRegionId == "region_b");
+        var wings = casterBf.units
+            .Where(u => BoardSummonWingService.WingTonnageClass.Equals(u.tonnageClass, StringComparison.Ordinal))
+            .ToList();
+        Assert.That(wings, Has.Count.EqualTo(BoardSummonWingService.WingCount));
+        Assert.That(state.pendingBoardSummonCasterMemberId, Is.Null);
+    }
+
+    [Test]
+    public void PendingInject_ClearsWhenCasterNotOnAnyBattlefield()
+    {
+        var state = new GameState { storyRound = 2, phase = GamePhase.COMBAT_PREP };
+        state.pendingBoardSummonCasterMemberId = "missing_caster";
+        state.pendingBoardSummonLegionId = "VIP";
+        state.members.Add(Member("m1", "region_a"));
+        var entry = new CombatQueueEntry
+        {
+            entryId = "e1",
+            combatSubtype = CombatSubtype.HARVEST,
+            battlefieldSystemId = "sys1",
+            friendlyMemberIds = { "m1" },
+            enemyRoster =
+            {
+                new CombatRosterLine { displayName = "守军", hullId = "hull_bc_spear", tonnageClass = "BATTLECRUISER" },
+            },
+        };
+        var ships = ShipRegistry.LoadDefault();
+        var modules = ModuleRegistry.LoadDefault();
+
+        BattlefieldSpawner.SpawnAll(state, entry, ships, modules, new Random(1));
+
+        Assert.That(state.pendingBoardSummonCasterMemberId, Is.Null);
+        Assert.That(state.alertLog.Last(), Does.Contain("未生效"));
+    }
+
+    private static MemberState Member(string id, string region) => new()
+    {
+        memberId = id,
+        name = id,
+        equippedHullId = "hull_bc_spear",
+        opsDeployEventRegionId = region,
+        opsDeploySystemId = "sys1",
+    };
 }

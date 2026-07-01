@@ -46,6 +46,33 @@ public static class BoardSummonService
         BoardSummonWingService.TryInjectPendingAtSpawn(state, bf, ships, modules, rng);
     }
 
+    /// <summary>在全部 spawn 完成的战场中解析预约董事会召来（含多区域 harvest）。</summary>
+    public static void TryResolvePendingAcrossBattlefields(
+        GameState state,
+        IReadOnlyList<BattlefieldState> battlefields,
+        ShipRegistry ships,
+        ModuleRegistry modules,
+        Random rng)
+    {
+        if (string.IsNullOrWhiteSpace(state.pendingBoardSummonCasterMemberId))
+        {
+            return;
+        }
+
+        foreach (var bf in battlefields)
+        {
+            TryInjectPendingAtSpawn(state, bf, ships, modules, rng);
+            if (string.IsNullOrWhiteSpace(state.pendingBoardSummonCasterMemberId))
+            {
+                return;
+            }
+        }
+
+        BoardSummonWingService.FailUnresolvedPending(
+            state,
+            "董事会召来未生效：施法舰未进入任何战场");
+    }
+
     public static void PurgeTempMembers(GameState state)
     {
         state.members.RemoveAll(m => m.isCombatSummonTemp);

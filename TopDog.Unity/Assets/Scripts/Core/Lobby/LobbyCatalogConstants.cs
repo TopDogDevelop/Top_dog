@@ -33,6 +33,7 @@ public static class LobbyCatalogConstants
     public const string RandomChoiceLabel = "纯随机生成";
     public const string DefaultTestAssetId = "assets_default";
     public const string DefaultTestAssetDisplayName = "首发默认测试资产";
+    public const string SandboxDefaultAssetId = "assets_sandbox";
 
     public static bool IsRandomMember(string? templateId) =>
         RandomMemberTemplateId.Equals(templateId, StringComparison.Ordinal);

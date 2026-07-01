@@ -134,6 +134,10 @@ public static class CampaignBootstrap
                     "开局模版「" + state.worldline.startingTemplateId + "」无预设团员，请用招新扩充或选择预设团员模版");
             }
         }
+        else if (profile == Profile.SHIPS_AND_MAP && state.worldline.type == WorldlineType.SANDBOX)
+        {
+            StartingAssetLoader.ApplyIfEmpty(state, LobbyCatalogConstants.SandboxDefaultAssetId);
+        }
 
         MarketRefreshService.EnsureInitial(state, modules, ships);
         if (profile == Profile.CUSTOM_CAMPAIGN)

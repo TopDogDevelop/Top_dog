@@ -62,6 +62,7 @@ public static class BattlefieldSpawner
         }
 
         list.RemoveAll(bf => bf.units.Count == 0);
+        BoardSummonService.TryResolvePendingAcrossBattlefields(state, list, ships, modules, rng);
         foreach (var bf in list)
         {
             StrikeWingSpawnService.ExpandAllWings(bf, modules, rng);
@@ -81,8 +82,25 @@ public static class BattlefieldSpawner
         ShipRegistry ships,
         ModuleRegistry modules,
         Random rng) =>
-        SpawnAll(state, entry, ships, modules, rng).FirstOrDefault()
-        ?? SpawnSingle(state, entry, ships, modules, rng, 0f);
+        ResolveSpawnFallback(state, entry, ships, modules, rng);
+
+    private static BattlefieldState ResolveSpawnFallback(
+        GameState state,
+        CombatQueueEntry entry,
+        ShipRegistry ships,
+        ModuleRegistry modules,
+        Random rng)
+    {
+        var fromAll = SpawnAll(state, entry, ships, modules, rng).FirstOrDefault();
+        if (fromAll != null)
+        {
+            return fromAll;
+        }
+
+        var bf = SpawnSingle(state, entry, ships, modules, rng, 0f);
+        BoardSummonService.TryResolvePendingAcrossBattlefields(state, new[] { bf }, ships, modules, rng);
+        return bf;
+    }
 
     // liketocoode3a5
 
@@ -135,7 +153,6 @@ public static class BattlefieldSpawner
         }
         BuildingCombatRules.SpawnBuildingUnit(bf, building);
         BuildingCombatRules.LayoutAssaultStartPositions(bf, rng, state);
-        BoardSummonService.TryInjectPendingAtSpawn(state, bf, ships, modules, rng);
         return bf;
     }
 
@@ -294,7 +311,6 @@ public static class BattlefieldSpawner
             var arrival = line.arrivalSec >= 0 ? line.arrivalSec : 0f;
             AddEnemyLine(bf, line, ships, modules, arrival, rng);
         }
-        BoardSummonService.TryInjectPendingAtSpawn(state, bf, ships, modules, rng);
         return bf;
     }
 
@@ -321,7 +337,6 @@ public static class BattlefieldSpawner
         {
             AddEnemyLine(bf, line, ships, modules, 0f, rng);
         }
-        BoardSummonService.TryInjectPendingAtSpawn(state, bf, ships, modules, rng);
         return bf;
     }
 

@@ -163,7 +163,25 @@ public static class BoardSummonWingService
         {
             ClearPending(state);
             PushAlert(state, "董事会召来：战场增援 " + spawned + " 翼");
+            return;
         }
+
+        FailUnresolvedPending(
+            state,
+            "董事会召来失败（战场已满），预约已取消");
+    }
+
+    /// <summary>Spawn 后仍无法注入预约增援时清除 pending，避免与冷却状态长期不一致。</summary>
+    public static void FailUnresolvedPending(GameState state, string message)
+    {
+        if (string.IsNullOrWhiteSpace(state.pendingBoardSummonCasterMemberId))
+        {
+            return;
+        }
+
+        ClearPending(state);
+        PushAlert(state, message);
+        CombatTelemetryLog.Log("board-wing-pending", "failed: " + message);
     }
 
     public static BattlefieldUnit? ResolveAnchorUnit(
