@@ -70,9 +70,17 @@ public static class HullBonusSummary
         {
             parts.Add($"跃迁中断抗性 {hull.warpScramResist:0}");
         }
+        if (hull.warpSpeedAups > 0f)
+        {
+            parts.Add($"战术跃迁 {hull.warpSpeedAups:0.#} AU/s");
+        }
+        else
+        {
+            parts.Add("战术跃迁 5 AU/s");
+        }
         if (hull.transitSpeedLyPerHour > 0f)
         {
-            parts.Add($"跃迁速度 {hull.transitSpeedLyPerHour:0.#} ly/h");
+            parts.Add($"战略航行 {hull.transitSpeedLyPerHour:0.#} ly/h");
         }
         return parts.Count == 0 ? "" : string.Join(" · ", parts);
     }

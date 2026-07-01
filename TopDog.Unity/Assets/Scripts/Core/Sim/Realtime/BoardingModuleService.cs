@@ -141,12 +141,16 @@ public static class BoardingModuleService
         ModuleRuntime.ApplyToUnit(attacker, hull, modules);
 
         DestroyVictim(bf, victim, attacker);
+        if (!string.IsNullOrEmpty(victim.memberId))
+        {
+            state.boardingPermadeadMemberIds.Add(victim.memberId);
+        }
+
+        attacker.combatSeizedHullThisLife = true;
         PersistBoardingToMember(state, attacker, capturedHullId, capturedFit);
         SyncRosterLines(state, attacker, victim, ships, modules);
 
-        CombatTelemetryLog.Log(
-            "boarding",
-            $"{attacker.unitId} seized {victim.unitId} hull={capturedHullId}");
+        PushBoardingAlert(state, attacker, victim, capturedHullId);
     }
 
     private static void DestroyVictim(BattlefieldState bf, BattlefieldUnit victim, BattlefieldUnit attacker)
@@ -259,6 +263,22 @@ public static class BoardingModuleService
         var dy = b.y - a.y;
         var dz = b.z - a.z;
         return (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    private static void PushBoardingAlert(
+        GameState state,
+        BattlefieldUnit attacker,
+        BattlefieldUnit victim,
+        string? hullId)
+    {
+        var msg = $"{attacker.displayName ?? attacker.unitId} 登录夺舍 {victim.displayName ?? victim.unitId}（{hullId ?? "?"}）";
+        state.alertLog.Add(msg);
+        if (state.alertLog.Count > 50)
+        {
+            state.alertLog.RemoveAt(0);
+        }
+
+        CombatTelemetryLog.Log("boarding", msg);
     }
 
     private static void ResetCharge(BattlefieldUnit u)

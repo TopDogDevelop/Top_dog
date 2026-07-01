@@ -36,6 +36,7 @@ public sealed class JoinLanController : UiScreenController
     private Label? _statusLabel;
     private string? _selectedHostIp;
     private string? _selectedMapId;
+    private string? _selectedRoomKind;
     private float _refreshTimer;
 
     protected override void OnDisable()
@@ -107,7 +108,7 @@ public sealed class JoinLanController : UiScreenController
 
         if (_rooms.Count == 0)
         {
-            SetStatus("未发现房间 · 请确认房主已开「自定义战役」并在同一局域网");
+            SetStatus("未发现房间 · 请确认房主已开「自定义战役」或「军团约战」并在同一局域网");
         }
         else
         {
@@ -129,7 +130,7 @@ public sealed class JoinLanController : UiScreenController
 
         if (_rooms.Count == 0)
         {
-            var empty = new Label { text = "暂无房间，请确认房主已开「自定义战役」并在同一局域网" };
+            var empty = new Label { text = "暂无房间，请确认房主已开「自定义战役」并在同一局域网（军团约战请从世界线直接进入）" };
             empty.AddToClassList("join-lan-room-empty");
             _roomList.Add(empty);
             return;
@@ -140,8 +141,9 @@ public sealed class JoinLanController : UiScreenController
         {
             var hostIp = room.hostIp ?? "?";
             var mapLabel = string.IsNullOrWhiteSpace(room.mapId) ? "未知地图" : room.mapId;
+            var kind = string.IsNullOrWhiteSpace(room.roomKind) ? "CUSTOM" : room.roomKind;
             var text = (room.hostName ?? hostIp) + "  ·  " + hostIp + "  ·  "
-                       + room.playerCount + " 人  ·  " + mapLabel;
+                       + room.playerCount + " 人  ·  " + kind + "  ·  " + mapLabel;
             var btn = new Button { text = text };
             btn.AddToClassList("join-lan-room-btn");
             if (hostIp == _selectedHostIp)
@@ -150,11 +152,12 @@ public sealed class JoinLanController : UiScreenController
             }
             var ip = hostIp;
             var mapId = room.mapId;
+            var roomKind = room.roomKind;
             EventCallback<ClickEvent> handler = _ =>
             {
                 _selectedHostIp = ip;
-                // liketocoode3e5
                 _selectedMapId = mapId;
+                _selectedRoomKind = roomKind;
                 RenderRoomList();
             };
             btn.RegisterCallback(handler);
@@ -171,7 +174,6 @@ public sealed class JoinLanController : UiScreenController
             return;
         }
         GetComponent<UiNavigator>()?.ShowCustomLobbyJoin(_selectedHostIp, _selectedMapId);
-    // liket0coode345
     }
 
     private void SetStatus(string msg)

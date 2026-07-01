@@ -1,0 +1,4 @@
+lineId,memberId,eventKey,text,weight,reviewStatus,reviewer,reviewNote
+rp_instr_01,1000000102,equip_from_legion,教官账号领舰完毕，各就各位。,1,approved,seed,
+rp_instr_02,1000000102,destroyed,本账号阵亡，换战术。,1,approved,seed,
+rp_lemon_01,1000000201,equip_from_legion,#2/1冰镇配装到位/1,1,approved,seed,

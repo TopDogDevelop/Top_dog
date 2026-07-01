@@ -48,7 +48,7 @@ public static class MemberDetailPanel
             return;
         }
 
-        root.Add(MakeCaption(MemberName(member)));
+        root.Add(MakeCaption(DisplayLabels.ShipMemberTitle(core.State, member, core.Ships)));
         root.Add(MakeBody($"稀有度 {member.rarity} · 底图 {member.cardBackdrop ?? "—"}"));
         root.Add(MakeBody($"任务 {member.assignedTask ?? "待命"} · 编队 {FormationLabel(core.State, member.formationId)}"));
         if (member.traitIds.Count > 0)
@@ -72,7 +72,12 @@ public static class MemberDetailPanel
         if (!string.IsNullOrEmpty(member.equippedHullId))
         {
             var hull = core.Ships.FindHull(member.equippedHullId);
-            opRow.Add(MakeBody("舰: " + DisplayLabels.HullBilingual(hull)));
+            var brief = ContentDisplayHelper.HullBrief(hull);
+            if (!string.IsNullOrWhiteSpace(brief))
+            {
+                root.Add(MakeBody(brief));
+            }
+            opRow.Add(MakeBody(DisplayLabels.ShipMemberTitle(core.State, member, core.Ships)));
         }
         else
         {

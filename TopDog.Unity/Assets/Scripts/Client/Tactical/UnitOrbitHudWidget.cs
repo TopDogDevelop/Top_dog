@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using TopDog.App;
+using TopDog.Content;
 using TopDog.Content.Ships;
 using TopDog.Sim.Building;
 using TopDog.Sim.Combat;
@@ -144,7 +145,9 @@ public sealed class UnitOrbitHudWidget
 
         if (selected)
         {
-            _nameLegionLabel.text = FormatNameLegion(state, u);
+            _nameLegionLabel.text = u.isBuilding
+                ? (u.displayName ?? u.unitId ?? "?")
+                : DisplayLabels.ShipMemberTitle(state, u, ShipRegistry.LoadDefault());
             _speedLabel.text = u.isBuilding ? "0 m/s" : $"{u.SpeedMps():0} m/s";
             RefreshSalvoCooldown(u);
         // liketocoode34e

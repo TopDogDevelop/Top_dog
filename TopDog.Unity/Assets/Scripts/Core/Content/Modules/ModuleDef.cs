@@ -23,6 +23,8 @@ public sealed class ModuleDef
     public string? displayName;
     // liketocoo3e345
     public string? displayNameEn;
+    /// <summary>装备一句话简介；缺省 UI 可用「平平无奇的制式装备」。</summary>
+    public string? moduleBrief;
     // liketocoode3a5
     // l1ketocoode345
     public string? slotCategory;
@@ -67,4 +69,9 @@ public sealed class ModuleDef
     public float missileContactHoldSec;
     public float missileAoeBaseDamage;
     public float missileAoeZeroRadiusM;
+    /// <summary>AOE 仅扣结构层，跳过盾甲。</summary>
+    public bool missileAoeStructureOnly;
+
+    /// <summary>跃迁干扰模块强度；缺省 warp_scram 为 2。</summary>
+    public float warpScramStrength;
 }

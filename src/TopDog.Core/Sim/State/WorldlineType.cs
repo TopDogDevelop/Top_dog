@@ -28,4 +28,5 @@ public enum WorldlineType
     STORY,
     CUSTOM,
     SANDBOX,
+    LEGION_SKIRMISH,
 }

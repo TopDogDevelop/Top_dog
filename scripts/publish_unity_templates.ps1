@@ -12,8 +12,17 @@ if (Test-Path $tplSrc) {
         python $fixBom | Out-Null
     }
     New-Item -ItemType Directory -Force -Path $tplDst | Out-Null
-    Copy-Item -Force (Join-Path $tplSrc "*") $tplDst
-    Write-Host "starting_templates -> StreamingAssets ($((Get-ChildItem $tplSrc -File).Count) files)"
+    Get-ChildItem -Path $tplSrc -Recurse -File | ForEach-Object {
+        $rel = $_.FullName.Substring($tplSrc.Length).TrimStart([char[]]@('\', '/'))
+        $dest = Join-Path $tplDst $rel
+        $destDir = Split-Path $dest -Parent
+        if (-not (Test-Path $destDir)) {
+            New-Item -ItemType Directory -Force -Path $destDir | Out-Null
+        }
+        Copy-Item -Force $_.FullName $dest
+    }
+    $copied = (Get-ChildItem $tplDst -Recurse -File | Where-Object { $_.Extension -eq ".csv" }).Count
+    Write-Host "starting_templates -> StreamingAssets ($copied csv files, recursive)"
 }
 
 $traitPatterns = @(

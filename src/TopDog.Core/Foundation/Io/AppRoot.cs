@@ -72,6 +72,8 @@ public static class AppRoot
 
     public static string StartingAssetsDir() => Path.Combine(Find(), "content", "starting_assets");
 
+    public static string BanterDir() => Path.Combine(Find(), "content", "banter");
+
     public static string MapsDir() => Path.Combine(Find(), "maps");
 
     private static bool HasContentMap(string root) =>

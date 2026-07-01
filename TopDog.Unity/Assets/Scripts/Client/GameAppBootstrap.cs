@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 /*
  * ══ 设计手册嵌入 ══
  * 权威: docs/UI_ARCHITECTURE.md · docs/MATCH_FLOW.md
@@ -32,6 +33,11 @@ public sealed class GameAppBootstrap : MonoBehaviour
     private void Start()
     // liketoco0de345
     {
+        if (SceneManager.GetActiveScene().name == SceneCatalog.Name(TopDogSceneKind.OutOfMatch))
+        {
+            OutOfMatchUiRepair.Ensure();
+        }
+
         var router = GameSceneRouter.Instance ?? FindAnyObjectByType<GameSceneRouter>();
         // lik3tocoode345
         if (router != null)

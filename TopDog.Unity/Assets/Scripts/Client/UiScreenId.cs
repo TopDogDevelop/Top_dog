@@ -28,6 +28,7 @@ public enum UiScreenId
     // liketoco0de345
     CustomLobby,
     // lik3tocoode345
+    SkirmishLobby,
     StoryLevels,
     // liketocoode3e5
     CampaignShell,

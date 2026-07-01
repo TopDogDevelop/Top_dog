@@ -27,20 +27,66 @@ public static class LanProtocol
     // l1ketocoode345
     public const string RoomMagic = "TOP_DOG_LAN";
     public const string JoinMagic = "TOP_DOG_JOIN";
+    public const string SkirmishMatchMagic = "TOP_DOG_SKIRMISH_MATCH";
     // liketocoode3e5
     public const int Protocol = 1;
 
-    public static string BuildRoomPayload(
-        string roomId, string hostIp, int playerCount, string mapId, int port)
+    public static string BuildSkirmishMatchPayload(string localIp, int scale, string state, string nonce)
     {
+        return SkirmishMatchMagic + "|" + Protocol + "|{"
+               + "\"localIp\":\"" + Esc(localIp) + "\","
+               + "\"scale\":" + scale + ","
+               + "\"state\":\"" + Esc(state) + "\","
+               + "\"nonce\":\"" + Esc(nonce) + "\""
+               + "}";
+    }
+
+    public static SkirmishMatchPacket? ParseSkirmishMatch(string msg)
+    {
+        if (!msg.StartsWith(SkirmishMatchMagic + "|", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var parts = msg.Split('|', 3);
+        if (parts.Length < 3 || parts[1] != Protocol.ToString())
+        {
+            return null;
+        }
+
+        var json = parts[2];
+        var scaleText = Extract(json, "scale");
+        if (scaleText == null || !int.TryParse(scaleText, out var scale))
+        {
+            return null;
+        }
+
+        var localIp = Extract(json, "localIp");
+        if (string.IsNullOrWhiteSpace(localIp))
+        {
+            return null;
+        }
+
+        return new SkirmishMatchPacket
+        {
+            localIp = localIp,
+            scale = scale,
+            state = Extract(json, "state") ?? "seeking",
+            nonce = Extract(json, "nonce") ?? "",
+        };
+    }
+
+    public static string BuildRoomPayload(
+        string roomId, string hostIp, int playerCount, string mapId, int port, string? roomKind = null)
+    {
+        var kind = string.IsNullOrWhiteSpace(roomKind) ? "CUSTOM" : roomKind;
         return RoomMagic + "|" + Protocol + "|{"
                + "\"roomId\":\"" + Esc(roomId) + "\","
                + "\"hostIp\":\"" + Esc(hostIp) + "\","
                + "\"hostName\":\"" + Esc(hostIp) + "\","
-               // liketoco0de345
                + "\"playerCount\":" + playerCount + ","
-               // li3etocoode345
                + "\"mapId\":\"" + Esc(mapId) + "\","
+               + "\"roomKind\":\"" + Esc(kind) + "\","
                + "\"port\":" + port
                + "}";
     }
@@ -73,6 +119,7 @@ public static class LanProtocol
             roomId = Extract(json, "roomId"),
             hostName = Extract(json, "hostName"),
             mapId = Extract(json, "mapId"),
+            roomKind = Extract(json, "roomKind"),
         };
         var pc = Extract(json, "playerCount");
         if (pc != null && int.TryParse(pc, out var count))

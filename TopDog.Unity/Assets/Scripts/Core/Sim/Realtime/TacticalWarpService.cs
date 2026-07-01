@@ -1,4 +1,5 @@
 using TopDog.Content.Map;
+using TopDog.Content.Modules;
 using TopDog.Content.Ships;
 using TopDog.Sim.State;
 /*
@@ -30,7 +31,6 @@ public static class TacticalWarpService
     public const float ApproachTimeoutSec = 10f;
     public const float EntryBurstSec = 10f;
     public const float LandingDecelSec = 2f;
-    public const float MaxInitiateWarpSpeedMps = 15f;
     public const float ProxyArriveThresholdM = 120f;
 
     public static float ResolveWarpSpeedAups(HullDef? hull) =>
@@ -53,19 +53,33 @@ public static class TacticalWarpService
         return Math.Max(dist, MinWarpDistanceAu);
     }
 
-    public static bool CanInitiateWarp(GameState state, BattlefieldState bf, BattlefieldUnit unit)
+    public static bool CanInitiateWarp(
+        GameState state,
+        BattlefieldState bf,
+        BattlefieldUnit unit,
+        HullDef? hull = null,
+        float proxyX = 0f,
+        float proxyY = 0f,
+        float proxyZ = 0f,
+        bool requireProxy = false,
+        ModuleRegistry? modules = null)
     {
         if (unit.inTacticalWarp || unit.pinnedToBattlefield || unit.IsDestroyed())
         {
             return false;
         }
 
-        if (unit.SpeedMps() > MaxInitiateWarpSpeedMps)
+        if (requireProxy && !TacticalWarpInitiateRules.PassesHeadingCheck(unit, proxyX, proxyY, proxyZ))
         {
             return false;
         }
 
-        return !TacticalWarpDisruptionService.IsWarpScrambled(bf, unit);
+        if (!TacticalWarpInitiateRules.PassesForwardSpeedCheck(unit))
+        {
+            return false;
+        }
+
+        return TacticalWarpInitiateRules.PassesWarpScramCheck(state, bf, unit, hull, modules);
     }
 
     public static string? TryBeginWarp(
@@ -98,25 +112,16 @@ public static class TacticalWarpService
             return "目标场景无效";
         }
 
-        if (!CanInitiateWarp(state, fromBf, unit))
-        {
-            if (unit.SpeedMps() > MaxInitiateWarpSpeedMps)
-            {
-                return "须先减速至几乎静止再跃迁";
-            }
-
-            if (TacticalWarpDisruptionService.IsWarpScrambled(fromBf, unit))
-            {
-                return "跃迁被扰断";
-            }
-
-            return "当前无法跃迁";
-        }
-
         if (!BattlefieldSceneProxyService.TryResolveProxyPosition(
                 state, fromBf, toBf.systemId, toBf.eventRegionId, out var px, out var py, out var pz))
         {
             return "找不到出口占位";
+        }
+
+        var fail = TacticalWarpInitiateRules.Evaluate(state, fromBf, unit, hull, px, py, pz);
+        if (fail != TacticalWarpInitiateRules.FailReason.None)
+        {
+            return TacticalWarpInitiateRules.MessageFor(fail);
         }
 
         var transitSec = DistanceAu(fromBf, toBf) / ResolveWarpSpeedAups(hull);
@@ -201,15 +206,12 @@ public static class TacticalWarpService
         int unitIndex)
     {
         u.warpPhaseTimerSec += dtSec;
-        if (TacticalWarpDisruptionService.IsWarpScrambled(bf, u))
+        var hullResist = TacticalWarpInitiateRules.ResolveWarpScramResist(
+            u, u.hullId != null ? Content.Ships.ShipRegistry.LoadDefault().FindHull(u.hullId) : null);
+        if (TacticalWarpDisruptionService.IsWarpScrambled(bf, u, hullResist))
         {
             CancelWarp(u, "跃迁被扰断");
             return;
-        }
-
-        if (u.SpeedMps() > MaxInitiateWarpSpeedMps * 3f && u.warpPhaseTimerSec < 0.05f)
-        {
-            // 仅首帧容忍；之后由伪跃迁接管速度
         }
 
         var arrived = MoveToward(

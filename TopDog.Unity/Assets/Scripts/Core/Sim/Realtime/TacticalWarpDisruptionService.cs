@@ -6,10 +6,15 @@ namespace TopDog.Sim.Realtime;
 public static class TacticalWarpDisruptionService
 {
     public const float WarpScramRangeM = 30_000f;
+    public const float DefaultWarpScramStrength = 2f;
 
-    public static bool IsWarpScrambled(BattlefieldState bf, BattlefieldUnit u, ModuleRegistry? modules = null)
+    public static float EffectiveWarpScramStrength(
+        BattlefieldState bf,
+        BattlefieldUnit u,
+        ModuleRegistry? modules = null)
     {
         modules ??= ModuleRegistry.LoadDefault();
+        var total = 0f;
         foreach (var other in bf.units)
         {
             if (other.side == u.side
@@ -30,31 +35,78 @@ public static class TacticalWarpDisruptionService
                 continue;
             }
 
-            if (HasWarpScramModule(other, modules))
-            {
-                return true;
-            }
+            total += SumWarpScramStrength(other, modules);
         }
 
-        return false;
+        return total;
     }
 
-    private static bool HasWarpScramModule(BattlefieldUnit u, ModuleRegistry modules)
+    public static bool IsWarpScrambled(
+        BattlefieldState bf,
+        BattlefieldUnit u,
+        float warpScramResist,
+        ModuleRegistry? modules = null)
     {
+        var strength = EffectiveWarpScramStrength(bf, u, modules);
+        return strength > 0f && warpScramResist <= strength;
+    }
+
+    [Obsolete("Use EffectiveWarpScramStrength with resist comparison.")]
+    public static bool IsWarpScrambled(BattlefieldState bf, BattlefieldUnit u, ModuleRegistry? modules = null) =>
+        EffectiveWarpScramStrength(bf, u, modules) > 0f;
+
+    private static float SumWarpScramStrength(BattlefieldUnit u, ModuleRegistry modules)
+    {
+        var total = 0f;
         foreach (var modId in u.fittedModules.Values)
         {
-            if (modId != null && modId.Contains("warp_scram", StringComparison.OrdinalIgnoreCase))
+            if (modId == null)
             {
-                return true;
+                continue;
             }
 
-            var def = modules.Resolve(modId);
-            if (def?.moduleId != null && def.moduleId.Contains("warp_scram", StringComparison.OrdinalIgnoreCase))
+            if (!IsWarpScramModuleId(modId))
             {
-                return true;
+                var def = modules.Resolve(modId);
+                if (def?.moduleId == null || !IsWarpScramModuleId(def.moduleId))
+                {
+                    continue;
+                }
+
+                total += ResolveWarpScramStrength(def);
+                continue;
             }
+
+            var resolved = modules.Resolve(modId);
+            total += ResolveWarpScramStrength(resolved);
         }
 
-        return false;
+        return total;
     }
+
+    public static bool IsWarpScramModuleId(string modId) =>
+        modId.Contains("warp_scram", StringComparison.OrdinalIgnoreCase);
+
+    public static float ResolveWarpScramStrength(ModuleDef? def)
+    {
+        if (def == null)
+        {
+            return DefaultWarpScramStrength;
+        }
+
+        if (def.warpScramStrength > 0f)
+        {
+            return def.warpScramStrength;
+        }
+
+        if (def.moduleId != null && IsWarpScramModuleId(def.moduleId))
+        {
+            return DefaultWarpScramStrength;
+        }
+
+        return 0f;
+    }
+
+    private static bool HasWarpScramModule(BattlefieldUnit u, ModuleRegistry modules) =>
+        SumWarpScramStrength(u, modules) > 0f;
 }

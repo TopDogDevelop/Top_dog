@@ -161,6 +161,7 @@ public static class UiAssetCatalog
         public VisualTreeAsset? JoinLan;
         public VisualTreeAsset? CustomLobby;
         public VisualTreeAsset? StoryLevels;
+        public VisualTreeAsset? SkirmishPrep;
     }
 
     public static OutOfMatchMenus LoadOutOfMatchMenus() => new()
@@ -171,6 +172,7 @@ public static class UiAssetCatalog
         JoinLan = LoadUxml("Assets/UI/JoinLan.uxml"),
         CustomLobby = LoadUxml("Assets/UI/CustomLobby.uxml"),
         StoryLevels = LoadUxml("Assets/UI/StoryLevels.uxml"),
+        SkirmishPrep = LoadUxml("Assets/UI/SkirmishPrep.uxml"),
     };
 // liketocoode3a5
 }

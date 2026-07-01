@@ -1,36 +1,7 @@
 {
-  "aliases": {
-    "无人机": "DRONE",
-    "舰载机": "STRIKE_CRAFT",
-    "穿梭机": "SHUTTLE",
-    "护卫": "FRIGATE",
-    "护卫舰": "FRIGATE",
-    "驱逐": "DESTROYER",
-    "驱逐舰": "DESTROYER",
-    "巡洋": "CRUISER",
-    "巡洋舰": "CRUISER",
-    "战列巡洋舰": "BATTLECRUISER",
-    "战列": "BATTLESHIP",
-    "战列舰": "BATTLESHIP",
-    "无畏": "DREADNOUGHT",
-    "无畏舰": "DREADNOUGHT",
-    "航母": "CARRIER",
-    "航空母舰": "CARRIER",
-    "超级旗舰": "SUPERCAPITAL",
-    "建筑": "BUILDING",
-    "复合体": "COMPLEX",
-    "DRONE": "DRONE",
-    "STRIKE_CRAFT": "STRIKE_CRAFT",
-    "SHUTTLE": "SHUTTLE",
-    "FRIGATE": "FRIGATE",
-    "DESTROYER": "DESTROYER",
-    "CRUISER": "CRUISER",
-    "BATTLECRUISER": "BATTLECRUISER",
-    "BATTLESHIP": "BATTLESHIP",
-    "DREADNOUGHT": "DREADNOUGHT",
-    "CARRIER": "CARRIER",
-    "SUPERCAPITAL": "SUPERCAPITAL",
-    "BUILDING": "BUILDING",
-    "COMPLEX": "COMPLEX"
+  "classes": {
+    "BATTLECRUISER": "战列巡洋舰",
+    "DREADNOUGHT": "无畏舰",
+    "CARRIER": "航空母舰"
   }
 }

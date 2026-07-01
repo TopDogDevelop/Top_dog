@@ -1,5 +1,6 @@
 using TopDog.Content.Map;
 using TopDog.Sim.Alliance;
+using TopDog.Sim.Banter;
 using TopDog.Sim.Combat;
 using TopDog.Sim.Realtime;
 
@@ -127,6 +128,18 @@ public sealed class GameState
     public List<string> legionFortressEliminatedLegionIdsThisCombatRound = new();
 
     public List<BattleReportRecord> battleReports = new();
+
+    public Skirmish.SkirmishMatchState? skirmish;
+
+    public List<CompanionLogEntry> companionLog = new();
+    public Dictionary<string, float> banterReactiveCooldownSec = new(StringComparer.Ordinal);
+    public MemberBanterRuntimeState? banterRuntime;
+
+    /// <summary>登录夺舍：本局内不可再重生的团员 memberId。</summary>
+    public HashSet<string> boardingPermadeadMemberIds = new(StringComparer.Ordinal);
+
+    /// <summary>对局开始时舰体/装配快照（重生回滚、登录不跨复活继承）。</summary>
+    public Dictionary<string, MemberMatchBaseline> matchMemberBaselines = new(StringComparer.Ordinal);
 
     /// <summary>董事会召来：下一场友方战场生成时从施法者放出 5 翼。</summary>
     public string? pendingBoardSummonIdentityCode;

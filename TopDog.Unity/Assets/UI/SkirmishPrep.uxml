@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+
+  <ui:Style src="AppStyles.uss" />
+
+  <ui:Style src="CustomLobby.uss" />
+
+  <ui:Style src="CampaignShell.uss" />
+
+  <ui:VisualElement class="display-shell">
+
+    <ui:VisualElement class="viewport-frame">
+
+      <ui:VisualElement name="root" class="lobby-root screen-root-layered">
+
+        <ui:VisualElement name="art-screen-bg" class="art-layer art-slot-screen-bg" />
+
+        <ui:VisualElement name="mode-row" class="lobby-option-chip-row skirmish-mode-row" />
+
+        <ui:Label text="军团约战准备" class="lobby-title" />
+
+        <ui:VisualElement name="skirmish-config-strip" class="skirmish-config-strip">
+
+          <ui:Label text="规模" class="lobby-section-caption" />
+
+          <ui:VisualElement name="scale-row" class="lobby-option-chip-row" />
+
+          <ui:VisualElement name="player-section" class="skirmish-player-section">
+
+            <ui:Label text="玩家" class="lobby-section-caption" />
+
+            <ui:ScrollView name="player-list" class="lobby-player-scroll" />
+
+          </ui:VisualElement>
+
+          <ui:Label text="配置槽" class="lobby-section-caption" />
+
+          <ui:VisualElement name="preset-row" class="lobby-option-chip-row" />
+
+        </ui:VisualElement>
+
+        <ui:VisualElement name="skirmish-main-panels" class="skirmish-main-panels">
+
+          <ui:VisualElement name="roster-panel" class="skirmish-roster-panel">
+
+            <ui:Label text="上场团员" class="lobby-section-caption" />
+
+            <ui:Button name="btn-add-member" text="+ 从模版添员" class="lobby-secondary-btn" />
+
+            <ui:ScrollView name="template-member-picker" class="lobby-pick-scroll skirmish-template-picker" style="display: none;" />
+
+            <ui:ScrollView name="roster-codex-scroll" class="ops-overlay-scroll skirmish-codex-scroll" />
+
+          </ui:VisualElement>
+
+          <ui:VisualElement name="fitting-panel" class="skirmish-fitting-panel">
+
+            <ui:Label text="配船" class="lobby-section-caption" />
+
+            <ui:ScrollView name="fitting-scroll" class="ops-overlay-scroll skirmish-fitting-scroll" />
+
+            <ui:Button name="btn-copy-fit" text="复制舰船+装配到全员" class="lobby-secondary-btn" />
+
+            <ui:VisualElement name="module-picker-popup" class="ops-module-picker-popup" style="display: none;" />
+
+          </ui:VisualElement>
+
+        </ui:VisualElement>
+
+        <ui:Button name="btn-start" text="开始约战" class="menu-button-wide lobby-start-btn" />
+
+        <ui:Label name="lbl-rule" text="" class="lobby-rule lobby-rule-below-start" />
+
+        <ui:Button name="btn-back" text="返回" class="menu-button lobby-back-btn" />
+
+        <ui:Label name="lbl-status" text="" class="lobby-status" />
+
+      </ui:VisualElement>
+
+    </ui:VisualElement>
+
+  </ui:VisualElement>
+
+</ui:UXML>
+

@@ -1,4 +1,5 @@
 using TopDog.Content.Ships;
+using TopDog.Sim.Banter;
 using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
@@ -80,7 +81,13 @@ public static class CombatHullPrepService
             return false;
         }
 
-        return MemberAutoEquipHullService.EquipFromPersonal(state, m, best.hullId, ships);
+        var equipped = MemberAutoEquipHullService.EquipFromPersonal(state, m, best.hullId, ships);
+        if (equipped && !string.IsNullOrWhiteSpace(m.memberId))
+        {
+            BanterSignalHub.Publish("equip_from_legion", m.memberId);
+        }
+
+        return equipped;
     }
 
     // li3etocoode345

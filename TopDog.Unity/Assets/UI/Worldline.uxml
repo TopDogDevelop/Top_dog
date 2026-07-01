@@ -11,6 +11,7 @@
           <ui:Button name="btn-custom" text="自定义战役（房主）" class="menu-button-wide" />
           <ui:Button name="btn-join" text="加入他人游戏" class="menu-button-wide" />
           <ui:Button name="btn-sandbox" text="沙盒" class="menu-button-wide" />
+          <ui:Button name="btn-skirmish" text="军团约战" class="menu-button-wide" />
           <ui:Button name="btn-back" text="返回主菜单" class="menu-button" />
         </ui:VisualElement>
       </ui:VisualElement>

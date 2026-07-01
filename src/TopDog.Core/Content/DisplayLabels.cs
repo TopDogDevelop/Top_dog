@@ -1,25 +1,11 @@
 using System;
 using TopDog.Content.Ships;
 using TopDog.Content.Traits;
-
-/*
- * ══ 设计手册嵌入 ══
- * 权威: docs/CONTENT_FORMAT.md · MEMBERS.md
- * 本文件: DisplayLabels.cs — 玩家可见双语标签拼接
- * 【机制要点】
- * · JoinBilingual：中文 · 英文
- * · TraitBilingual / HullBilingual 内容包装
- * 【关联】TraitDef · HullDef
- * ══
- */
+using TopDog.Sim.Realtime;
+using TopDog.Sim.State;
 
 namespace TopDog.Content;
 
-// liketoc0de345
-
-// liketoc0de345
-
-// liketocoode3a5
 /// <summary>玩家可见双语标签：中文在前 · 英文在后（MEMBERS.md）。</summary>
 // liketocoode34e
 public static class DisplayLabels
@@ -56,6 +42,68 @@ public static class DisplayLabels
         hull == null
             ? "?"
             : JoinBilingual(hull.displayName ?? hull.hullId, hull.displayNameEn);
+
+    /// <summary>统一舰船详情标题：舰名 · 团员名。</summary>
+    public static string ShipMemberTitle(GameState state, BattlefieldUnit unit, ShipRegistry? ships)
+    {
+        var memberName = ResolveMemberDisplayName(state, unit.memberId) ?? unit.displayName ?? "?";
+        var hull = ships?.FindHull(unit.hullId);
+        return $"{HullBilingual(hull)} · {memberName}";
+    }
+
+    public static string ShipMemberTitle(GameState state, MemberState member, ShipRegistry? ships)
+    {
+        var memberName = ResolveMemberDisplayName(state, member.memberId)
+                         ?? member.name
+                         ?? member.memberId
+                         ?? "?";
+        var hull = ships?.FindHull(member.equippedHullId);
+        return $"{HullBilingual(hull)} · {memberName}";
+    }
+
+    private static string? ResolveMemberDisplayName(GameState state, string? memberId)
+    {
+        if (string.IsNullOrEmpty(memberId))
+        {
+            return null;
+        }
+
+        foreach (var m in state.members)
+        {
+            if (memberId.Equals(m.memberId, StringComparison.Ordinal))
+            {
+                return !string.IsNullOrWhiteSpace(m.name) ? m.name
+                    : !string.IsNullOrWhiteSpace(m.accountName) ? m.accountName
+                    : m.memberId;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>伴聊发言人：仅游戏内名 name；禁止 accountName / 现实人名。</summary>
+    public static string ResolveBanterSpeakerName(GameState state, string? memberId)
+    {
+        if (string.IsNullOrEmpty(memberId))
+        {
+            return "?";
+        }
+
+        foreach (var m in state.members)
+        {
+            if (memberId.Equals(m.memberId, StringComparison.Ordinal))
+            {
+                if (!string.IsNullOrWhiteSpace(m.name))
+                {
+                    return m.name.Trim();
+                }
+
+                return m.memberId ?? "?";
+            }
+        }
+
+        return memberId;
+    }
 
     public static string TonnageBilingual(string? tonnageClass) => tonnageClass switch
     {

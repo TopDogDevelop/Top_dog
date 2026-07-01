@@ -2,7 +2,6 @@
   "hullId": "hull_dread_ironcoffin",
   "displayName": "铁棺级",
   "displayNameEn": "Iron Coffin Dread",
-  "hullBrief": "给别人的，或者给自己的",
   "tonnageClass": "DREADNOUGHT",
   "shieldHp": 5000,
   "armorHp": 30000,

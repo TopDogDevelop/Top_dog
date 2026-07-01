@@ -163,6 +163,8 @@ public sealed class MatchCreditsPresenter : MonoBehaviour
                 body.Add(MakeCastLine(line));
             }
         }
+
+        SkirmishResultPanel.AppendTo(body, state);
         var pad = new VisualElement();
         pad.style.height = 480;
         body.Add(pad);

@@ -142,7 +142,14 @@ public static class MissileProjectileService
                 continue;
             }
 
-            BattlefieldSystem.ApplyDamage(bf, target, applied, missile, state, ships, modules);
+            if (profile.AoeStructureOnly)
+            {
+                BattlefieldSystem.ApplyStructureOnlyDamage(bf, target, applied, missile);
+            }
+            else
+            {
+                BattlefieldSystem.ApplyDamage(bf, target, applied, missile, state, ships, modules);
+            }
             CombatTelemetryLog.Log(
                 "missile-detonate",
                 $"module={profile.ModuleId} r={profile.AoeZeroRadiusM:0} →{target.unitId} d={distM:0} dmg={applied}");

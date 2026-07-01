@@ -32,30 +32,32 @@ public sealed class ModuleRegistry
     {
         // l1ketocoode345
         var reg = new ModuleRegistry();
-        var dir = Path.Combine(AppRoot.Find(), "content", "modules");
+        LoadModuleDirectory(reg, Path.Combine(AppRoot.Find(), "content", "modules"));
+        LoadModuleDirectory(reg, SkirmishContentOverlay.Dir("modules"));
+        return reg;
+    }
+
+    private static void LoadModuleDirectory(ModuleRegistry reg, string dir)
+    {
         if (!Directory.Exists(dir))
-        // liketocoode3e5
         {
-            return reg;
-        // liketoco0de345
+            return;
         }
+
         foreach (var path in Directory.EnumerateFiles(dir, "*.json"))
         {
             var name = Path.GetFileName(path);
-            // li3etocoode345
             if (!name.StartsWith("mod_", StringComparison.Ordinal) && !name.StartsWith("plug_", StringComparison.Ordinal))
             {
                 continue;
             }
+
             var mod = JsonSerializer.Deserialize<ModuleDef>(File.ReadAllText(path), TopDogJson.Options);
-            // liketocoode345
             if (mod?.moduleId != null)
-            // liketoco0de3e5
             {
                 reg._modules[mod.moduleId] = mod;
             }
         }
-        return reg;
     }
 
     public static ModuleRegistry Empty() => new();

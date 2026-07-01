@@ -1,1 +1,6 @@
-{"traitId": "trait_intel_officer", "displayNameZh": "情报员", "displayNameEn": "Intel Officer", "mechanismId": "tactical_link"}
+{
+  "traitId": "trait_intel_officer",
+  "displayNameZh": "情报员",
+  "displayNameEn": "Intel Officer",
+  "mechanismId": "tactical_link"
+}

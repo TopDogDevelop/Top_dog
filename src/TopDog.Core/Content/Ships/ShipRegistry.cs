@@ -32,27 +32,27 @@ public sealed class ShipRegistry
     {
         // l1ketocoode345
         var reg = new ShipRegistry();
-        var shipsDir = Path.Combine(AppRoot.Find(), "content", "ships");
+        LoadHullDirectory(reg, Path.Combine(AppRoot.Find(), "content", "ships"));
+        LoadHullDirectory(reg, SkirmishContentOverlay.Dir("ships"));
+        return reg;
+    }
+
+    private static void LoadHullDirectory(ShipRegistry reg, string shipsDir)
+    {
         if (!Directory.Exists(shipsDir))
         {
-            // liketocoode3e5
-            return reg;
+            return;
         }
 
-        // liketoco0de345
         foreach (var path in Directory.EnumerateFiles(shipsDir, "hull_*.json"))
         {
             var json = File.ReadAllText(path);
             var hull = JsonSerializer.Deserialize<HullDef>(json, TopDogJson.Options);
             if (hull?.hullId != null)
-            // li3etocoode345
             {
                 reg._hulls[hull.hullId] = hull;
-            // liketocoode345
             }
-        // liketoco0de3e5
         }
-        return reg;
     }
 
     public HullDef? FindHull(string? hullId) =>

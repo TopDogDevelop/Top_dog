@@ -1,0 +1,4 @@
+template_1（灰烬联合）与 template_vip_invest（VIP投资集团）已迁至：
+  e:\game_dev\top_dog_unity\content\starting_templates\
+仅由 Unity 仓维护；libGDX 同步后执行：
+  scripts\publish_unity_templates.ps1

@@ -1,7 +1,9 @@
 using TopDog.Content.Modules;
 using TopDog.Content.Ships;
+using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
 using TopDog.Sim.Realtime;
+using TopDog.Sim.Skirmish;
 using TopDog.Sim.State;
 
 /*
@@ -105,6 +107,15 @@ public static class TraitActiveSkillService
             return "仅交战准备或战斗阶段可发动董事会召来";
         }
 
+        if (SkirmishBuildingRules.IsSkirmish(state)
+            && state.skirmish != null
+            && caster.memberId != null
+            && state.skirmish.boardSummonUses.GetValueOrDefault(caster.memberId) >= 1)
+        {
+            return "本局董事会召来已使用（每局 1 次）";
+        }
+
+        string result;
         if (state.combatRealtimeActive)
         {
             var bf = FindBattlefieldForMember(state, caster.memberId)
@@ -114,7 +125,7 @@ public static class TraitActiveSkillService
                 return "当前无进行中的实时战场";
             }
 
-            return BoardSummonWingService.TrySpawnFromCaster(
+            result = BoardSummonWingService.TrySpawnFromCaster(
                 state,
                 bf,
                 caster,
@@ -122,21 +133,42 @@ public static class TraitActiveSkillService
                 ModuleRegistry.LoadDefault(),
                 new Random());
         }
+        else if (!string.IsNullOrWhiteSpace(state.pendingBoardSummonCasterMemberId))
+        {
+            result = "董事会增援已预约，进入战场后生效";
+        }
+        else
+        {
+            var scheduleLegionId = caster.legionId ?? LegionTraitQuery.LocalLegionId(state);
+            if (scheduleLegionId == null)
+            {
+                return "无法确定所属军团";
+            }
 
-        if (!string.IsNullOrWhiteSpace(state.pendingBoardSummonCasterMemberId))
-        {
-            return "董事会增援已预约，进入战场后生效";
+            state.pendingBoardSummonIdentityCode = id.identityCode;
+            state.pendingBoardSummonLegionId = scheduleLegionId;
+            state.pendingBoardSummonCasterMemberId = caster.memberId;
+            PushAlert(state, "董事会召来：进入战场后从施法舰放出 5 翼");
+            result = "已预约董事会召来（战场 5 翼增援）";
         }
-        var scheduleLegionId = caster.legionId ?? LegionTraitQuery.LocalLegionId(state);
-        if (scheduleLegionId == null)
+
+        if (result.StartsWith("已召来", StringComparison.Ordinal)
+            || result.StartsWith("已预约", StringComparison.Ordinal))
         {
-            return "无法确定所属军团";
+            RecordBoardSummonUse(state, caster.memberId);
         }
-        state.pendingBoardSummonIdentityCode = id.identityCode;
-        state.pendingBoardSummonLegionId = scheduleLegionId;
-        state.pendingBoardSummonCasterMemberId = caster.memberId;
-        PushAlert(state, "董事会召来：进入战场后从施法舰放出 5 翼");
-        return "已预约董事会召来（战场 5 翼增援）";
+
+        return result;
+    }
+
+    private static void RecordBoardSummonUse(GameState state, string? memberId)
+    {
+        if (!SkirmishBuildingRules.IsSkirmish(state) || state.skirmish == null || memberId == null)
+        {
+            return;
+        }
+
+        state.skirmish.boardSummonUses[memberId] = state.skirmish.boardSummonUses.GetValueOrDefault(memberId) + 1;
     }
 
     private static string UsePlanningSupport(GameState state, MemberState caster, IdentityState id)

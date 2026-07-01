@@ -1,0 +1,5 @@
+groupId,seq,memberId,text,reviewStatus,reviewer,reviewNote
+idle_p_01,1,*,教官提示：保持队列间距。,approved,seed,
+idle_p_01,2,*,收到。,approved,seed,
+idle_p_01,3,*,别靠太近，跃迁会撞。,approved,seed,
+idle_p_01,4,*,明白。,approved,seed,

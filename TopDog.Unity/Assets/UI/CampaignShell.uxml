@@ -27,9 +27,9 @@
 
         <ui:VisualElement class="ops-body-row">
           <ui:VisualElement class="ops-left-events">
-            <ui:Label text="事件" class="ops-panel-caption" />
+            <ui:Label text="事件 / 语录" class="ops-panel-caption" />
             <ui:ScrollView name="event-scroll" class="ops-event-scroll">
-              <ui:Label name="lbl-event-feed" text="" class="ops-event-feed" />
+              <ui:VisualElement name="event-feed-root" class="ops-event-feed" />
             </ui:ScrollView>
           </ui:VisualElement>
 

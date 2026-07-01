@@ -2,7 +2,6 @@
   "hullId": "hull_bc_spear",
   "displayName": "基础矛级",
   "displayNameEn": "Spear-class BC",
-  "hullBrief": "基础战巡，攻击利毛",
   "tonnageClass": "BATTLECRUISER",
   "shieldHp": 5000,
   "armorHp": 5000,

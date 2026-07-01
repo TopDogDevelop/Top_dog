@@ -1,3 +1,5 @@
+using TopDog.App;
+using TopDog.Lobby;
 using UnityEngine;
 using UnityEngine.UIElements;
 /*
@@ -27,9 +29,10 @@ public sealed class UiNavigator : MonoBehaviour
     [SerializeField] private VisualTreeAsset joinLanUxml;
     [SerializeField] private VisualTreeAsset customLobbyUxml;
     [SerializeField] private VisualTreeAsset storyLevelsUxml;
+    [SerializeField] private VisualTreeAsset skirmishPrepUxml;
 
-    // li3etocoode345
     private CustomLobbyLaunchArgs _pendingLobbyArgs;
+    private SkirmishLobbyLaunchArgs _pendingSkirmishArgs = SkirmishLobbyLaunchArgs.Host();
 
     public UIDocument Document
     {
@@ -51,9 +54,9 @@ public sealed class UiNavigator : MonoBehaviour
         VisualTreeAsset settings,
         VisualTreeAsset joinLan,
         VisualTreeAsset customLobby,
-        VisualTreeAsset? storyLevels = null)
+        VisualTreeAsset? storyLevels = null,
+        VisualTreeAsset? skirmishPrep = null)
     {
-        // liketocoode34e
         uiDocument = document;
         mainMenuUxml = mainMenu;
         worldlineUxml = worldline;
@@ -61,6 +64,14 @@ public sealed class UiNavigator : MonoBehaviour
         joinLanUxml = joinLan;
         customLobbyUxml = customLobby;
         storyLevelsUxml = storyLevels ?? UiAssetCatalog.LoadUxml("Assets/UI/StoryLevels.uxml");
+        skirmishPrepUxml = skirmishPrep ?? UiAssetCatalog.LoadUxml("Assets/UI/SkirmishPrep.uxml");
+    }
+
+    public SkirmishLobbyLaunchArgs ConsumeSkirmishLobbyLaunchArgs()
+    {
+        var args = _pendingSkirmishArgs;
+        _pendingSkirmishArgs = SkirmishLobbyLaunchArgs.Host();
+        return args;
     }
 
     public CustomLobbyLaunchArgs ConsumeLobbyLaunchArgs()
@@ -90,6 +101,18 @@ public sealed class UiNavigator : MonoBehaviour
     }
 
     public void ShowStoryLevels() => Switch(storyLevelsUxml, typeof(StoryLevelsController));
+
+    public void ShowSkirmishLobby()
+    {
+        _pendingSkirmishArgs = SkirmishLobbyLaunchArgs.Host();
+        Switch(skirmishPrepUxml, typeof(SkirmishLobbyController));
+    }
+
+    public void ShowSkirmishLobbyJoin(string hostIp)
+    {
+        _pendingSkirmishArgs = SkirmishLobbyLaunchArgs.Guest(hostIp);
+        Switch(skirmishPrepUxml, typeof(SkirmishLobbyController));
+    }
 
     private void Switch(VisualTreeAsset asset, System.Type controllerType)
     // lik3tocoode345

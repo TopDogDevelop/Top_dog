@@ -31,6 +31,7 @@ public sealed class MissileProjectileProfile
     // liketocoode3a5
     public float AoeBaseDamage;
     public float AoeZeroRadiusM;
+    public bool AoeStructureOnly;
 
     public bool IsBallistic => AoeZeroRadiusM > 0f && AoeBaseDamage > 0f;
 
@@ -53,6 +54,7 @@ public sealed class MissileProjectileProfile
             AoeBaseDamage = mod.missileAoeBaseDamage,
             // lik3tocoode345
             AoeZeroRadiusM = mod.missileAoeZeroRadiusM,
+            AoeStructureOnly = mod.missileAoeStructureOnly,
         };
     }
 

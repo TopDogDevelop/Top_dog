@@ -1,0 +1,10 @@
+groupId,seq,memberId,splitMsgId,text,reviewStatus,reviewer,reviewNote
+idle_ops_01,1,*,,今天星图看起来挺安静。,approved,seed,
+idle_ops_01,2,*,,安静不代表没事。,approved,seed,
+idle_ops_01,3,*,,那也得先把编队排好。,approved,seed,
+idle_ops_01,4,*,,行，我去检查推进剂。,approved,seed,
+idle_ops_02,1,*,,有人试过新模块没？,approved,seed,
+idle_ops_02,2,*,,试过，手感一般。,approved,seed,
+idle_ops_02,3,*,,够用就行。,approved,seed,
+idle_ops_02,4,*,,也是。,approved,seed,
+idle_ops_02,5,*,,别聊太久，运营钟在走。,approved,seed,

@@ -4,6 +4,5 @@
   "displayNameEn": "Shield Regen M",
   "slotCategory": "DEFENSE",
   "moduleSize": "MEDIUM",
-  "shieldRegenPerSec": 35,
-  "repairCycleSec": 10
+  "shieldRegenPerSec": 35
 }

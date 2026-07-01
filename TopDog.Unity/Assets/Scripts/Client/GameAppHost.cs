@@ -221,6 +221,13 @@ public sealed class GameAppHost : MonoBehaviour
         BindLocalSession();
     }
 
+    public void StartFromSkirmishLobby(SkirmishLobbyState lobby)
+    {
+        ResetNetwork();
+        Core = CampaignBootstrap.CreateFromSkirmishLobby(lobby);
+        BindLocalSession();
+    }
+
     public void StartLanHost(int port = DefaultTcpGamePort)
     {
         if (Core == null)

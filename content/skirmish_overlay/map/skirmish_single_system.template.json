@@ -1,0 +1,20 @@
+{
+  "templateId": "skirmish_single_system",
+  "displayName": "军团约战单星系",
+  "solarSystemId": "skirmish_sys",
+  "eventRegionSpacingAu": 5,
+  "planetDistanceAu": 5,
+  "axisRegions": [
+    { "eventRegionId": "skirmish_er_1", "kind": "legion_structure", "name": "A 个堡 2", "offsetAu": -15 },
+    { "eventRegionId": "skirmish_er_2", "kind": "legion_structure", "name": "A 军堡", "offsetAu": -10 },
+    { "eventRegionId": "skirmish_er_3", "kind": "legion_structure", "name": "A 个堡 1", "offsetAu": -5 },
+    { "eventRegionId": "skirmish_er_4", "kind": "star", "name": "恒星", "offsetAu": 0 },
+    { "eventRegionId": "skirmish_er_5", "kind": "legion_structure", "name": "B 个堡 2", "offsetAu": 5 },
+    { "eventRegionId": "skirmish_er_6", "kind": "legion_structure", "name": "B 军堡", "offsetAu": 10 },
+    { "eventRegionId": "skirmish_er_7", "kind": "legion_structure", "name": "B 个堡 1", "offsetAu": 15 }
+  ],
+  "planets": [
+    { "eventRegionId": "skirmish_planet_1", "name": "行星 1" },
+    { "eventRegionId": "skirmish_planet_2", "name": "行星 2" }
+  ]
+}

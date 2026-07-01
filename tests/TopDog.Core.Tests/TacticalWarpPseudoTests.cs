@@ -9,18 +9,18 @@ namespace TopDog.Core.Tests;
 public sealed class TacticalWarpPseudoTests
 {
     [Test]
-    public void TryBeginWarp_RejectsHighSpeed()
+    public void TryBeginWarp_RejectsMisalignedHeading()
     {
         var state = NewState();
         var from = state.battlefields[0];
         var to = state.battlefields[1];
         var u = FriendlyShip("f1");
-        u.vx = 200f;
+        u.facingRad = (float)Math.PI;
         from.units.Add(u);
         BattlefieldSceneProxyService.SyncForBattlefield(state, from);
 
         var err = TacticalWarpService.TryBeginWarp(state, u, from, to, null, 500_000f);
-        Assert.That(err, Does.Contain("减速"));
+        Assert.That(err, Does.Contain("对准"));
     }
 
     [Test]
@@ -34,6 +34,7 @@ public sealed class TacticalWarpPseudoTests
         u.y = 0f;
         from.units.Add(u);
         BattlefieldSceneProxyService.SyncForBattlefield(state, from);
+        TacticalWarpTestHelper.PrepareInitiate(state, from, to, u);
         Assert.That(TacticalWarpService.TryBeginWarp(state, u, from, to, null, 250_000f), Is.Null);
 
         for (var i = 0; i < 200 && from.units.Contains(u); i++)
@@ -56,6 +57,7 @@ public sealed class TacticalWarpPseudoTests
         from.units.Add(u);
         BattlefieldSceneProxyService.SyncForBattlefield(state, from);
         BattlefieldSceneProxyService.SyncForBattlefield(state, to);
+        TacticalWarpTestHelper.PrepareInitiate(state, from, to, u);
         Assert.That(TacticalWarpService.TryBeginWarp(state, u, from, to, null, 120_000f), Is.Null);
         u.warpPhaseTimerSec = TacticalWarpService.ApproachTimeoutSec;
         TacticalWarpService.Tick(state, from, 0.05f);

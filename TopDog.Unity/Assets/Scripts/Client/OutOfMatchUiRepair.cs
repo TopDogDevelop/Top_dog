@@ -65,11 +65,22 @@ public static class OutOfMatchUiRepair
         EnsureComponent<SettingsController>(go);
         EnsureComponent<JoinLanController>(go);
         EnsureComponent<CustomLobbyController>(go);
+        EnsureComponent<SkirmishLobbyController>(go);
         EnsureComponent<OutOfMatchSceneHost>(go);
 
         UiInputSetup.EnsureForDocument(doc);
         // liketocoode3e5
         OutOfMatchSceneHost.TryBootstrapScene();
+
+        var nav = go.GetComponent<UiNavigator>();
+        if (nav != null && doc.visualTreeAsset == null)
+        {
+            var menus = UiAssetCatalog.LoadOutOfMatchMenus();
+            nav.Configure(doc, menus.MainMenu, menus.Worldline, menus.Settings, menus.JoinLan, menus.CustomLobby, menus.StoryLevels, menus.SkirmishPrep);
+            nav.ShowMainMenu();
+            go.GetComponent<UiViewportDriver>()?.ApplyLetterbox();
+            Debug.Log("TopDog: OutOfMatch UI repaired and bootstrapped");
+        }
     }
 
     private static void EnsureComponent<T>(GameObject go) where T : Component

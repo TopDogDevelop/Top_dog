@@ -234,32 +234,65 @@ public static class StartingTemplateLoader
 
     private static List<string> ReadIdentityCsvLines(string templateId)
     {
-        var csv = Path.Combine(AppRoot.StartingTemplatesDir(), templateId + ".identities.csv");
-        if (File.Exists(csv))
-        {
-            return File.ReadAllLines(csv).ToList();
-        }
-        var contentCsv = Path.Combine(AppRoot.Find(), "content", "starting_templates", templateId + ".identities.csv");
-        if (File.Exists(contentCsv))
-        {
-            return File.ReadAllLines(contentCsv).ToList();
-        }
-        return new List<string>();
+        var csv = ResolveTemplateCsvPath(templateId, ".identities.csv");
+        return csv != null ? File.ReadAllLines(csv).ToList() : new List<string>();
     }
 
     private static List<string> ReadMemberCsvLines(string templateId)
     {
-        var csv = Path.Combine(AppRoot.StartingTemplatesDir(), templateId + ".members.csv");
-        if (File.Exists(csv))
+        var csv = ResolveTemplateCsvPath(templateId, ".members.csv");
+        return csv != null ? File.ReadAllLines(csv).ToList() : new List<string>();
+    }
+
+    private static string? ResolveTemplateCsvPath(string templateId, string suffix)
+    {
+        var dir = AppRoot.StartingTemplatesDir();
+        if (!Directory.Exists(dir))
         {
-            return File.ReadAllLines(csv).ToList();
+            return null;
         }
-        var contentCsv = Path.Combine(AppRoot.Find(), "content", "starting_templates", templateId + ".members.csv");
-        if (File.Exists(contentCsv))
+
+        var fileName = templateId + suffix;
+        string? best = null;
+        foreach (var path in Directory.EnumerateFiles(dir, fileName, SearchOption.AllDirectories))
         {
-            return File.ReadAllLines(contentCsv).ToList();
+            if (best == null)
+            {
+                best = path;
+                continue;
+            }
+
+            if (PreferTemplateCsvPath(path, best))
+            {
+                best = path;
+            }
         }
-        return new List<string>();
+
+        return best;
+    }
+
+    /// <summary>嵌套 starting_templates/ 下的副本优先于根目录同名文件（与 meta 目录一致）。</summary>
+    private static bool PreferTemplateCsvPath(string candidate, string current)
+    {
+        static int NestedScore(string p) =>
+            p.Contains($"{Path.DirectorySeparatorChar}starting_templates{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+            ? 1
+            : 0;
+
+        var nestedDiff = NestedScore(candidate) - NestedScore(current);
+        if (nestedDiff != 0)
+        {
+            return nestedDiff > 0;
+        }
+
+        try
+        {
+            return new FileInfo(candidate).Length > new FileInfo(current).Length;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static MemberState? ParseRow(string[] row, Dictionary<string, int> idx)

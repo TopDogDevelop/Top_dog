@@ -234,32 +234,33 @@ public static class StartingTemplateLoader
 
     private static List<string> ReadIdentityCsvLines(string templateId)
     {
-        var csv = Path.Combine(AppRoot.StartingTemplatesDir(), templateId + ".identities.csv");
-        if (File.Exists(csv))
-        {
-            return File.ReadAllLines(csv).ToList();
-        }
-        var contentCsv = Path.Combine(AppRoot.Find(), "content", "starting_templates", templateId + ".identities.csv");
-        if (File.Exists(contentCsv))
-        {
-            return File.ReadAllLines(contentCsv).ToList();
-        }
-        return new List<string>();
+        var csv = ResolveTemplateCsvPath(templateId, ".identities.csv");
+        return csv != null ? File.ReadAllLines(csv).ToList() : new List<string>();
     }
 
     private static List<string> ReadMemberCsvLines(string templateId)
     {
-        var csv = Path.Combine(AppRoot.StartingTemplatesDir(), templateId + ".members.csv");
-        if (File.Exists(csv))
+        var csv = ResolveTemplateCsvPath(templateId, ".members.csv");
+        return csv != null ? File.ReadAllLines(csv).ToList() : new List<string>();
+    }
+
+    private static string? ResolveTemplateCsvPath(string templateId, string suffix)
+    {
+        var dir = AppRoot.StartingTemplatesDir();
+        var candidates = new[]
         {
-            return File.ReadAllLines(csv).ToList();
-        }
-        var contentCsv = Path.Combine(AppRoot.Find(), "content", "starting_templates", templateId + ".members.csv");
-        if (File.Exists(contentCsv))
+            Path.Combine(dir, templateId + suffix),
+            Path.Combine(dir, "starting_templates", templateId + suffix),
+        };
+        foreach (var path in candidates)
         {
-            return File.ReadAllLines(contentCsv).ToList();
+            if (File.Exists(path))
+            {
+                return path;
+            }
         }
-        return new List<string>();
+
+        return null;
     }
 
     private static MemberState? ParseRow(string[] row, Dictionary<string, int> idx)

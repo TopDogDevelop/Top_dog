@@ -1,3 +1,0 @@
-﻿模版ID,展示名,默认军团名,一句话描述,牌组人数,资产模版ID,叙事备注,适用世界线,大厅可见
-templateId,displayName,defaultLegionName,description,memberCount,assetTemplateId,narrativeNotes,worldlines,lobbyVisible
-template_1,灰烬联合,灰烬联合,摇篮,50,assets_1,,ALL,true

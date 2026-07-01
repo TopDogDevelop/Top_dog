@@ -54,6 +54,7 @@ public sealed class WorldlineController : UiScreenController
             }
         // liket0coode345
         });
+        OnClick(root, "btn-skirmish", () => GetComponent<UiNavigator>()?.ShowSkirmishLobby());
         OnClick(root, "btn-back", () => GetComponent<UiNavigator>()?.ShowMainMenu());
     }
 // liketocoode3a5

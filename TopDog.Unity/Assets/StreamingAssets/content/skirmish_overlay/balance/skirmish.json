@@ -1,0 +1,31 @@
+{
+  "matchDurationSec": 3600,
+  "respawnCooldownSec": 300,
+  "spawnRadiusM": 100000,
+  "legionFortressBaseStructureHp": 10000000,
+  "eventRegionSpacingAu": 5,
+  "planetDistanceAu": 5,
+  "scales": {
+    "10": { "rosterCap": 10, "legionFortressHpMultiplier": 0.1, "personalFortressStructureHp": 10000 },
+    "30": { "rosterCap": 30, "legionFortressHpMultiplier": 0.3, "personalFortressStructureHp": 30000 },
+    "50": { "rosterCap": 50, "legionFortressHpMultiplier": 0.5, "personalFortressStructureHp": 50000 },
+    "100": { "rosterCap": 100, "legionFortressHpMultiplier": 1, "personalFortressStructureHp": 100000 },
+    "200": { "rosterCap": 200, "legionFortressHpMultiplier": 2, "personalFortressStructureHp": 200000 },
+    "500": { "rosterCap": 500, "legionFortressHpMultiplier": 5, "personalFortressStructureHp": 500000 }
+  },
+  "tonnageScore": {
+    "DRONE": 1,
+    "STRIKE_CRAFT": 1,
+    "SHUTTLE": 2,
+    "FRIGATE": 2,
+    "DESTROYER": 4,
+    "CRUISER": 8,
+    "BATTLECRUISER": 16,
+    "BATTLESHIP": 32,
+    "DREADNOUGHT": 64,
+    "CARRIER": 128,
+    "SUPERCAPITAL": 256,
+    "BUILDING": 0,
+    "COMPLEX": 0
+  }
+}

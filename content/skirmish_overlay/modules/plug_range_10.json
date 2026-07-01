@@ -1,0 +1,9 @@
+{
+  "moduleId": "plug_range_10",
+  "displayName": "制式远射改良",
+  "displayNameEn": "Standard Range Plug",
+  "moduleBrief": "射程 +10%",
+  "slotCategory": "PASSIVE",
+  "moduleKind": "stat_plugin",
+  "moduleSize": "SMALL"
+}

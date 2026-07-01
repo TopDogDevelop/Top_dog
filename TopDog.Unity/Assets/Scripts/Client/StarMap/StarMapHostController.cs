@@ -469,6 +469,11 @@ public sealed class StarMapHostController : MonoBehaviour, IViewportCameraComman
             }
             var world = basePos + AuToWorld(er.anchorAu);
             var kindLabel = EventRegionKindLabel(er.kind);
+            var presence = SkirmishPresenceOverlay.RegionTooltipSuffix(_syncState, er.eventRegionId);
+            if (presence != null)
+            {
+                kindLabel += " · " + presence;
+            }
             var title = !string.IsNullOrEmpty(er.name) ? er.name : er.eventRegionId;
             var selected = er.eventRegionId == _selectedEventRegionId;
             AddInteriorMarker(er.eventRegionId, world, title, kindLabel, er.kind, selected);

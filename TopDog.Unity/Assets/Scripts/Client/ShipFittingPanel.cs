@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using TopDog.App;
+using TopDog.Content;
 using TopDog.Content.Modules;
 using TopDog.Content.Ships;
 using TopDog.Sim.Member;
@@ -46,14 +47,14 @@ public static class ShipFittingPanel
         var modules = core.Modules;
         var root = scroll.contentContainer;
         var memberKey = MemberKey(member);
-        root.Add(MakeCaption("配船 — " + MemberName(member)));
+        root.Add(MakeCaption("配船 — " + DisplayLabels.ShipMemberTitle(state, member, ships)));
 
         var current = member.equippedHullId;
         if (!string.IsNullOrEmpty(current))
         {
             var hull = ships.FindHull(current);
             root.Add(MakeBody(
-                $"当前舰体: {hull?.displayName ?? current} · 估值 {AssetValuation.FormatStarCoinValue(AssetValuation.HullStarCoinValue(hull))}\n{FormatHullStats(hull)}"));
+                $"{DisplayLabels.ShipMemberTitle(state, member, ships)} · 估值 {AssetValuation.FormatStarCoinValue(AssetValuation.HullStarCoinValue(hull))}\n{FormatHullStats(hull)}"));
             var fit = MemberFittingService.Fittings(state, member);
             var stats = ShipFitStats.Compute(hull, fit, modules, state, member);
             root.Add(MakeBody(

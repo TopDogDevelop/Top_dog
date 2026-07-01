@@ -41,10 +41,11 @@ public sealed class CampaignShellController : UiScreenController
     private readonly StringBuilder _eventFeed = new();
     private readonly HashSet<string> _formationSelection = new();
     private readonly List<(VisualElement? el, EventCallback<ClickEvent> handler)> _dynamicClickHandlers = new();
+    private int _companionLogSynced;
 
     private Label? _timerLabel;
     private Label? _dateLabel;
-    private Label? _eventFeedLabel;
+    private VisualElement? _eventFeedRoot;
     private Label? _toastLabel;
     private ScrollView? _memberDetailScroll;
     private Label? _dispatchHintLabel;
@@ -125,7 +126,7 @@ public sealed class CampaignShellController : UiScreenController
     {
         _timerLabel = root.Q<Label>("lbl-timer");
         _dateLabel = root.Q<Label>("lbl-date");
-        _eventFeedLabel = root.Q<Label>("lbl-event-feed");
+        _eventFeedRoot = root.Q<VisualElement>("event-feed-root");
         _toastLabel = root.Q<Label>("lbl-toast");
         _memberDetailScroll = root.Q<ScrollView>("member-detail-scroll");
         _dispatchHintLabel = root.Q<Label>("lbl-dispatch-hint");
@@ -432,9 +433,9 @@ public sealed class CampaignShellController : UiScreenController
         {
             RefreshActiveOverlay(core);
         }
-        if (_eventFeedLabel != null)
+        if (_eventFeedRoot != null)
         {
-            _eventFeedLabel.text = _eventFeed.ToString();
+            CompanionLogRail.SyncCompanion(core, _eventFeedRoot, ref _companionLogSynced);
         }
     }
 
@@ -1365,10 +1366,7 @@ public sealed class CampaignShellController : UiScreenController
             _eventFeed.Append('\n');
         }
         _eventFeed.Append(message);
-        if (_eventFeedLabel != null)
-        {
-            _eventFeedLabel.text = _eventFeed.ToString();
-        }
+        CompanionLogRail.AppendSystemLine(_eventFeedRoot, message);
         if (_toastLabel != null)
         {
             _toastLabel.text = message;

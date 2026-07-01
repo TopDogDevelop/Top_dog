@@ -378,3 +378,82 @@
     margin-top: 8px;
     color: rgb(255, 180, 120);
 }
+
+.skirmish-config-strip {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.skirmish-config-strip .lobby-section-caption {
+    width: 100%;
+}
+
+.skirmish-config-strip .lobby-option-chip-row {
+    margin-right: 12px;
+    margin-bottom: 4px;
+}
+
+.skirmish-config-strip .skirmish-player-section {
+    flex-grow: 1;
+    min-width: 200px;
+    max-width: 360px;
+}
+
+.skirmish-main-panels {
+    flex-grow: 1;
+    flex-direction: row;
+    align-items: stretch;
+    width: 100%;
+    min-height: 0;
+}
+
+.skirmish-roster-panel,
+.skirmish-fitting-panel {
+    flex-grow: 1;
+    flex-basis: 0;
+    flex-shrink: 1;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+}
+
+.skirmish-roster-panel {
+    padding-right: 8px;
+    border-right-width: 1px;
+    border-right-color: rgba(255, 255, 255, 0.12);
+}
+
+.skirmish-fitting-panel {
+    padding-left: 8px;
+    position: relative;
+}
+
+.skirmish-codex-scroll,
+.skirmish-fitting-scroll {
+    flex-grow: 1;
+    min-height: 0;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.12);
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+.skirmish-template-picker {
+    flex-grow: 0;
+    max-height: 180px;
+    margin-bottom: 6px;
+}
+
+.skirmish-fitting-panel .ops-module-picker-popup {
+    position: absolute;
+    right: 8px;
+    top: 28px;
+    bottom: 48px;
+    width: 42%;
+    min-width: 220px;
+    max-width: 360px;
+}

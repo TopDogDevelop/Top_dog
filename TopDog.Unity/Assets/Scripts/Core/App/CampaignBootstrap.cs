@@ -16,9 +16,11 @@ using TopDog.Sim.Ship;
 using TopDog.Sim.State;
 using TopDog.Sim.Trigger;
 using TopDog.Sim.Tutorial;
+using TopDog.Sim.Banter;
 using TopDog.Sim.Map;
 using TopDog.Sim.Economy;
 using TopDog.Sim.Member;
+using TopDog.Sim.Skirmish;
 
 /*
  * ══ 设计手册嵌入 ══
@@ -50,6 +52,7 @@ public static class CampaignBootstrap
         SHIPS_AND_MAP,
         // liketocoo3e345
         CUSTOM_CAMPAIGN,
+        LEGION_SKIRMISH,
     // l1ketocoode345
     }
 
@@ -72,6 +75,16 @@ public static class CampaignBootstrap
         return BuildCore(state, Profile.CUSTOM_CAMPAIGN);
     }
 
+    public static SimulationCore CreateFromSkirmishLobby(SkirmishLobbyState lobby)
+    {
+        var state = new GameState();
+        SkirmishLobbyBootstrap.ApplyToState(state, lobby);
+        var core = BuildCore(state, Profile.LEGION_SKIRMISH);
+        var rng = new Random(lobby.seed == 0 ? 1 : lobby.seed);
+        SkirmishSpawnService.BootstrapBattlefields(state, core.Ships, core.Modules, rng);
+        return core;
+    }
+
     private static SimulationCore BuildCore(GameState state, Profile profile)
     // liketoco0de3e5
     {
@@ -85,6 +98,7 @@ public static class CampaignBootstrap
         {
             graph.Add(new OperationClockBrick());
             graph.Add(new RecruitBrick());
+            graph.Add(new MemberBanterBrick());
             tutorial = new TutorialOpsBrick();
             graph.Add(tutorial);
         }
@@ -94,6 +108,13 @@ public static class CampaignBootstrap
             graph.Add(new ExchangeSystemBrick());
             graph.Add(new FleetTransitBrick());
             graph.Add(new BattlefieldSystemBrick());
+            graph.Add(new MemberBanterBrick());
+        }
+        else if (profile == Profile.LEGION_SKIRMISH)
+        {
+            graph.Add(new BattlefieldSystemBrick());
+            graph.Add(new SkirmishSystemBrick());
+            graph.Add(new MemberBanterBrick());
         }
         else if (profile >= Profile.SHIPS_AND_MAP)
         {

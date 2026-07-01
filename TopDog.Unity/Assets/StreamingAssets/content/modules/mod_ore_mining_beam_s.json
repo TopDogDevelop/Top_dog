@@ -1,9 +1,0 @@
-{
-  "moduleId": "mod_ore_mining_beam_s",
-  "displayName": "矿石采矿光束 S",
-  "displayNameEn": "Ore Mining Beam S",
-  "slotCategory": "ATTACK",
-  "moduleSize": "SMALL",
-  "moduleKind": "mining_beam",
-  "miningYieldPerOpsPhase": 500
-}

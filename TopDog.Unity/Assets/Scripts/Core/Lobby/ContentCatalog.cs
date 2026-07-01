@@ -185,7 +185,7 @@ public static class ContentCatalog
         {
             return outList;
         }
-        foreach (var meta in Directory.EnumerateFiles(dir, "*meta.csv"))
+        foreach (var meta in Directory.EnumerateFiles(dir, "*meta.csv", SearchOption.AllDirectories))
         {
             var e = ParseTemplateMeta(meta);
             if (e?.templateId != null && e.templateId.Length > 0)

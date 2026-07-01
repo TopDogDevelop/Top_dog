@@ -66,6 +66,7 @@ public static class OutOfMatchRuntimeBootstrap
         go.AddComponent<SettingsController>();
         go.AddComponent<JoinLanController>();
         go.AddComponent<CustomLobbyController>();
+        go.AddComponent<SkirmishLobbyController>();
         go.AddComponent<StoryLevelsController>();
 
         var menus = UiAssetCatalog.LoadOutOfMatchMenus();
@@ -77,7 +78,8 @@ public static class OutOfMatchRuntimeBootstrap
             menus.Settings,
             menus.JoinLan,
             menus.CustomLobby,
-            menus.StoryLevels);
+            menus.StoryLevels,
+            menus.SkirmishPrep);
 
         UiTheme.ApplyDocument(doc);
         // lik3tocoode345

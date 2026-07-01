@@ -2,6 +2,7 @@ using TopDog.Content.Modules;
 using TopDog.Content.Ships;
 using TopDog.Sim.Building;
 using TopDog.Sim.Combat;
+using TopDog.Sim.Skirmish;
 using TopDog.Sim.State;
 using TopDog.Sim.Traits;
 using TopDog.Sim.Vision;
@@ -219,12 +220,21 @@ public static class BattlefieldSystem
             return;
         }
 
-        if (u.aiOrder == UnitAiOrder.FOLLOW && possessed != null && !ReferenceEquals(u, possessed))
+        if (u.aiOrder == UnitAiOrder.FOLLOW)
         {
-            SteerTowardPoint(u, possessed.x, possessed.y, possessed.z, dtSec);
-            u.throttleOn = true;
-            ShipMotionIntegrator.TickUnit(u, dtSec);
-            return;
+            var follow = possessed;
+            if (follow == null && u.rallyPointUnitId != null)
+            {
+                follow = FindUnit(bf, u.rallyPointUnitId);
+            }
+
+            if (follow != null && !ReferenceEquals(u, follow))
+            {
+                SteerTowardPoint(u, follow.x, follow.y, follow.z, dtSec);
+                u.throttleOn = true;
+                ShipMotionIntegrator.TickUnit(u, dtSec);
+                return;
+            }
         }
 
         if (u.aiOrder == UnitAiOrder.APPROACH && u.approachTargetUnitId != null)
@@ -550,6 +560,38 @@ public static class BattlefieldSystem
     public static void ApplyDamage(BattlefieldState? bf, BattlefieldUnit target, float dmg) =>
         ApplyDamage(bf, target, dmg, null);
 
+    /// <summary>直扣结构层，跳过盾甲（结构扰动导弹等）。</summary>
+    public static void ApplyStructureOnlyDamage(
+        BattlefieldState? bf,
+        BattlefieldUnit target,
+        float dmg,
+        BattlefieldUnit? attacker = null)
+    {
+        if (dmg <= 0f)
+        {
+            return;
+        }
+
+        var wasAlive = !target.IsDestroyed();
+        var before = target.structureHp;
+        target.structureHp -= dmg;
+        if (target.structureHp < 0f)
+        {
+            target.structureHp = 0f;
+        }
+
+        if (bf != null)
+        {
+            QueueHpDelta(bf, target, 0f, 0f, before - target.structureHp, isHeal: false);
+            CombatDamageLedger.RecordHit(bf, attacker, target, before - target.structureHp);
+        }
+
+        if (target.structureHp <= 0f)
+        {
+            target.alive = false;
+        }
+    }
+
     public static void ApplyDamage(
         BattlefieldState? bf,
         BattlefieldUnit target,
@@ -568,6 +610,15 @@ public static class BattlefieldSystem
 
         if (target.isBuilding)
         {
+            if (state != null && SkirmishBuildingRules.IsSkirmish(state) && attacker != null)
+            {
+                var building = BuildingService.Find(state, target.buildingId);
+                if (building != null && !SkirmishBuildingRules.CanDamageBuilding(state, attacker, building, target))
+                {
+                    return;
+                }
+            }
+
             var before = target.structureHp;
             target.structureHp -= dmg;
             if (target.structureHp <= 0f)
@@ -579,6 +630,16 @@ public static class BattlefieldSystem
                 QueueHpDelta(bf, target, 0f, 0f, before - target.structureHp, isHeal: false);
                 CombatDamageLedger.RecordHit(bf, attacker, target, before - target.structureHp);
             }
+
+            if (state != null && target.structureHp <= 0f && target.buildingId != null)
+            {
+                var building = BuildingService.Find(state, target.buildingId);
+                if (building != null)
+                {
+                    SkirmishBuildingRules.OnBuildingStructureZero(state, building);
+                }
+            }
+
             return;
         }
 
@@ -618,6 +679,13 @@ public static class BattlefieldSystem
 
         if (wasAlive && target.IsDestroyed())
         {
+            if (state != null && bf != null && SkirmishBuildingRules.IsSkirmish(state))
+            {
+                SkirmishScoreService.OnUnitDestroyed(
+                    state, bf, target, attacker, ships ?? ShipRegistry.LoadDefault());
+                SkirmishRespawnService.QueueRespawn(state, target);
+            }
+
             if (target.parentUnitId != null)
             {
                 CombatTelemetryLog.LogWingSummary(target);

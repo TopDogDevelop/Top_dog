@@ -43,6 +43,7 @@ public static class ModuleCatalog
         }
         return itemId.Contains("strike_wing", StringComparison.Ordinal)
                || itemId.Contains("chaos_missile", StringComparison.Ordinal)
+               || itemId.Contains("structure_disrupt", StringComparison.Ordinal)
                || (itemId.Contains("missile", StringComparison.Ordinal) && !itemId.Contains("gun", StringComparison.Ordinal));
     }
 
@@ -54,6 +55,7 @@ public static class ModuleCatalog
         !string.IsNullOrWhiteSpace(modId)
         && !modId.Contains("strike_wing", StringComparison.Ordinal)
         && (modId.Contains("chaos_missile", StringComparison.Ordinal)
+            || modId.Contains("structure_disrupt", StringComparison.Ordinal)
             || (modId.Contains("missile", StringComparison.Ordinal) && !modId.Contains("gun", StringComparison.Ordinal)));
 
     public static ModuleDef? Resolve(ModuleRegistry registry, string? moduleId)
@@ -103,6 +105,10 @@ public static class ModuleCatalog
         if (id.Contains("ore_mining", StringComparison.Ordinal) || id.Contains("mining_beam", StringComparison.Ordinal))
         {
             return "ATTACK";
+        }
+        if (id.Contains("structure_disrupt", StringComparison.Ordinal))
+        {
+            return "LAUNCH_TUBE";
         }
         if (id.Contains("strike_wing", StringComparison.Ordinal) || id.Contains("chaos_missile", StringComparison.Ordinal)
             || (id.Contains("missile", StringComparison.Ordinal) && !id.Contains("gun", StringComparison.Ordinal)))

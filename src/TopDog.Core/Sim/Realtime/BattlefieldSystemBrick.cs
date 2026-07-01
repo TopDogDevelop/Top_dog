@@ -38,6 +38,11 @@ public sealed class BattlefieldSystemBrick : IBrick
         {
             return;
         }
+        if (ctx.State.worldline.type == WorldlineType.LEGION_SKIRMISH)
+        {
+            BattlefieldSystem.Tick(ctx.State, ctx.Modules, ctx.Ships, dtSec);
+            return;
+        }
         BattlefieldSystem.Tick(ctx.State, ctx.Modules, ctx.Ships, dtSec);
         if (ctx.State.phase != GamePhase.COMBAT || !ctx.State.combatRealtimeActive)
         {

@@ -1,0 +1,9 @@
+lineId,memberId,eventKey,text,weight,reviewStatus,reviewer,reviewNote
+rc_equip_01,*,equip_from_legion,机库到货，先领一艘顶上去。,1,approved,seed,
+rc_damage_01,*,took_damage,护盾在掉，别愣着。,1,approved,seed,
+rc_attack_01,*,dealt_damage,火力有效，继续压。,1,approved,seed,
+rc_destroy_01,*,destroyed,舰没了，下一艘顶上。,1,approved,seed,
+rc_kill_01,*,destroyed_enemy,目标清除。,1,approved,seed,
+rc_board_v_01,*,boarding_victim,被登录了，这局没了。,1,approved,seed,
+rc_board_a_01,*,boarding_attacker,登录成功，接管完成。,1,approved,seed,
+rc_markup_01,*,took_damage,#123/1那我要好好/1看看了/1,1,approved,seed,行内标记示例

@@ -3,6 +3,8 @@ using TopDog.Content.Ships;
 using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 
+using TopDog.Core.Tests;
+
 namespace TopDog.Tests;
 
 public sealed class TacticalWarpServiceTests
@@ -16,6 +18,7 @@ public sealed class TacticalWarpServiceTests
         var unit = FriendlyShip("u1");
         from.units.Add(unit);
         BattlefieldSceneProxyService.SyncForBattlefield(state, from);
+        TacticalWarpTestHelper.PrepareInitiate(state, from, to, unit);
 
         var err = TacticalWarpService.TryBeginWarp(state, unit, from, to, new HullDef { warpSpeedAups = 4f }, 500_000f);
         Assert.That(err, Is.Null);
@@ -55,6 +58,7 @@ public sealed class TacticalWarpServiceTests
         from.units.Add(unit);
         BattlefieldSceneProxyService.SyncForBattlefield(state, from);
         BattlefieldSceneProxyService.SyncForBattlefield(state, to);
+        TacticalWarpTestHelper.PrepareInitiate(state, from, to, unit);
         Assert.That(TacticalWarpService.TryBeginWarp(state, unit, from, to, null, 300_000f), Is.Null);
 
         for (var i = 0; i < 300 && from.units.Contains(unit); i++)
@@ -146,5 +150,6 @@ public sealed class TacticalWarpServiceTests
         arrivalAtSec = 0f,
         structureHp = 100f,
         structureMax = 100f,
+        maxSpeedMps = 100f,
     };
 }

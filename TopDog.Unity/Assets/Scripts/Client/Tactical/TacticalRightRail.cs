@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using TopDog.Content;
 using TopDog.Content.Map;
+using TopDog.Content.Ships;
 using TopDog.Sim.Possession;
 using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
@@ -237,7 +238,7 @@ public sealed class TacticalRightRail
             _objectContent.Add(MakeGroupHeader("跃迁中"));
             foreach (var u in inbound)
             {
-                _objectContent.Add(BuildObjectRow(u, bf, indent: false, warp: true));
+                _objectContent.Add(BuildObjectRow(state, u, bf, indent: false, warp: true));
             }
         }
 
@@ -256,7 +257,7 @@ public sealed class TacticalRightRail
             _objectContent.Add(MakeGroupHeader("舰载机"));
             foreach (var u in strikeWings)
             {
-                _objectContent.Add(BuildObjectRow(u, bf, indent: u.parentUnitId != null, warp: false));
+                _objectContent.Add(BuildObjectRow(state, u, bf, indent: u.parentUnitId != null, warp: false));
             }
         }
 
@@ -268,7 +269,7 @@ public sealed class TacticalRightRail
             _objectContent.Add(MakeGroupHeader("导弹"));
             foreach (var u in missiles)
             {
-                _objectContent.Add(BuildObjectRow(u, bf, indent: u.parentUnitId != null, warp: false));
+                _objectContent.Add(BuildObjectRow(state, u, bf, indent: u.parentUnitId != null, warp: false));
             }
         }
 
@@ -280,7 +281,7 @@ public sealed class TacticalRightRail
             _objectContent.Add(MakeGroupHeader("董事会增援"));
             foreach (var u in boardWings)
             {
-                _objectContent.Add(BuildObjectRow(u, bf, indent: u.parentUnitId != null, warp: false));
+                _objectContent.Add(BuildObjectRow(state, u, bf, indent: u.parentUnitId != null, warp: false));
             }
         }
 
@@ -309,14 +310,14 @@ public sealed class TacticalRightRail
             _objectContent.Add(MakeGroupHeader(TacticalIconCatalog.GroupLabel(kv.Key)));
             foreach (var u in kv.Value)
             {
-                _objectContent.Add(BuildObjectRow(u, bf, indent: u.parentUnitId != null, warp: false));
+                _objectContent.Add(BuildObjectRow(state, u, bf, indent: u.parentUnitId != null, warp: false));
             }
         }
     }
 
     // liketoco0de345
 
-    private VisualElement BuildObjectRow(BattlefieldUnit u, BattlefieldState bf, bool indent, bool warp)
+    private VisualElement BuildObjectRow(GameState state, BattlefieldUnit u, BattlefieldState bf, bool indent, bool warp)
     {
         var row = new VisualElement();
         row.AddToClassList("rtcombat-rail-object-row");
@@ -341,7 +342,9 @@ public sealed class TacticalRightRail
 
         var labelText = warp
             ? (u.displayName ?? u.unitId ?? "?")
-            : WingRowLabel(u, bf) ?? (DisplayLabels.TonnageBilingual(u.tonnageClass) + " · " + (u.displayName ?? u.unitId ?? "?"));
+            : WingRowLabel(u, bf) ?? (u.isBuilding
+                ? (u.displayName ?? u.unitId ?? "?")
+                : DisplayLabels.ShipMemberTitle(state, u, ShipRegistry.LoadDefault()));
         var name = new Label(labelText);
         name.pickingMode = PickingMode.Ignore;
         name.AddToClassList("rtcombat-rail-name");

@@ -590,14 +590,26 @@ public static class FleetOrderService
 
     private static void PrepareUnitForWarp(BattlefieldUnit u)
     {
-        if (u.SpeedMps() <= TacticalWarpService.MaxInitiateWarpSpeedMps)
+        if (TacticalWarpInitiateRules.PassesForwardSpeedCheck(u))
         {
             return;
         }
 
-        u.vx = 0f;
-        u.vy = 0f;
-        u.vz = 0f;
+        var effectiveMax = TacticalWarpInitiateRules.EffectiveMaxSpeedMps(u);
+        if (effectiveMax <= TacticalWarpInitiateRules.ImmobileMaxSpeedThresholdMps)
+        {
+            u.vx = 0f;
+            u.vy = 0f;
+            u.vz = 0f;
+            u.throttleOn = false;
+            return;
+        }
+
+        var (hx, hy, hz) = ShipMotionIntegrator.HeadingToUnitVector(u.facingRad, u.pitchRad);
+        var targetForward = TacticalWarpInitiateRules.MinForwardSpeedFraction * effectiveMax;
+        u.vx = hx * targetForward;
+        u.vy = hy * targetForward;
+        u.vz = hz * targetForward;
         u.throttleOn = false;
     }
 

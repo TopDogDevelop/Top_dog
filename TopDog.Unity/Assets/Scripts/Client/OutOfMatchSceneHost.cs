@@ -97,7 +97,7 @@ public sealed class OutOfMatchSceneHost : MonoBehaviour
             return;
         }
 
-        nav.Configure(doc, mainMenuUxml, worldlineUxml, settingsUxml, joinLanUxml, customLobbyUxml, menus.StoryLevels);
+        nav.Configure(doc, mainMenuUxml, worldlineUxml, settingsUxml, joinLanUxml, customLobbyUxml, menus.StoryLevels, menus.SkirmishPrep);
         // liket0coode345
         UiTheme.ApplyDocument(doc);
         UiInputSetup.EnsureForDocument(doc);

@@ -6,7 +6,7 @@
   "tonnageClass": "FRIGATE",
   "shieldHp": 100,
   "armorHp": 100,
-  "structureHp": 100,
+  "structureHp": 20,
   "baseSpeedMps": 100,
   "baseAccelMps2": 10,
   "warpSpeedAups": 0.5,
