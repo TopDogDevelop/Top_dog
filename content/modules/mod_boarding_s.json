@@ -1,0 +1,10 @@
+{
+  "moduleId": "mod_boarding_s",
+  "displayName": "登录模块",
+  "displayNameEn": "Boarding Module S",
+  "slotCategory": "FUNCTION",
+  "moduleSize": "SMALL",
+  "moduleKind": "boarding_module",
+  "attackRangeM": 100,
+  "boardingHoldSec": 100
+}

@@ -2,6 +2,7 @@
   "hullId": "hull_carrier_crispy",
   "displayName": "脆鸡级",
   "displayNameEn": "Crispy Carrier",
+  "hullBrief": "鸡肉味，嘎嘣脆",
   "tonnageClass": "CARRIER",
   "shieldHp": 40000,
   "armorHp": 1000,

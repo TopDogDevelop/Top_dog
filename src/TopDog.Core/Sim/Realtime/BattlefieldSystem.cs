@@ -114,6 +114,7 @@ public static class BattlefieldSystem
         AiRealtimePlayerBrain.Tick(state, bf, dtSec);
         MissileProjectileService.Tick(state, bf, modules, ships, dtSec);
         StrikeWingRecallService.Tick(bf, modules, new Random((int)bf.timeSec ^ bf.units.Count));
+        BoardingModuleService.Tick(state, bf, modules, ships, dtSec);
 
         var building = BuildingService.Find(state, bf.targetBuildingId);
         if (bf.targetBuildingId != null)

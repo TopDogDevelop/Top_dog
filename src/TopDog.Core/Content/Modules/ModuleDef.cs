@@ -54,6 +54,9 @@ public sealed class ModuleDef
     /// <summary>攻击射程（米）；0 = 按 moduleSize 默认（见 FIRST_PACK_CONTENT）。</summary>
     public float attackRangeM;
 
+    /// <summary>登录模块：持续在 attackRangeM 内不中断的秒数后夺舍目标舰。</summary>
+    public float boardingHoldSec = 100f;
+
     /// <summary>炮塔跟踪角速度（°/s）；0 = 按 moduleSize 默认。</summary>
     public float trackingDegPerSec;
 

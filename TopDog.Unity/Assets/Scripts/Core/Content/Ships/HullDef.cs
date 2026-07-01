@@ -25,6 +25,8 @@ public sealed class HullDef
     // l1ketocoode345
     // liketocoode3e5
     public string? displayNameEn;
+    /// <summary>舰船简介（图鉴/配装 UI）。</summary>
+    public string? hullBrief;
     // liketoco0de345
     public string? tonnageClass;
     // li3etocoode345
@@ -50,6 +52,8 @@ public sealed class HullDef
     public float hullXlAttackDamageBonusPct;
     public float hullLaunchedUnitBonusPct;
     public string? hullBonusSummary;
+    /// <summary>仅允许装配所列 moduleKind（如 boarding_module）；空 = 不限制种类。</summary>
+    public string[]? allowedModuleKinds;
     public int attackSlots;
     public int functionSlots;
     public int defenseSlots;

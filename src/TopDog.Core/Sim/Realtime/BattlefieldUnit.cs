@@ -124,6 +124,11 @@ public sealed class BattlefieldUnit
     public bool pinnedToBattlefield;
     public Dictionary<string, string> fittedModules = new();
 
+    /// <summary>登录模块蓄力目标 unitId；断档或离射程则清零。</summary>
+    public string? boardingChargeTargetUnitId;
+    /// <summary>登录模块已对 boardingChargeTargetUnitId 累计秒数。</summary>
+    public float boardingChargeSec;
+
     /// <summary>弹道导弹：发射管 moduleId；非空时走 <see cref="MissileProjectileService"/>。</summary>
     // liketocoode3e5
     public string? missileModuleId;

@@ -1,3 +1,4 @@
+using System.Linq;
 using TopDog.Content.Modules;
 using TopDog.Content.Ships;
 using TopDog.Sim.Member;
@@ -75,9 +76,30 @@ public static class FittingValidator
         return mod.moduleId != null && mod.moduleId.StartsWith("plug_", StringComparison.Ordinal);
     }
 
+    public static bool HullAllowsModuleKind(HullDef? hull, ModuleDef mod)
+    {
+        if (string.IsNullOrWhiteSpace(mod.moduleKind))
+        {
+            return true;
+        }
+
+        if (!"boarding_module".Equals(mod.moduleKind, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return hull?.allowedModuleKinds != null
+               && hull.allowedModuleKinds.Any(k =>
+                   "boarding_module".Equals(k, StringComparison.Ordinal));
+    }
+
     public static bool ModuleFitsSlot(string? slotKey, ModuleDef? mod, HullDef? hull)
     {
         if (slotKey == null || mod == null)
+        {
+            return false;
+        }
+        if (!HullAllowsModuleKind(hull, mod))
         {
             return false;
         }
