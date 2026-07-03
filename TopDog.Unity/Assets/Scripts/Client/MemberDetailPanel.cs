@@ -49,6 +49,9 @@ public static class MemberDetailPanel
         }
 
         root.Add(MakeCaption(DisplayLabels.ShipMemberTitle(core.State, member, core.Ships)));
+        var portrait = MemberPortraitView.Create(member, 56f);
+        portrait.style.marginBottom = 6;
+        root.Add(portrait);
         root.Add(MakeBody($"稀有度 {member.rarity} · 底图 {member.cardBackdrop ?? "—"}"));
         root.Add(MakeBody($"任务 {member.assignedTask ?? "待命"} · 编队 {FormationLabel(core.State, member.formationId)}"));
         if (member.traitIds.Count > 0)

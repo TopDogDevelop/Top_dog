@@ -1,3 +1,4 @@
+using TopDog.App.Brick;
 using TopDog.Content.Balance;
 using TopDog.Content.Modules;
 using TopDog.Content.Ships;
@@ -8,6 +9,7 @@ using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
 using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
+using TopDog.Sim.Vision;
 
 namespace TopDog.Sim.Skirmish;
 
@@ -70,21 +72,25 @@ public static class SkirmishSpawnService
                 continue;
             }
 
-            SpawnLegionRoster(state, bf, legion, ships, modules, rng);
+            var spawned = SpawnLegionRoster(state, bf, legion, ships, modules, rng);
+            if (spawned == 0 && legion.isLocal)
+            {
+                BrickDebugLog.Log(
+                    "skirmish.spawn",
+                    $"local legion {legion.legionId} @ {fortressRegion}: 0 ships (check hullId / content/ships)");
+            }
         }
 
-        if (state.battlefields.Count > 0)
-        {
-            state.activeBattlefieldId = state.battlefields[0].battlefieldId;
-        }
+        SetInitialActiveBattlefield(state);
 
         state.phase = GamePhase.COMBAT;
         state.combatRealtimeActive = true;
         state.combatPrepStep = CombatPrepStep.CHOOSE_STANCE;
         MatchMemberBaselineService.EnsureSnapshot(state);
+        SkirmishDisplayNames.SyncSkirmishLabels(state);
     }
 
-    public static void SpawnLegionRoster(
+    public static int SpawnLegionRoster(
         GameState state,
         BattlefieldState bf,
         LegionState legion,
@@ -95,6 +101,9 @@ public static class SkirmishSpawnService
         var balance = SkirmishBalanceConfig.LoadDefault();
         var radius = balance.spawnRadiusM;
         var side = legion.isLocal ? UnitSide.FRIENDLY : UnitSide.ENEMY;
+        var spawned = 0;
+        var skippedNoHull = 0;
+        var fallbackHull = 0;
 
         foreach (var member in state.members)
         {
@@ -103,15 +112,16 @@ public static class SkirmishSpawnService
                 continue;
             }
 
-            if (member.equippedHullId == null)
+            var hull = ResolveSpawnHull(member, ships, out var usedFallback);
+            if (hull?.hullId == null)
             {
+                skippedNoHull++;
                 continue;
             }
 
-            var hull = ships.FindHull(member.equippedHullId);
-            if (hull?.hullId == null)
+            if (usedFallback)
             {
-                continue;
+                fallbackHull++;
             }
 
             var angle = (float)(rng.NextDouble() * Math.PI * 2);
@@ -120,7 +130,7 @@ public static class SkirmishSpawnService
             {
                 unitId = "u-" + Guid.NewGuid().ToString("N")[..8],
                 displayName = string.IsNullOrWhiteSpace(member.name) ? member.memberId ?? "?" : member.name,
-                hullId = member.equippedHullId,
+                hullId = hull.hullId,
                 memberId = member.memberId,
                 legionId = legion.legionId,
                 side = side,
@@ -132,6 +142,92 @@ public static class SkirmishSpawnService
             u.fittedModules = new Dictionary<string, string>(MemberFittingService.Fittings(state, member));
             ModuleRuntime.ApplyToUnit(u, hull, modules);
             bf.units.Add(u);
+            spawned++;
+        }
+
+        if (skippedNoHull > 0 || fallbackHull > 0)
+        {
+            BrickDebugLog.Log(
+                "skirmish.spawn",
+                $"legion={legion.legionId} spawned={spawned} fallback_hull={fallbackHull} skipped_no_hull={skippedNoHull}");
+        }
+
+        return spawned;
+    }
+
+    private static HullDef? ResolveSpawnHull(MemberState member, ShipRegistry ships, out bool usedFallback)
+    {
+        usedFallback = false;
+        if (!string.IsNullOrWhiteSpace(member.equippedHullId))
+        {
+            var hull = ships.FindHull(member.equippedHullId);
+            if (hull?.hullId != null)
+            {
+                return hull;
+            }
+        }
+
+        foreach (var fallbackId in new[] { "hull_frigate_pineapple", "hull_frigate_shortlegwolf" })
+        {
+            var hull = ships.FindHull(fallbackId);
+            if (hull?.hullId != null)
+            {
+                usedFallback = true;
+                return hull;
+            }
+        }
+
+        foreach (var hull in ships.AllHulls())
+        {
+            if (hull.hullId != null)
+            {
+                usedFallback = true;
+                return hull;
+            }
+        }
+
+        return null;
+    }
+
+    private static void SetInitialActiveBattlefield(GameState state)
+    {
+        foreach (var legion in state.legions)
+        {
+            if (!legion.isLocal || legion.legionId == null)
+            {
+                continue;
+            }
+
+            var fortressRegion = FindLegionFortressRegion(state, legion.legionId);
+            if (fortressRegion == null)
+            {
+                break;
+            }
+
+            foreach (var bf in state.battlefields)
+            {
+                if (fortressRegion.Equals(bf.eventRegionId, StringComparison.Ordinal))
+                {
+                    state.activeBattlefieldId = bf.battlefieldId;
+                    return;
+                }
+            }
+
+            break;
+        }
+
+        foreach (var bf in state.battlefields)
+        {
+            if (VisionGate.CountFriendlyPresence(state, bf) > 0)
+            {
+                state.activeBattlefieldId = bf.battlefieldId;
+                return;
+            }
+        }
+
+        if (state.battlefields.Count > 0)
+        {
+            state.activeBattlefieldId = state.battlefields[0].battlefieldId;
         }
     }
 

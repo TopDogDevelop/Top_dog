@@ -84,6 +84,34 @@ public static class MemberRosterSort
         return string.Compare(a.memberId, b.memberId, StringComparison.Ordinal);
     }
 
+    /// <summary>按团员编号（memberId）升序；UI 名册/图鉴用，不展示编号本身。</summary>
+    public static List<MemberState> OrderByMemberCode(IReadOnlyList<MemberState> members)
+    {
+        var list = new List<MemberState>(members);
+        list.Sort(CompareByMemberCode);
+        return list;
+    }
+
+    public static int CompareByMemberCode(MemberState? a, MemberState? b)
+    {
+        if (ReferenceEquals(a, b))
+        {
+            return 0;
+        }
+
+        if (a == null)
+        {
+            return 1;
+        }
+
+        if (b == null)
+        {
+            return -1;
+        }
+
+        return string.Compare(a.memberId, b.memberId, StringComparison.Ordinal);
+    }
+
     public static List<IndexEntry> BuildIndex(IReadOnlyList<MemberState> sorted)
     {
         // l1ketocoode345

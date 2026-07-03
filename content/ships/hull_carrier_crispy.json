@@ -9,6 +9,8 @@
   "baseSpeedMps": 100,
   "baseAccelMps2": 20,
   "transitSpeedLyPerHour": 1.0,
+  "warpSpeedAups": 5.0,
+  "launchTubeSlotSize": "LARGE",
   "warpScramResist": 1,
   "attackSlots": 0,
   "functionSlots": 4,

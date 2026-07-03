@@ -68,5 +68,6 @@ public static class SkirmishLobbyBootstrap
         state.operationTimeRemainingSec = 0f;
         state.flags["skirmish.scale"] = lobby.scale.ToString();
         LegionPlayerRegistry.EnsureFromLegions(state);
+        SkirmishDisplayNames.SyncSkirmishLabels(state);
     }
 }

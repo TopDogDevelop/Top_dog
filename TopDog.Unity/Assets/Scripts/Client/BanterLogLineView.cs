@@ -1,12 +1,13 @@
 using TopDog.Content;
 using TopDog.Content.Banter;
+using TopDog.Sim.Banter;
 using TopDog.Sim.State;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace TopDog.Client;
 
-/// <summary>单行伴聊富文本：游戏内名 + #色 /表情 正文。</summary>
+/// <summary>单行伴聊富文本：标准格式「名字：正文」（#色 /表情）。</summary>
 public static class BanterLogLineView
 {
     public static VisualElement Build(GameState state, CompanionLogEntry entry)
@@ -15,16 +16,13 @@ public static class BanterLogLineView
         row.AddToClassList("banter-log-line");
 
         var speaker = DisplayLabels.ResolveBanterSpeakerName(state, entry.memberId);
-        var speakerLabel = new Label(speaker + "：");
+        var speakerLabel = new Label(speaker + BanterCompanionOutput.SpeakerBodySeparator);
         speakerLabel.AddToClassList("banter-speaker");
         speakerLabel.AddToClassList("ops-event-feed");
         row.Add(speakerLabel);
 
         var body = new VisualElement();
         body.AddToClassList("banter-log-body");
-        body.style.flexDirection = FlexDirection.Row;
-        body.style.flexWrap = Wrap.Wrap;
-        row.Add(body);
 
         var parsed = BanterInlineMarkupParser.Parse(entry.text);
         var color = BanterStyleCatalog.ResolveColorHex(parsed.ColorId);
@@ -53,6 +51,7 @@ public static class BanterLogLineView
             body.Add(textLabel);
         }
 
+        row.Add(body);
         return row;
     }
 

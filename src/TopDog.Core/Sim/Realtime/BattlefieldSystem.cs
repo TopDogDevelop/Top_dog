@@ -127,6 +127,7 @@ public static class BattlefieldSystem
         foreach (var u in bf.units)
         {
             if (u.IsDestroyed() || !u.Arrived(bf.timeSec) || u.inTacticalWarp
+                || u.warpPhase == TacticalWarpPhase.PrepareInitiate
                 || BattlefieldSceneProxyService.IsSceneProxy(u))
             {
                 continue;

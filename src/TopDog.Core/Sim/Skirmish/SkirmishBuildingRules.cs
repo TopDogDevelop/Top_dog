@@ -80,7 +80,9 @@ public static class SkirmishBuildingRules
         {
             unitId = "bld-" + building.buildingId,
             buildingId = building.buildingId,
-            displayName = building.displayName ?? building.buildingId,
+            displayName = IsSkirmish(state)
+                ? SkirmishDisplayNames.FormatBuildingDisplayName(state, building)
+                : building.displayName ?? building.buildingId,
             tonnageClass = "BUILDING",
             side = isFriendly ? UnitSide.FRIENDLY : UnitSide.ENEMY,
             isBuilding = true,

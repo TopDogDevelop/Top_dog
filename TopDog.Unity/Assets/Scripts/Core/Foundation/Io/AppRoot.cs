@@ -74,6 +74,9 @@ public static class AppRoot
 
     public static string BanterDir() => Path.Combine(Find(), "content", "banter");
 
+    public static string MemberPortraitTemplatesDir() =>
+        Path.Combine(Find(), "content", "member_portrait_templates");
+
     public static string MapsDir() => Path.Combine(Find(), "maps");
 
     private static bool HasContentMap(string root) =>

@@ -291,6 +291,7 @@ public static class FleetOrderService
             u.orbitRadiusM = 0f;
             u.orbitPhase = 0f;
             u.approachHeadingTimerSec = 0f;
+            TacticalWarpService.CancelWarpPrep(u);
             u.throttleOn = false;
             u.vx = 0f;
             u.vy = 0f;
@@ -529,19 +530,19 @@ public static class FleetOrderService
         var target = TacticalWarpService.FindBattlefield(state, targetBattlefieldId);
         if (target == null || target.finished)
         {
-            return FormatOrderAck(0, "跃迁");
+            return "目标战场无效或已结束";
         }
 
         if (target.battlefieldId != null
             && target.battlefieldId.Equals(bf.battlefieldId, StringComparison.Ordinal))
         {
-            return FormatOrderAck(0, "跃迁");
+            return "目标已是当前战场";
         }
 
         if (bf.systemId != null && target.systemId != null
             && !bf.systemId.Equals(target.systemId, StringComparison.Ordinal))
         {
-            return FormatOrderAck(0, "跃迁");
+            return "跨星系须使用跳桥，无法跃迁";
         }
 
         if (landingKm.HasValue)
@@ -551,6 +552,7 @@ public static class FleetOrderService
         }
 
         var count = 0;
+        string? lastWarpError = null;
         foreach (var u in ResolveCommandTargets(bf, allFriendly ? null : selectedFriendlyUnitIds))
         {
             if (!allFriendly && state.possessingMemberId != null
@@ -565,14 +567,12 @@ public static class FleetOrderService
                 continue;
             }
 
-            PrepareUnitForWarp(u);
-
             var unitLanding = landingKm.HasValue
                 ? TacticalRangeScale.KmToMeters(landingKm.Value)
                 : u.warpLandingDistM >= TacticalWarpLandingService.MinLandingDistM
                     ? u.warpLandingDistM
                     : TacticalWarpLandingService.ResolveLandingDistM(state);
-            var err = TacticalWarpService.TryBeginWarp(
+            var err = TacticalWarpService.TryOrderWarp(
                 state,
                 u,
                 bf,
@@ -583,34 +583,18 @@ public static class FleetOrderService
             {
                 count++;
             }
+            else
+            {
+                lastWarpError ??= err;
+            }
         }
 
-        return FormatOrderAck(count, "跃迁");
-    }
-
-    private static void PrepareUnitForWarp(BattlefieldUnit u)
-    {
-        if (TacticalWarpInitiateRules.PassesForwardSpeedCheck(u))
+        if (count > 0)
         {
-            return;
+            return FormatOrderAck(count, "跃迁");
         }
 
-        var effectiveMax = TacticalWarpInitiateRules.EffectiveMaxSpeedMps(u);
-        if (effectiveMax <= TacticalWarpInitiateRules.ImmobileMaxSpeedThresholdMps)
-        {
-            u.vx = 0f;
-            u.vy = 0f;
-            u.vz = 0f;
-            u.throttleOn = false;
-            return;
-        }
-
-        var (hx, hy, hz) = ShipMotionIntegrator.HeadingToUnitVector(u.facingRad, u.pitchRad);
-        var targetForward = TacticalWarpInitiateRules.MinForwardSpeedFraction * effectiveMax;
-        u.vx = hx * targetForward;
-        u.vy = hy * targetForward;
-        u.vz = hz * targetForward;
-        u.throttleOn = false;
+        return lastWarpError ?? FormatOrderAck(0, "跃迁");
     }
 
     public static string OrderEnterBuilding(

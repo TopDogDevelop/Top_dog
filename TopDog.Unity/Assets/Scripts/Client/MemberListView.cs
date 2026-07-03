@@ -50,8 +50,9 @@ public static class MemberListView
     {
         container.Clear();
         var roster = string.IsNullOrWhiteSpace(options.LocalLegionId)
-            ? MemberRosterSort.Order(state.members)
-            : MemberRosterSort.RosterForLegion(state, options.LocalLegionId);
+            ? MemberRosterSort.OrderByMemberCode(state.members)
+            : MemberRosterSort.OrderByMemberCode(
+                MemberRosterSort.RosterForLegion(state, options.LocalLegionId));
         if (roster.Count == 0)
         {
             container.Add(MakeEmptyLabel(options.Style));
@@ -158,6 +159,10 @@ public static class MemberListView
         }
         ApplyCodexSelected(row, selected);
 
+        var portrait = MemberPortraitView.Create(member, 56f, presentation: MemberPortraitView.PortraitPresentation.Compact);
+        portrait.style.marginRight = 8;
+        row.Add(portrait);
+
         var realName = MemberRosterSort.RealPersonName(member);
         var line1 = MemberDisplayName(member) + " · " + DisplayRarity(member);
         if (MemberRosterSort.HasLabels(member))
@@ -231,6 +236,10 @@ public static class MemberListView
             mark.pickingMode = PickingMode.Ignore;
             card.Add(mark);
         }
+
+        var portrait = MemberPortraitView.Create(member, 40f, index);
+        portrait.style.marginRight = 6;
+        card.Add(portrait);
 
         var body = new VisualElement();
         body.AddToClassList("ops-member-card-body");

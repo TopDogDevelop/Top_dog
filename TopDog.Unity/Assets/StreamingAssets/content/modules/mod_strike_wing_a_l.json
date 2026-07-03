@@ -1,0 +1,9 @@
+{
+  "moduleId": "mod_strike_wing_a_l",
+  "displayName": "攻击编队 A",
+  "displayNameEn": "Strike Wing A",
+  "slotCategory": "LAUNCH_TUBE",
+  "moduleKind": "strike_wing",
+  "moduleSize": "LARGE",
+  "starCoinValue": 1200
+}

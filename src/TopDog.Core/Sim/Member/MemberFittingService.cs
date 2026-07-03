@@ -107,6 +107,16 @@ public static class MemberFittingService
         return null;
     }
 
+    public static string SlotCategoryLabel(string slotKey) => SlotCategory(slotKey) switch
+    {
+        "ATTACK" => "攻击",
+        "FUNCTION" => "功能",
+        "LAUNCH_TUBE" => "发射管",
+        "DEFENSE" => "防御",
+        "PASSIVE" => "被动增益",
+        _ => SlotCategory(slotKey) ?? slotKey,
+    };
+
     public static bool ModuleCategoryFitsSlot(string slotKey, ModuleDef mod)
     {
         if (mod.slotCategory == null)

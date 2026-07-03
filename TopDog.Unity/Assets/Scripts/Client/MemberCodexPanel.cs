@@ -96,7 +96,8 @@ public static class MemberCodexPanel
         {
             return;
         }
-        var roster = MemberRosterSort.RosterForLegion(state, localLegionId);
+        var roster = MemberRosterSort.OrderByMemberCode(
+            MemberRosterSort.RosterForLegion(state, localLegionId));
         _selectedKey = roster.Count > 0 ? MemberSelectionKeys.For(roster[0]) : null;
         // liketocoode34e
         _bioExpanded = false;
@@ -110,6 +111,10 @@ public static class MemberCodexPanel
         Action refreshPanel)
     {
         col.Add(MakeCaption(MemberDisplayName(m)));
+        var portraitRow = MemberPortraitView.Create(m, 136f, presentation: MemberPortraitView.PortraitPresentation.Codex);
+        portraitRow.style.marginBottom = 10;
+        portraitRow.style.alignSelf = Align.Center;
+        col.Add(portraitRow);
         if (!string.IsNullOrEmpty(m.accountName))
         {
             col.Add(MakeBody(m.accountName));

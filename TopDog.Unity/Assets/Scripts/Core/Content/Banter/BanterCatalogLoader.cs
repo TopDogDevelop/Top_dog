@@ -22,6 +22,7 @@ public static class BanterCatalogLoader
         LoadReactive(Path.Combine(dir, "reactive_personal.csv"), catalog.ReactivePersonal, personal: true);
         LoadIdle(Path.Combine(dir, "idle_common.csv"), catalog.IdleCommon, personal: false);
         LoadIdle(Path.Combine(dir, "idle_personal.csv"), catalog.IdlePersonal, personal: true);
+        LoadIdle(Path.Combine(dir, "idle_scripts.csv"), catalog.IdleCommon, personal: false);
         BuildIdleGroups(catalog);
         return catalog;
     }

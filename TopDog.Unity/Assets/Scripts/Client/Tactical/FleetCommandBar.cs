@@ -118,7 +118,25 @@ public sealed class FleetCommandBar
         var sel = TacticalSelectionState.SelectedTargetUnitId;
         if (!FleetOrderService.TryResolveWarpTargetScene(bf, sel, out var systemId, out var eventRegionId))
         {
-            return "0 艘执行跃迁";
+            foreach (var u in bf.units)
+            {
+                if (!BattlefieldSceneProxyService.IsSceneProxy(u) || u.unitId == null)
+                {
+                    continue;
+                }
+
+                if (FleetOrderService.TryResolveWarpTargetScene(bf, u.unitId, out systemId, out eventRegionId))
+                {
+                    sel = u.unitId;
+                    TacticalSelectionState.SetSelectedTarget(sel);
+                    break;
+                }
+            }
+
+            if (sel == null || !FleetOrderService.TryResolveWarpTargetScene(bf, sel, out systemId, out eventRegionId))
+            {
+                return "请先选中「其他场景」跃迁目标（屏外标记或右栏「其他场景」）";
+            }
         }
 
         var c = _core();

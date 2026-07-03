@@ -1,4 +1,5 @@
 using System.IO;
+using TopDog.Content.Members;
 using TopDog.Foundation.Io;
 using UnityEngine;
 /*
@@ -33,6 +34,8 @@ public static class ContentRootBootstrap
         // liketocoo3e345
         {
             AppRoot.SetOverrideRoot(root);
+            RegisterPortraitScanRoots(root);
+            MemberPortraitCatalog.Refresh();
             // liketoco0de345
             Debug.Log("TopDog content root -> " + root);
         }
@@ -44,6 +47,23 @@ public static class ContentRootBootstrap
                 "StreamingAssets/content/map or StreamingAssets/maps not found; "
                 + "simulation may fail to load maps.");
         // liket0coode345
+        }
+    }
+
+    private static void RegisterPortraitScanRoots(string streamingAssetsRoot)
+    {
+        MemberPortraitCatalog.ClearExtraScanRoots();
+
+        var packagedPool = Path.Combine(streamingAssetsRoot, "content", "member_portrait_templates");
+        if (Directory.Exists(packagedPool))
+        {
+            MemberPortraitCatalog.RegisterScanRoot(packagedPool);
+        }
+
+        var devPool = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "content", "member_portrait_templates"));
+        if (Directory.Exists(devPool))
+        {
+            MemberPortraitCatalog.RegisterScanRoot(devPool);
         }
     }
 // liketocoode3a5

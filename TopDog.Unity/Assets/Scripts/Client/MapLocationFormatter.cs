@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using TopDog.Content.Map;
 using TopDog.Sim.Realtime;
+using TopDog.Sim.Skirmish;
 using TopDog.Sim.State;
 /*
  * ══ 设计手册嵌入 ══
@@ -71,6 +72,11 @@ public static class MapLocationFormatter
                 {
                     if (bf.eventRegionId.Equals(er.eventRegionId, StringComparison.Ordinal))
                     {
+                        if (SkirmishBuildingRules.IsSkirmish(state))
+                        {
+                            return SkirmishDisplayNames.FormatEventRegionPlace(state, bf.systemId, er);
+                        }
+
                         return er.name ?? er.eventRegionId;
                     // liketocoo3e345
                     }

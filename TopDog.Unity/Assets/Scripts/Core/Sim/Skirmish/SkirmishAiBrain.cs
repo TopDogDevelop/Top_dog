@@ -579,9 +579,7 @@ public static class SkirmishAiBrain
 
                 var hull = u.hullId != null ? ShipRegistry.LoadDefault().FindHull(u.hullId) : null;
 
-                ShipMotionIntegrator.SnapHeadingToward(u, targetBf.anchorAu[0], targetBf.anchorAu[1], targetBf.anchorAu[2]);
-
-                TacticalWarpService.TryBeginWarp(state, u, sourceBf, targetBf, hull, landingM);
+                TacticalWarpService.TryOrderWarp(state, u, sourceBf, targetBf, hull, landingM);
 
             }
 

@@ -45,4 +45,23 @@ foreach ($pattern in $traitPatterns) {
         Copy-Item -Destination $traitDst -Force
 }
 
+$portraitSrc = Join-Path $Src "member_portrait_templates"
+$portraitDst = Join-Path $Dst "member_portrait_templates"
+if (Test-Path $portraitSrc) {
+    New-Item -ItemType Directory -Force -Path $portraitDst | Out-Null
+    Get-ChildItem -Path $portraitSrc -Recurse -File | ForEach-Object {
+        $rel = $_.FullName.Substring($portraitSrc.Length).TrimStart([char[]]@('\', '/'))
+        $dest = Join-Path $portraitDst $rel
+        $destDir = Split-Path $dest -Parent
+        if (-not (Test-Path $destDir)) {
+            New-Item -ItemType Directory -Force -Path $destDir | Out-Null
+        }
+        Copy-Item -Force $_.FullName $dest
+    }
+    $imgCount = (Get-ChildItem $portraitDst -Recurse -File | Where-Object {
+        $_.Extension -match '^\.(png|jpg|jpeg|webp|bmp|tga)$'
+    }).Count
+    Write-Host "member_portrait_templates -> StreamingAssets ($imgCount images, recursive)"
+}
+
 Write-Host "Unity template overlay done."

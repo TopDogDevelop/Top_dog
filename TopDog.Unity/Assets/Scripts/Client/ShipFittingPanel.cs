@@ -262,7 +262,7 @@ public static class ShipFittingPanel
             .Replace("{used}", usedOvers.ToString(), StringComparison.Ordinal)
             .Replace("{max}", maxOvers.ToString(), StringComparison.Ordinal);
         modulePickerRoot.Add(MakeBody(
-            $"槽档 {ModuleSize.DisplayTag(slotSize)} · {MemberFittingService.SlotCategory(slotKey)}\n{oversRule}"));
+            $"槽档 {ModuleSize.DisplayTag(slotSize)} · {MemberFittingService.SlotCategoryLabel(slotKey)}\n{oversRule}"));
         if (slotKey.StartsWith("pas_", StringComparison.Ordinal))
         {
             modulePickerRoot.Add(MakeBody("增益槽仅可装增益插件（plug_ / stat_plugin）"));
@@ -412,7 +412,8 @@ public static class ShipFittingPanel
             return "";
         }
         var sb = new StringBuilder();
-        sb.AppendLine($"槽位 攻{hull.attackSlots} 功{hull.functionSlots} 防{hull.defenseSlots} 增{hull.passiveSlots} 管{hull.launchTubeSlots} · 默认档 {ModuleSize.DisplayTag(hull.defaultSlotSize).Trim('[', ']')}");
+        sb.AppendLine(
+            $"槽位 攻{hull.attackSlots} 功{hull.functionSlots} 管{hull.launchTubeSlots} 防{hull.defenseSlots} 增{hull.passiveSlots} · 默认档 {ModuleSize.DisplayTag(hull.defaultSlotSize).Trim('[', ']')}");
         var bonus = HullBonusSummary.Describe(hull);
         if (!string.IsNullOrWhiteSpace(bonus))
         {

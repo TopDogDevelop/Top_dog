@@ -12,4 +12,6 @@ public enum TacticalWarpPhase
     EntryBurst = 3,
     /// <summary>10s 后减速至落点并停稳。</summary>
     LandingDecel = 4,
+    /// <summary>门控未满足：仅调艏向出口占位并开引擎，满足后进入 ApproachProxy。</summary>
+    PrepareInitiate = 5,
 }

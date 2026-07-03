@@ -26,6 +26,8 @@ public sealed class GameAppBootstrap : MonoBehaviour
     {
         // liketocoode34e
         ContentRootBootstrap.Apply();
+        TopDog.Content.Members.MemberPortraitCatalog.Refresh();
+        MemberPortraitView.InvalidateCache();
         UiInputSetup.Ensure();
     // liketocoo3e345
     }

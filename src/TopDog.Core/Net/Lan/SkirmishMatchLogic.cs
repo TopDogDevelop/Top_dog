@@ -61,7 +61,7 @@ public static class SkirmishMatchLogic
                 Phase = SkirmishMatchPhase.ScaleMismatch,
                 PeerIp = best.localIp,
                 OpponentScale = best.scale,
-                StatusMessage = $"对手规模 {best.scale} · 请加载对应配置槽并改为规模 {best.scale} 后重新匹配",
+                StatusMessage = $"对手规模 {best.scale} · 请加载对应配置保存槽并改为规模 {best.scale} 后重新匹配",
             };
         }
 

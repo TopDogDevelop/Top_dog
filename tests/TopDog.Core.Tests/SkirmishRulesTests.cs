@@ -1,5 +1,6 @@
 using TopDog.Content.Modules;
 using TopDog.Content.Ships;
+using TopDog.Lobby;
 using TopDog.Sim.Building;
 using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
@@ -220,6 +221,46 @@ public sealed class SkirmishAiBrainTests
     }
 }
 
+[TestFixture]
+public sealed class SkirmishDisplayNamesTests
+{
+    [Test]
+    public void SyncSkirmishLabels_LocalLegionGetsFriendlyPrefix()
+    {
+        var lobby = new TopDog.Lobby.SkirmishLobbyState { scale = 10, seed = 1 };
+        var human = new TopDog.Lobby.LobbyPlayer { local = true, displayName = "P" };
+        var ai = new TopDog.Lobby.LobbyPlayer { kind = TopDog.Lobby.LobbyPlayerKind.AI, displayName = "AI" };
+        lobby.players.Add(human);
+        lobby.players.Add(ai);
+
+        var state = new GameState();
+        TopDog.App.SkirmishLobbyBootstrap.ApplyToState(state, lobby);
+
+        var localFort = state.buildings.Find(b =>
+            b.legionId == human.playerId
+            && string.Equals(b.buildingType, BuildingService.LegionFortress, StringComparison.Ordinal));
+        var enemyFort = state.buildings.Find(b =>
+            b.legionId == ai.playerId
+            && string.Equals(b.buildingType, BuildingService.LegionFortress, StringComparison.Ordinal));
+
+        Assert.That(localFort?.displayName, Is.EqualTo("己方军堡"));
+        Assert.That(enemyFort?.displayName, Is.EqualTo("敌方军堡"));
+    }
+}
+
+[TestFixture]
+public sealed class SkirmishLobbyCatalogTests
+{
+    [Test]
+    public void AllModuleIds_IncludesLegacyStrikeWingInventory()
+    {
+        var modules = ModuleRegistry.LoadDefault();
+        var ids = SkirmishLobbyCatalog.AllModuleIds(modules);
+        Assert.That(ids, Does.Contain("strike_wing_a"));
+        Assert.That(ids, Does.Contain("mod_strike_wing_a_l"));
+    }
+}
+
 internal static class SkirmishTestHelper
 {
     public static GameState NewSkirmishState()
@@ -232,5 +273,41 @@ internal static class SkirmishTestHelper
         state.legions.Add(new LegionState { legionId = "legion_a", isLocal = true });
         state.legions.Add(new LegionState { legionId = "legion_b" });
         return state;
+    }
+}
+
+[TestFixture]
+public sealed class SkirmishSpawnServiceTests
+{
+    [Test]
+    public void BootstrapBattlefields_FallsBackWhenHullIdMissingFromRegistry()
+    {
+        var lobby = new TopDog.Lobby.SkirmishLobbyState { scale = 10, seed = 42 };
+        var human = new TopDog.Lobby.LobbyPlayer { local = true, displayName = "P" };
+        var ai = new TopDog.Lobby.LobbyPlayer { kind = TopDog.Lobby.LobbyPlayerKind.AI, displayName = "AI" };
+        lobby.players.Add(human);
+        lobby.players.Add(ai);
+        lobby.rosterByPlayerId[human.playerId] = new List<TopDog.Lobby.SkirmishRosterSlot>
+        {
+            new()
+            {
+                memberId = "m1",
+                displayName = "Pilot",
+                hullId = "hull_does_not_exist",
+            },
+        };
+
+        var state = new GameState();
+        TopDog.App.SkirmishLobbyBootstrap.ApplyToState(state, lobby);
+        var ships = ShipRegistry.LoadDefault();
+        var modules = ModuleRegistry.LoadDefault();
+        SkirmishSpawnService.BootstrapBattlefields(state, ships, modules, new Random(1));
+
+        var localLegionId = human.playerId;
+        var localBf = state.battlefields.Find(b =>
+            b.units.Exists(u => u.memberId == "m1" && u.legionId == localLegionId));
+        Assert.That(localBf, Is.Not.Null, "expected fallback hull spawn at local legion fortress");
+        Assert.That(state.activeBattlefieldId, Is.EqualTo(localBf!.battlefieldId));
+        Assert.That(TopDog.Sim.Vision.VisionGate.ListRailBattlefields(state), Has.Count.GreaterThan(1));
     }
 }

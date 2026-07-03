@@ -98,7 +98,7 @@ public static class VisionGate
     public static List<BattlefieldState> ListRailBattlefields(GameState state)
     {
         var list = new List<BattlefieldState>();
-        if (state.spectatorFullVision || state.spectatorMode)
+        if (state.spectatorFullVision || state.spectatorMode || state.worldline.type == WorldlineType.LEGION_SKIRMISH)
         {
             foreach (var bf in state.battlefields)
             {

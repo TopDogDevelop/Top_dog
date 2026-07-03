@@ -64,7 +64,8 @@ public static class TacticalWarpService
         bool requireProxy = false,
         ModuleRegistry? modules = null)
     {
-        if (unit.inTacticalWarp || unit.pinnedToBattlefield || unit.IsDestroyed())
+        if (unit.inTacticalWarp || unit.warpPhase == TacticalWarpPhase.PrepareInitiate
+            || unit.pinnedToBattlefield || unit.IsDestroyed())
         {
             return false;
         }
@@ -89,8 +90,78 @@ public static class TacticalWarpService
         BattlefieldState fromBf,
         BattlefieldState toBf,
         HullDef? hull,
-        float landingDistM)
+        float landingDistM) =>
+        TryOrderWarp(state, unit, fromBf, toBf, hull, landingDistM, autoPrepare: false);
+
+    /// <summary>
+    /// 下达跃迁：门控已满足则立即进入 ApproachProxy；艏向/航速未满足则进入 PrepareInitiate（仅调艏+开引擎）。
+    /// </summary>
+    public static string? TryOrderWarp(
+        GameState state,
+        BattlefieldUnit unit,
+        BattlefieldState fromBf,
+        BattlefieldState toBf,
+        HullDef? hull,
+        float landingDistM,
+        bool autoPrepare = true)
     {
+        var err = ValidateWarpRequest(state, fromBf, toBf, out var px, out var py, out var pz);
+        if (err != null)
+        {
+            return err;
+        }
+
+        if (unit.inTacticalWarp && unit.warpPhase != TacticalWarpPhase.PrepareInitiate)
+        {
+            return "已在跃迁中";
+        }
+
+        if (unit.pinnedToBattlefield || unit.IsDestroyed())
+        {
+            return "当前无法跃迁";
+        }
+
+        var fail = TacticalWarpInitiateRules.Evaluate(state, fromBf, unit, hull, px, py, pz);
+        if (fail is TacticalWarpInitiateRules.FailReason.Heading or TacticalWarpInitiateRules.FailReason.ForwardSpeed)
+        {
+            if (!autoPrepare)
+            {
+                return TacticalWarpInitiateRules.MessageFor(fail);
+            }
+
+            QueuePrepareInitiate(unit, fromBf, toBf, hull, px, py, pz, landingDistM);
+            return null;
+        }
+
+        if (fail != TacticalWarpInitiateRules.FailReason.None)
+        {
+            return TacticalWarpInitiateRules.MessageFor(fail);
+        }
+
+        BeginWarpAfterGate(unit, fromBf, toBf, hull, px, py, pz, landingDistM);
+        return null;
+    }
+
+    /// <summary>取消 PrepareInitiate（停船等指令调用）。</summary>
+    public static void CancelWarpPrep(BattlefieldUnit unit)
+    {
+        if (unit.warpPhase != TacticalWarpPhase.PrepareInitiate)
+        {
+            return;
+        }
+
+        CompleteWarp(unit);
+    }
+
+    private static string? ValidateWarpRequest(
+        GameState state,
+        BattlefieldState fromBf,
+        BattlefieldState toBf,
+        out float px,
+        out float py,
+        out float pz)
+    {
+        px = py = pz = 0f;
         if (toBf.battlefieldId == null || fromBf.battlefieldId == null)
         {
             return "目标战场无效";
@@ -113,17 +184,51 @@ public static class TacticalWarpService
         }
 
         if (!BattlefieldSceneProxyService.TryResolveProxyPosition(
-                state, fromBf, toBf.systemId, toBf.eventRegionId, out var px, out var py, out var pz))
+                state, fromBf, toBf.systemId, toBf.eventRegionId, out px, out py, out pz))
         {
             return "找不到出口占位";
         }
 
-        var fail = TacticalWarpInitiateRules.Evaluate(state, fromBf, unit, hull, px, py, pz);
-        if (fail != TacticalWarpInitiateRules.FailReason.None)
-        {
-            return TacticalWarpInitiateRules.MessageFor(fail);
-        }
+        return null;
+    }
 
+    private static void QueuePrepareInitiate(
+        BattlefieldUnit unit,
+        BattlefieldState fromBf,
+        BattlefieldState toBf,
+        HullDef? hull,
+        float px,
+        float py,
+        float pz,
+        float landingDistM)
+    {
+        unit.inTacticalWarp = false;
+        unit.warpPhase = TacticalWarpPhase.PrepareInitiate;
+        unit.warpTargetBfId = toBf.battlefieldId;
+        unit.warpFromBfId = fromBf.battlefieldId;
+        unit.warpEtaSec = DistanceAu(fromBf, toBf) / ResolveWarpSpeedAups(hull);
+        unit.warpPhaseTimerSec = 0f;
+        unit.warpProxyX = px;
+        unit.warpProxyY = py;
+        unit.warpProxyZ = pz;
+        unit.warpLandingDistM = TacticalWarpLandingService.ClampLandingDistM(landingDistM);
+        unit.aiOrder = UnitAiOrder.WARP;
+        unit.targetUnitId = null;
+        unit.explicitFocus = false;
+        unit.approachTargetUnitId = null;
+        unit.orbitTargetUnitId = null;
+    }
+
+    private static void BeginWarpAfterGate(
+        BattlefieldUnit unit,
+        BattlefieldState fromBf,
+        BattlefieldState toBf,
+        HullDef? hull,
+        float px,
+        float py,
+        float pz,
+        float landingDistM)
+    {
         var transitSec = DistanceAu(fromBf, toBf) / ResolveWarpSpeedAups(hull);
         unit.inTacticalWarp = true;
         unit.warpPhase = TacticalWarpPhase.ApproachProxy;
@@ -141,7 +246,6 @@ public static class TacticalWarpService
         unit.explicitFocus = false;
         unit.approachTargetUnitId = null;
         unit.orbitTargetUnitId = null;
-        return null;
     }
 
     public static void Tick(GameState state, BattlefieldState bf, float dtSec)
@@ -185,6 +289,9 @@ public static class TacticalWarpService
 
             switch (u.warpPhase)
             {
+                case TacticalWarpPhase.PrepareInitiate:
+                    TickPrepareInitiate(state, bf, u, dtSec);
+                    break;
                 case TacticalWarpPhase.ApproachProxy:
                     TickApproachProxy(state, bf, u, dtSec, i);
                     break;
@@ -196,6 +303,66 @@ public static class TacticalWarpService
                     break;
             }
         }
+    }
+
+    private static void TickPrepareInitiate(
+        GameState state,
+        BattlefieldState bf,
+        BattlefieldUnit u,
+        float dtSec)
+    {
+        if (u.warpTargetBfId == null)
+        {
+            CompleteWarp(u);
+            return;
+        }
+
+        var toBf = FindBattlefield(state, u.warpTargetBfId);
+        if (toBf == null || toBf.finished)
+        {
+            CompleteWarp(u);
+            return;
+        }
+
+        var hull = u.hullId != null ? ShipRegistry.LoadDefault().FindHull(u.hullId) : null;
+        var hullResist = TacticalWarpInitiateRules.ResolveWarpScramResist(u, hull);
+        if (TacticalWarpDisruptionService.IsWarpScrambled(bf, u, hullResist))
+        {
+            CancelWarp(u, "跃迁被扰断");
+            return;
+        }
+
+        u.throttleOn = true;
+        SteerTowardProxy(u, u.warpProxyX, u.warpProxyY, u.warpProxyZ, dtSec);
+        ShipMotionIntegrator.TickUnit(u, dtSec);
+
+        var fail = TacticalWarpInitiateRules.Evaluate(
+            state, bf, u, hull, u.warpProxyX, u.warpProxyY, u.warpProxyZ);
+        if (fail != TacticalWarpInitiateRules.FailReason.None)
+        {
+            return;
+        }
+
+        BeginWarpAfterGate(
+            u,
+            bf,
+            toBf,
+            hull,
+            u.warpProxyX,
+            u.warpProxyY,
+            u.warpProxyZ,
+            u.warpLandingDistM);
+    }
+
+    private static void SteerTowardProxy(BattlefieldUnit u, float tx, float ty, float tz, float dtSec)
+    {
+        var dx = tx - u.x;
+        var dy = ty - u.y;
+        var dz = tz - u.z;
+        var yaw = MathF.Atan2(dy, dx);
+        var horiz = MathF.Sqrt(dx * dx + dy * dy);
+        var pitch = horiz > 0.01f ? MathF.Atan2(dz, horiz) : 0f;
+        ShipMotionIntegrator.SteerToward(u, yaw, pitch, dtSec);
     }
 
     private static void TickApproachProxy(

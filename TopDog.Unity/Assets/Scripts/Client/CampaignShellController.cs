@@ -127,6 +127,7 @@ public sealed class CampaignShellController : UiScreenController
         _timerLabel = root.Q<Label>("lbl-timer");
         _dateLabel = root.Q<Label>("lbl-date");
         _eventFeedRoot = root.Q<VisualElement>("event-feed-root");
+        CompanionLogRail.BindScroll(root.Q<ScrollView>("event-scroll"), _eventFeedRoot);
         _toastLabel = root.Q<Label>("lbl-toast");
         _memberDetailScroll = root.Q<ScrollView>("member-detail-scroll");
         _dispatchHintLabel = root.Q<Label>("lbl-dispatch-hint");

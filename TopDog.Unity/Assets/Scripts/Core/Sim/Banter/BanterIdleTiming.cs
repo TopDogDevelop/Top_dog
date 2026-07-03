@@ -8,6 +8,8 @@ public static class BanterIdleTiming
     public const float RoundGapSec = 30f;
     public const float MessageBaseGapSec = 2f;
     public const float CharDelaySec = 0.2f;
+    /// <summary>多开跟读：各号分别输出同一句，号与号之间的间隔。</summary>
+    public const float MultiboxEchoGapSec = 0.4f;
 
     public static int CountTextChars(string? catalogText) =>
         BanterInlineMarkupParser.StripMarkupForValidation(catalogText).Length;

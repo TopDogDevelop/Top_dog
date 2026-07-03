@@ -14,6 +14,7 @@ using TopDog.Sim.Member;
 using TopDog.Sim.Order;
 using TopDog.Sim.Possession;
 using TopDog.Sim.Realtime;
+using TopDog.Sim.Banter;
 using TopDog.Sim.Exchange;
 using TopDog.Sim.State;
 using TopDog.Sim.Traits;
@@ -324,6 +325,9 @@ public sealed class SimulationCore
         }
         return sb.ToString();
     }
+
+    /// <summary>伴聊诊断（MEMBER_BANTER.md · 与战斗 telemetry 隔离）。</summary>
+    public string DumpBanterDebug() => BanterDiagnosticLog.DumpRecent(96);
 
     private MemberState? FindMember(string? memberIdOrName)
     {

@@ -9,6 +9,49 @@ namespace TopDog.Core.Tests;
 public sealed class TacticalWarpPseudoTests
 {
     [Test]
+    public void TryOrderWarp_QueuesPrepareInitiateWhenMisaligned()
+    {
+        var state = NewState();
+        var from = state.battlefields[0];
+        var to = state.battlefields[1];
+        var u = FriendlyShip("f1");
+        u.facingRad = (float)Math.PI;
+        from.units.Add(u);
+        BattlefieldSceneProxyService.SyncForBattlefield(state, from);
+
+        var err = TacticalWarpService.TryOrderWarp(state, u, from, to, null, 500_000f);
+        Assert.That(err, Is.Null);
+        Assert.That(u.warpPhase, Is.EqualTo(TacticalWarpPhase.PrepareInitiate));
+        Assert.That(u.inTacticalWarp, Is.False);
+    }
+
+    [Test]
+    public void PrepareInitiate_SteersAndThrottlesUntilWarpBegins()
+    {
+        var state = NewState();
+        var from = state.battlefields[0];
+        var to = state.battlefields[1];
+        var u = FriendlyShip("f1");
+        u.facingRad = (float)Math.PI;
+        u.x = 0f;
+        u.y = 0f;
+        from.units.Add(u);
+        BattlefieldSceneProxyService.SyncForBattlefield(state, from);
+
+        Assert.That(TacticalWarpService.TryOrderWarp(state, u, from, to, null, 250_000f), Is.Null);
+        Assert.That(u.warpPhase, Is.EqualTo(TacticalWarpPhase.PrepareInitiate));
+
+        for (var i = 0; i < 800 && u.warpPhase == TacticalWarpPhase.PrepareInitiate; i++)
+        {
+            TacticalWarpService.Tick(state, from, 0.05f);
+        }
+
+        Assert.That(u.warpPhase, Is.EqualTo(TacticalWarpPhase.ApproachProxy));
+        Assert.That(u.inTacticalWarp, Is.True);
+        Assert.That(u.throttleOn, Is.False);
+    }
+
+    [Test]
     public void TryBeginWarp_RejectsMisalignedHeading()
     {
         var state = NewState();

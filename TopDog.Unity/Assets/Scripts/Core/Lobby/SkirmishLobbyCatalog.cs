@@ -50,13 +50,28 @@ public static class SkirmishLobbyCatalog
 
     public static IReadOnlyList<string> AllModuleIds(ModuleRegistry modules)
     {
-        var ids = new List<string>(modules.All().Count);
+        var ids = new HashSet<string>(StringComparer.Ordinal);
         foreach (var kv in modules.All())
         {
             ids.Add(kv.Key);
         }
 
-        ids.Sort(StringComparer.Ordinal);
-        return ids;
+        foreach (var id in LegacyEquippableInventoryIds)
+        {
+            ids.Add(id);
+        }
+
+        var list = new List<string>(ids);
+        list.Sort(StringComparer.Ordinal);
+        return list;
     }
+
+    /// <summary>无 JSON 定义、仅靠 ModuleCatalog stub 的库存装备（舰载机/导弹等）。</summary>
+    public static readonly string[] LegacyEquippableInventoryIds =
+    {
+        "strike_wing_a",
+        "mod_strike_wing_a_l",
+        "mod_chaos_missile_l",
+        "chaos_missile_a",
+    };
 }

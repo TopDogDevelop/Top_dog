@@ -8,6 +8,15 @@ namespace TopDog.Tests;
 public sealed class VisionGateRailTests
 {
     [Test]
+    public void ListRailBattlefields_SkirmishListsAllUnfinishedBattlefields()
+    {
+        var state = DualBfState();
+        state.worldline.type = WorldlineType.LEGION_SKIRMISH;
+        var rail = VisionGate.ListRailBattlefields(state);
+        Assert.That(rail, Has.Count.EqualTo(2));
+    }
+
+    [Test]
     public void ListRailBattlefields_IncludesTransitDestinationWithoutOnFieldFriends()
     {
         var state = DualBfState();

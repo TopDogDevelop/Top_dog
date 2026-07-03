@@ -1,7 +1,5 @@
 using TopDog.Content.Banter;
-using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
-using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 
 namespace TopDog.Sim.Banter;
@@ -51,7 +49,6 @@ public sealed class MemberBanterService
             null,
             simTimeSec,
             allowMultiboxSync: true);
-        // 同步器多号复读视为一次发言，仅主发言人进入节流。
         state.banterReactiveCooldownSec[memberId] = ReactiveCooldownSec;
     }
 
@@ -68,72 +65,138 @@ public sealed class MemberBanterService
     private void TickIdle(GameState state, float simTimeSec)
     {
         var rt = state.banterRuntime!;
+        DrainIdleEmitQueue(state, rt, simTimeSec);
+
+        if (rt.idleEmitQueueIndex < rt.idleEmitQueue.Count)
+        {
+            rt.idleNextEmitSec = rt.idleEmitQueue[rt.idleEmitQueueIndex].EmitAtSec;
+            return;
+        }
+
+        if (rt.idleEmitQueue.Count > 0)
+        {
+            var lastAt = rt.idleEmitQueue[^1].EmitAtSec;
+            FinishIdleRoundSchedule(rt, lastAt + BanterIdleTiming.RoundGapSec);
+            return;
+        }
+
+        if (TryResumePrestartedIdleRound(state, rt, simTimeSec))
+        {
+            return;
+        }
+
         if (simTimeSec < rt.idleNextEmitSec)
         {
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(rt.idleGroupId) || rt.idleNextSeq > rt.idleGroupLineCount)
-        {
-            if (!TryStartIdleGroup(state, rt))
-            {
-                rt.idleNextEmitSec = simTimeSec + BanterIdleTiming.RoundGapSec;
-                return;
-            }
-        }
-
-        if (!_catalog.IdleGroups.TryGetValue(rt.idleGroupId!, out var lines) || lines.Count == 0)
-        {
-            rt.idleGroupId = null;
-            rt.idleNextEmitSec = simTimeSec + BanterIdleTiming.RoundGapSec;
-            return;
-        }
-
-        var line = lines.Find(l => l.Seq == rt.idleNextSeq);
-        if (line == null)
-        {
-            ResetIdleRound(rt);
-            rt.idleNextEmitSec = simTimeSec + BanterIdleTiming.RoundGapSec;
-            return;
-        }
-
-        var speakerId = ResolveIdleSpeaker(state, rt, line);
-        if (speakerId == null)
+        if (!TryStartIdleGroup(state, rt, simTimeSec))
         {
             rt.idleNextEmitSec = simTimeSec + BanterIdleTiming.RoundGapSec;
             return;
         }
 
-        var member = FindMember(state, speakerId);
-        var text = ResolveBanterText(state, speakerId, line.Text, idleRound: true, out var usedExclusive);
-        var speakerIds = EmitBanter(
-            state,
-            speakerId,
-            line.Text,
-            "idle",
-            null,
-            rt.idleGroupId,
-            simTimeSec,
-            allowMultiboxSync: string.IsNullOrWhiteSpace(line.SplitMsgId),
-            resolvedText: text);
-        if (usedExclusive && member != null)
+        PlanIdleRound(state, rt, simTimeSec);
+        DrainIdleEmitQueue(state, rt, simTimeSec);
+        if (rt.idleEmitQueueIndex < rt.idleEmitQueue.Count)
         {
-            rt.idleMandatoryLineSpokenIdentities.Add(IdentityCodes.Of(member));
+            rt.idleNextEmitSec = rt.idleEmitQueue[rt.idleEmitQueueIndex].EmitAtSec;
         }
-
-        rt.idleLastSpeakerMemberId = speakerIds[0];
-        rt.idleLastSplitMsgId = line.SplitMsgId;
-        rt.idleNextSeq++;
-
-        if (rt.idleNextSeq > rt.idleGroupLineCount)
+        else if (rt.idleEmitQueue.Count > 0)
         {
-            ResetIdleRound(rt);
-            rt.idleNextEmitSec = simTimeSec + BanterIdleTiming.RoundGapSec;
+            var lastAt = rt.idleEmitQueue[^1].EmitAtSec;
+            FinishIdleRoundSchedule(rt, lastAt + BanterIdleTiming.RoundGapSec);
         }
         else
         {
-            var nextLine = lines.Find(l => l.Seq == rt.idleNextSeq);
-            rt.idleNextEmitSec = simTimeSec + BanterIdleTiming.GapBeforeNextMessage(nextLine?.Text);
+            FinishIdleRoundSchedule(rt, simTimeSec + BanterIdleTiming.RoundGapSec);
+        }
+    }
+
+    private bool TryResumePrestartedIdleRound(GameState state, MemberBanterRuntimeState rt, float simTimeSec)
+    {
+        if (string.IsNullOrWhiteSpace(rt.idleGroupId)
+            || rt.idleEmitQueue.Count > 0
+            || rt.idleNextSeq > rt.idleGroupLineCount)
+        {
+            return false;
+        }
+
+        if (!_catalog.IdleGroups.TryGetValue(rt.idleGroupId, out var lines) || lines.Count == 0)
+        {
+            rt.idleGroupId = null;
+            return false;
+        }
+
+        PlanIdleRound(state, rt, simTimeSec);
+        DrainIdleEmitQueue(state, rt, simTimeSec);
+        if (rt.idleEmitQueueIndex < rt.idleEmitQueue.Count)
+        {
+            rt.idleNextEmitSec = rt.idleEmitQueue[rt.idleEmitQueueIndex].EmitAtSec;
+            return true;
+        }
+
+        if (rt.idleEmitQueue.Count > 0)
+        {
+            var lastAt = rt.idleEmitQueue[^1].EmitAtSec;
+            FinishIdleRoundSchedule(rt, lastAt + BanterIdleTiming.RoundGapSec);
+        }
+        else
+        {
+            FinishIdleRoundSchedule(rt, simTimeSec + BanterIdleTiming.RoundGapSec);
+        }
+
+        return true;
+    }
+
+    private static void FinishIdleRoundSchedule(MemberBanterRuntimeState rt, float nextRoundAtSec)
+    {
+        rt.idleGroupId = null;
+        rt.idleNextSeq = 1;
+        rt.idleEmitQueue.Clear();
+        rt.idleEmitQueueIndex = 0;
+        rt.idleNextEmitSec = nextRoundAtSec;
+    }
+
+    private void PlanIdleRound(GameState state, MemberBanterRuntimeState rt, float roundStartSec)
+    {
+        if (string.IsNullOrWhiteSpace(rt.idleGroupId)
+            || !_catalog.IdleGroups.TryGetValue(rt.idleGroupId, out var lines)
+            || lines.Count == 0)
+        {
+            rt.idleEmitQueue.Clear();
+            rt.idleEmitQueueIndex = 0;
+            return;
+        }
+
+        BanterDiagnosticLog.Log(
+            $"round-start group={rt.idleGroupId} lines={rt.idleGroupLineCount} t={roundStartSec:0.###}");
+        var roundRng = BanterRng.ForIdleRound(_rng, rt, roundStartSec);
+        rt.idleEmitQueue = BanterIdleRoundPlanner.Plan(
+            state,
+            rt,
+            lines,
+            rt.idleGroupId,
+            roundStartSec,
+            roundRng);
+        rt.idleEmitQueueIndex = 0;
+        rt.idleNextSeq = rt.idleGroupLineCount + 1;
+    }
+
+    private static void DrainIdleEmitQueue(GameState state, MemberBanterRuntimeState rt, float simTimeSec)
+    {
+        while (rt.idleEmitQueueIndex < rt.idleEmitQueue.Count
+               && simTimeSec >= rt.idleEmitQueue[rt.idleEmitQueueIndex].EmitAtSec)
+        {
+            var planned = rt.idleEmitQueue[rt.idleEmitQueueIndex++];
+            BanterCompanionOutput.EmitLine(
+                state,
+                planned.EmitAtSec,
+                planned.MemberId,
+                planned.Text,
+                planned.Channel,
+                planned.EventKey,
+                planned.GroupId);
         }
     }
 
@@ -144,10 +207,21 @@ public sealed class MemberBanterService
         rt.idleLastSpeakerMemberId = null;
         rt.idleLastSplitMsgId = null;
         rt.idleMandatoryLineSpokenIdentities.Clear();
+        rt.idleRosterSpeakerSlots.Clear();
+        rt.idleCastDrawOrder.Clear();
+        rt.idleScriptOptOutMemberIds.Clear();
+        rt.idleDynamicContext = null;
+        rt.idleEmitQueue.Clear();
+        rt.idleEmitQueueIndex = 0;
     }
 
-    private bool TryStartIdleGroup(GameState state, MemberBanterRuntimeState rt)
+    private bool TryStartIdleGroup(GameState state, MemberBanterRuntimeState rt, float simTimeSec)
     {
+        if (!string.IsNullOrWhiteSpace(rt.idleGroupId) && rt.idleNextSeq <= rt.idleGroupLineCount)
+        {
+            return false;
+        }
+
         var eligible = EligibleIdleGroups(state);
         if (eligible.Count == 0)
         {
@@ -155,12 +229,24 @@ public sealed class MemberBanterService
         }
 
         var pick = eligible[_rng.Next(eligible.Count)];
+        rt.banterRoundSalt++;
         rt.idleGroupId = pick;
         rt.idleNextSeq = 1;
         rt.idleGroupLineCount = _catalog.IdleGroups[pick].Count;
         rt.idleLastSpeakerMemberId = null;
         rt.idleLastSplitMsgId = null;
         rt.idleMandatoryLineSpokenIdentities.Clear();
+        rt.idleRosterSpeakerSlots.Clear();
+        rt.idleCastDrawOrder.Clear();
+        rt.idleScriptOptOutMemberIds.Clear();
+        rt.idleDynamicContext = null;
+        rt.idleEmitQueue.Clear();
+        rt.idleEmitQueueIndex = 0;
+        if (GroupUsesRosterSlots(_catalog.IdleGroups[pick]))
+        {
+            BanterRosterSpeakers.PrepareRound(state, rt, _rng);
+        }
+
         return true;
     }
 
@@ -170,7 +256,7 @@ public sealed class MemberBanterService
         foreach (var kv in _catalog.IdleGroups)
         {
             var count = kv.Value.Count;
-            if (count < 4 || count > 5)
+            if (count < 3 || count > 5)
             {
                 continue;
             }
@@ -181,27 +267,17 @@ public sealed class MemberBanterService
         return result;
     }
 
-    private string? ResolveIdleSpeaker(GameState state, MemberBanterRuntimeState rt, IdleBanterLine line)
+    private static bool GroupUsesRosterSlots(IReadOnlyList<IdleBanterLine> lines)
     {
-        if (!string.Equals(line.MemberId, "*", StringComparison.Ordinal))
+        foreach (var line in lines)
         {
-            return FindMember(state, line.MemberId) != null ? line.MemberId : null;
+            if (BanterRosterSpeakers.IsSlot(line.MemberId))
+            {
+                return true;
+            }
         }
 
-        var pool = ListEligibleSpeakers(state);
-        if (pool.Count == 0)
-        {
-            return null;
-        }
-
-        var picked = BanterSpeakerPicker.Pick(
-            pool,
-            rt.idleLastSpeakerMemberId,
-            rt.idleLastSplitMsgId,
-            line.SplitMsgId,
-            _rng,
-            rt.idleMandatoryLineSpokenIdentities);
-        return picked?.memberId;
+        return false;
     }
 
     private string ResolveBanterText(
@@ -230,7 +306,8 @@ public sealed class MemberBanterService
         var rt = state.banterRuntime!;
         if (idleRound)
         {
-            BanterPersonalExclusiveLines.TryResolveForIdle(
+            catalogText = BanterDynamicTextResolver.Resolve(state, rt, catalogText, _rng);
+            BanterPersonalExclusiveLines.TryResolveIdleEmitText(
                 member,
                 rt,
                 catalogText,
@@ -241,81 +318,6 @@ public sealed class MemberBanterService
         }
 
         return BanterPersonalExclusiveLines.ResolveForReactive(member, rt, catalogText, _rng);
-    }
-
-    private List<MemberState> ListEligibleSpeakers(GameState state)
-    {
-        var localLegion = LegionRegistry.Local(state)?.legionId;
-        var list = new List<MemberState>();
-        if (state.phase == GamePhase.COMBAT && state.combatRealtimeActive)
-        {
-            var bf = ActiveBattlefield(state);
-            if (bf == null)
-            {
-                return list;
-            }
-
-            var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var u in bf.units)
-            {
-                if (u.IsDestroyed() || string.IsNullOrWhiteSpace(u.memberId) || !seen.Add(u.memberId))
-                {
-                    continue;
-                }
-
-                if (u.side != UnitSide.FRIENDLY)
-                {
-                    continue;
-                }
-
-                var m = FindMember(state, u.memberId);
-                if (m != null)
-                {
-                    list.Add(m);
-                }
-            }
-
-            return list;
-        }
-
-        foreach (var m in state.members)
-        {
-            if (m.memberId == null)
-            {
-                continue;
-            }
-
-            if (!string.IsNullOrWhiteSpace(localLegion))
-            {
-                var legionId = LegionPlayerRegistry.ResolveMemberLegionId(state, m);
-                if (!string.Equals(legionId, localLegion, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-            }
-
-            list.Add(m);
-        }
-
-        return list;
-    }
-
-    private static BattlefieldState? ActiveBattlefield(GameState state)
-    {
-        if (string.IsNullOrWhiteSpace(state.activeBattlefieldId))
-        {
-            return null;
-        }
-
-        foreach (var bf in state.battlefields)
-        {
-            if (state.activeBattlefieldId.Equals(bf.battlefieldId, StringComparison.Ordinal))
-            {
-                return bf;
-            }
-        }
-
-        return null;
     }
 
     private ReactiveBanterLine? PickReactiveLine(string memberId, string eventKey)
@@ -412,19 +414,40 @@ public sealed class MemberBanterService
         bool allowMultiboxSync,
         string? resolvedText = null)
     {
-        var text = resolvedText ?? ResolveBanterText(state, primaryMemberId, catalogText);
-        var pool = ListEligibleSpeakers(state);
-        var speakerIds = new List<string> { primaryMemberId };
-        if (allowMultiboxSync
-            && BanterMultiboxSync.Roll(_rng)
-            && BanterMultiboxSync.TryCollectSyncBurst(pool, primaryMemberId, out var burst))
+        var text = resolvedText;
+        if (text == null)
         {
-            speakerIds = burst;
+            var member = FindMember(state, primaryMemberId);
+            if (member != null)
+            {
+                var rt = state.banterRuntime!;
+                text = BanterScriptTextComposer.ComposeReactiveLine(state, rt, member, catalogText, _rng);
+            }
+            else
+            {
+                text = catalogText;
+            }
         }
+        var pool = BanterEligibleSpeakers.List(state);
+        var speakerIds = allowMultiboxSync
+            ? BanterMultiboxSync.CollectSyncSpeakers(pool, primaryMemberId, _rng)
+            : new List<string> { primaryMemberId };
 
-        foreach (var mid in speakerIds)
+        var emitAt = simTimeSec;
+        for (var i = 0; i < speakerIds.Count; i++)
         {
-            AppendCompanion(state, mid, text, channel, eventKey, groupId, simTimeSec);
+            BanterCompanionOutput.EmitLine(
+                state,
+                emitAt,
+                speakerIds[i],
+                text,
+                channel,
+                eventKey,
+                groupId);
+            if (i < speakerIds.Count - 1)
+            {
+                emitAt += BanterIdleTiming.MultiboxEchoGapSec;
+            }
         }
 
         return speakerIds;
@@ -433,32 +456,6 @@ public sealed class MemberBanterService
     private static void EnsureRuntime(GameState state)
     {
         state.banterRuntime ??= new MemberBanterRuntimeState();
-    }
-
-    private static void AppendCompanion(
-        GameState state,
-        string memberId,
-        string text,
-        string channel,
-        string? eventKey,
-        string? groupId,
-        float simTimeSec)
-    {
-        state.companionLog.Add(new CompanionLogEntry
-        {
-            tick = simTimeSec,
-            memberId = memberId,
-            text = text,
-            channel = channel,
-            eventKey = eventKey,
-            groupId = groupId,
-            trustLevel = "NARRATIVE",
-        });
-
-        while (state.companionLog.Count > BanterCatalogLoader.CompanionLogCap)
-        {
-            state.companionLog.RemoveAt(0);
-        }
     }
 
     private static MemberState? FindMember(GameState state, string memberId)

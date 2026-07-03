@@ -111,16 +111,26 @@ public sealed class LegionRecruitBrick : IBrick
         }
 
         player.recruitProgressSec = ctx.State.recruitProgressSec;
-
         player.recruitTargetTraitIds.Clear();
-
         player.recruitTargetTraitIds.AddRange(ctx.State.recruitTargetTraitIds);
 
-        ctx.State.recruitProgressSec = saved;
-
-        ctx.State.recruitTargetTraitIds.Clear();
-
-        ctx.State.recruitTargetTraitIds.AddRange(savedTargets);
+        var localLegionId = LegionRegistry.Local(ctx.State)?.legionId;
+        if (string.Equals(localLegionId, _legionId, StringComparison.Ordinal))
+        {
+            ctx.State.recruitProgressSec = player.recruitProgressSec;
+            ctx.State.recruitTargetTraitIds.Clear();
+            ctx.State.recruitTargetTraitIds.AddRange(player.recruitTargetTraitIds);
+            if (!string.IsNullOrWhiteSpace(player.lastRecruitSummary))
+            {
+                ctx.State.lastRecruitSummary = player.lastRecruitSummary;
+            }
+        }
+        else
+        {
+            ctx.State.recruitProgressSec = saved;
+            ctx.State.recruitTargetTraitIds.Clear();
+            ctx.State.recruitTargetTraitIds.AddRange(savedTargets);
+        }
 
     }
 

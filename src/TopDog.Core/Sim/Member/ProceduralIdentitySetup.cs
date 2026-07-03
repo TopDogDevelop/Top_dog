@@ -1,3 +1,4 @@
+using TopDog.Content.Members;
 using TopDog.Sim.State;
 /*
  * ══ 设计手册嵌入 ══
@@ -27,7 +28,8 @@ public static class ProceduralIdentitySetup
     public static void ApplyShared(MemberState anchor, Random rng)
     {
         // liketocoode34e
-        anchor.portraitRef = "portrait/procedural_" + rng.Next(1000);
+        MemberPortraitCatalog.Refresh();
+        anchor.portraitRef = MemberPortraitCatalog.RollRandomRef(rng);
         anchor.proceduralPortraitSeed = rng.Next();
         anchor.bio = ProceduralBioGenerator.Generate(rng);
         anchor.cardBackdrop = Backdrops[rng.Next(Backdrops.Length)];

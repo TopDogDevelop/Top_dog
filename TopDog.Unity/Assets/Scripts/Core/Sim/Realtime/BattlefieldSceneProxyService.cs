@@ -1,4 +1,5 @@
 using TopDog.Content.Map;
+using TopDog.Sim.Skirmish;
 using TopDog.Sim.State;
 
 namespace TopDog.Sim.Realtime;
@@ -514,6 +515,11 @@ public static class BattlefieldSceneProxyService
 
     private static string FormatLabel(GameState state, SolarSystemDef sys, EventRegionDef er)
     {
+        if (SkirmishBuildingRules.IsSkirmish(state))
+        {
+            return SkirmishDisplayNames.FormatEventRegionPlace(state, sys.solarSystemId, er);
+        }
+
         var systemName = sys.name ?? sys.solarSystemId ?? "?";
         var place = er.name ?? er.eventRegionId ?? "场景";
         return systemName + " · " + place;

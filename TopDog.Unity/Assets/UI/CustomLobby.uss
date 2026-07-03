@@ -379,6 +379,37 @@
     color: rgb(255, 180, 120);
 }
 
+.skirmish-top-bar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 4px;
+}
+
+.skirmish-mode-row {
+    flex-grow: 1;
+    flex-shrink: 1;
+    margin-bottom: 0;
+}
+
+.skirmish-save-preset-btn {
+    flex-shrink: 0;
+    margin-left: 8px;
+}
+
+.skirmish-preset-section {
+    flex-direction: column;
+    margin-right: 12px;
+    margin-bottom: 4px;
+}
+
+.skirmish-preset-picker {
+    flex-grow: 0;
+    max-height: 120px;
+    margin-bottom: 4px;
+}
+
 .skirmish-config-strip {
     flex-direction: row;
     flex-wrap: wrap;

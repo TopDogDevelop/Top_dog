@@ -40,12 +40,14 @@ public sealed class SkirmishLobbyController : UiScreenController
     private string? _selectedPlayerId;
     private string? _selectedRosterMemberId;
     private bool _templatePickerVisible;
+    private bool _presetSavePickerVisible;
 
     private ScrollView? _playerList;
     private VisualElement? _playerSection;
     private VisualElement? _modeRow;
     private ScrollView? _rosterCodexScroll;
     private ScrollView? _templateMemberPicker;
+    private ScrollView? _presetSavePicker;
     private ScrollView? _fittingScroll;
     private VisualElement? _modulePickerPopup;
     private Label? _ruleLabel;
@@ -98,6 +100,7 @@ public sealed class SkirmishLobbyController : UiScreenController
         _playerSection = root.Q<VisualElement>("player-section");
         _rosterCodexScroll = root.Q<ScrollView>("roster-codex-scroll");
         _templateMemberPicker = root.Q<ScrollView>("template-member-picker");
+        _presetSavePicker = root.Q<ScrollView>("preset-save-picker");
         _fittingScroll = root.Q<ScrollView>("fitting-scroll");
         _modulePickerPopup = root.Q<VisualElement>("module-picker-popup");
         _ruleLabel = root.Q<Label>("lbl-rule");
@@ -115,6 +118,7 @@ public sealed class SkirmishLobbyController : UiScreenController
         BuildPresetRow(root.Q<VisualElement>("preset-row"));
 
         OnClick(root, "btn-add-member", ToggleTemplateMemberPicker);
+        OnClick(root, "btn-save-preset", TogglePresetSavePicker);
         OnClick(root, "btn-copy-fit", CopyFitToAll);
         OnClick(root, "btn-start", StartMatch);
         OnClick(root, "btn-back", () =>
@@ -276,10 +280,62 @@ public sealed class SkirmishLobbyController : UiScreenController
 
     private void SavePreset(int slot)
     {
+        PullPrepIntoLobby();
         var key = "skirmish_preset_" + slot;
         PlayerPrefs.SetString(key, SkirmishPresetService.Serialize(_lobby));
         PlayerPrefs.Save();
-        SetStatus("已保存配置槽 " + (slot + 1) + "（Shift+点击保存）");
+        SetStatus("已保存配置保存槽 " + (slot + 1));
+    }
+
+    private void TogglePresetSavePicker()
+    {
+        _presetSavePickerVisible = !_presetSavePickerVisible;
+        if (_presetSavePickerVisible)
+        {
+            _templatePickerVisible = false;
+            if (_templateMemberPicker != null)
+            {
+                _templateMemberPicker.style.display = DisplayStyle.None;
+            }
+        }
+        if (_presetSavePicker != null)
+        {
+            _presetSavePicker.style.display = _presetSavePickerVisible ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        if (_presetSavePickerVisible)
+        {
+            RefreshPresetSavePicker();
+            SetStatus("选择要保存到的配置保存槽");
+        }
+    }
+
+    private void RefreshPresetSavePicker()
+    {
+        if (_presetSavePicker == null)
+        {
+            return;
+        }
+
+        _presetSavePicker.Clear();
+        for (var i = 0; i < SkirmishPresetService.PresetCount; i++)
+        {
+            var slot = i;
+            var hasData = PlayerPrefs.HasKey("skirmish_preset_" + slot);
+            var btn = new Button { text = "槽 " + (slot + 1) + (hasData ? "（覆盖）" : "（空）") };
+            btn.AddToClassList("lobby-secondary-btn");
+            btn.clicked += () =>
+            {
+                CancelMatching();
+                SavePreset(slot);
+                _presetSavePickerVisible = false;
+                if (_presetSavePicker != null)
+                {
+                    _presetSavePicker.style.display = DisplayStyle.None;
+                }
+            };
+            _presetSavePicker.Add(btn);
+        }
     }
 
     private void LoadPreset(int slot)
@@ -287,21 +343,21 @@ public sealed class SkirmishLobbyController : UiScreenController
         var key = "skirmish_preset_" + slot;
         if (!PlayerPrefs.HasKey(key))
         {
-            SetStatus("配置槽 " + (slot + 1) + " 为空");
+            SetStatus("配置保存槽 " + (slot + 1) + " 为空");
             return;
         }
 
         var loaded = SkirmishPresetService.Deserialize(PlayerPrefs.GetString(key));
         if (loaded == null)
         {
-            SetStatus("配置槽 " + (slot + 1) + " 解析失败");
+            SetStatus("配置保存槽 " + (slot + 1) + " 解析失败");
             return;
         }
 
         _lobby = loaded;
         TrimToLocalPlayerOnly();
         ApplyModeUi();
-        SetStatus("已加载配置槽 " + (slot + 1) + " · 规模 " + _lobby.scale);
+        SetStatus("已加载配置保存槽 " + (slot + 1) + " · 规模 " + _lobby.scale);
         RefreshAll();
     }
 
