@@ -141,56 +141,10 @@ public sealed class SkirmishLobbyPrepCore
 
         foreach (var slot in roster)
         {
-            var member = SlotToMember(slot, localPlayerId);
+            var member = SkirmishRosterMemberFactory.CreateMember(slot, localPlayerId);
             state.members.Add(member);
             state.memberFittedModules[slot.memberId] = slot.fittedModules
                 .ToDictionary(kv => kv.Key, kv => kv.Value ?? "");
         }
-    }
-
-    private static MemberState SlotToMember(SkirmishRosterSlot slot, string legionId)
-    {
-        var member = new MemberState
-        {
-            memberId = slot.memberId,
-            name = slot.displayName,
-            legionId = legionId,
-            equippedHullId = slot.hullId,
-            appraised = true,
-            source = "preset",
-        };
-
-        if (!SkirmishTemplateRows.TryParseRowKey(slot.memberTemplateRowId, out var templateId, out var identity, out var suffix))
-        {
-            return member;
-        }
-
-        member.identityCode = identity;
-        member.accountSuffix = suffix;
-        var templateMember = StartingTemplateLoader.LoadMembers(templateId)
-            .FirstOrDefault(m => identity.Equals(IdentityCodes.Of(m), StringComparison.Ordinal)
-                && suffix.Equals(m.accountSuffix, StringComparison.Ordinal));
-        if (templateMember == null)
-        {
-            return member;
-        }
-
-        member.accountName = templateMember.accountName;
-        member.rarity = templateMember.rarity;
-        member.trueRarity = templateMember.trueRarity;
-        member.bio = templateMember.bio;
-        member.labels = new List<string>(templateMember.labels);
-        member.traitIds = new List<string>(templateMember.traitIds);
-        member.cardBackdrop = templateMember.cardBackdrop;
-        member.legionBelonging = templateMember.legionBelonging;
-        member.energy = templateMember.energy;
-        member.wisdom = templateMember.wisdom;
-        member.accountBuildScore = templateMember.accountBuildScore;
-        if (string.IsNullOrWhiteSpace(member.equippedHullId) && !string.IsNullOrWhiteSpace(templateMember.equippedHullId))
-        {
-            member.equippedHullId = templateMember.equippedHullId;
-        }
-
-        return member;
     }
 }

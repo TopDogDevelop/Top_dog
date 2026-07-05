@@ -41,13 +41,8 @@ public static class SkirmishDisplayNames
 
         if (string.Equals(building.buildingType, BuildingService.PersonalFortress, StringComparison.Ordinal))
         {
-            var tail = StripSideMarker(ResolveRegionBaseName(state, building.eventRegionId));
-            if (tail.StartsWith("个堡", StringComparison.Ordinal))
-            {
-                return prefix + tail;
-            }
-
-            return prefix + "个堡";
+            var slot = ResolvePersonalFortressSlot(building, state);
+            return prefix + "个堡" + slot;
         }
 
         return prefix + (building.displayName ?? "建筑");
@@ -159,6 +154,11 @@ public static class SkirmishDisplayNames
             return "?";
         }
 
+        if (name.StartsWith("己方", StringComparison.Ordinal) || name.StartsWith("敌方", StringComparison.Ordinal))
+        {
+            name = name[2..].TrimStart();
+        }
+
         if (name.Length > 2 && (name.StartsWith("A ", StringComparison.Ordinal)
                                 || name.StartsWith("B ", StringComparison.Ordinal)))
         {
@@ -166,5 +166,34 @@ public static class SkirmishDisplayNames
         }
 
         return name;
+    }
+
+    private static string ResolvePersonalFortressSlot(BuildingState building, GameState state)
+    {
+        if (building.buildingId != null)
+        {
+            if (building.buildingId.EndsWith("_pf1", StringComparison.Ordinal))
+            {
+                return " 1";
+            }
+
+            if (building.buildingId.EndsWith("_pf2", StringComparison.Ordinal))
+            {
+                return " 2";
+            }
+        }
+
+        var tail = StripSideMarker(ResolveRegionBaseName(state, building.eventRegionId));
+        if (tail.EndsWith(" 1", StringComparison.Ordinal))
+        {
+            return " 1";
+        }
+
+        if (tail.EndsWith(" 2", StringComparison.Ordinal))
+        {
+            return " 2";
+        }
+
+        return "";
     }
 }

@@ -280,7 +280,52 @@ internal static class SkirmishTestHelper
 public sealed class SkirmishSpawnServiceTests
 {
     [Test]
-    public void BootstrapBattlefields_FallsBackWhenHullIdMissingFromRegistry()
+    public void SpawnLegionRoster_SkipsMembersWithoutMatchingLegionId()
+    {
+        var state = SkirmishTestHelper.NewSkirmishState();
+        state.members.Add(new MemberState { memberId = "1000000101", name = "林准将" });
+        state.members.Add(new MemberState
+        {
+            memberId = "m1",
+            legionId = "legion_a",
+            equippedHullId = "hull_frigate_pineapple",
+            name = "Pilot",
+        });
+        var bf = new BattlefieldState { battlefieldId = "bf-1" };
+        var legion = state.legions[0];
+        var ships = ShipRegistry.LoadDefault();
+        var modules = ModuleRegistry.LoadDefault();
+
+        var spawned = SkirmishSpawnService.SpawnLegionRoster(state, bf, legion, ships, modules, new Random(1));
+
+        Assert.That(spawned, Is.EqualTo(1));
+        Assert.That(bf.units.Exists(u => u.memberId == "1000000101"), Is.False);
+        Assert.That(bf.units.Exists(u => u.memberId == "m1" && u.side == UnitSide.FRIENDLY), Is.True);
+    }
+
+    [Test]
+    public void FormatBuildingDisplayName_PersonalFortressIncludesSlotNumber()
+    {
+        var state = new GameState();
+        state.legions.Add(new LegionState { legionId = "p1", isLocal = true });
+        state.worldline.type = WorldlineType.LEGION_SKIRMISH;
+        var building = new BuildingState
+        {
+            buildingId = "bld_p1_pf1",
+            buildingType = BuildingService.PersonalFortress,
+            legionId = "p1",
+            eventRegionId = "skirmish_er_3",
+        };
+        state.buildings.Add(building);
+        state.map = SkirmishMapGenerator.Generate(10, 1);
+
+        SkirmishDisplayNames.SyncSkirmishLabels(state);
+
+        Assert.That(building.displayName, Is.EqualTo("己方个堡 1"));
+    }
+
+    [Test]
+    public void BootstrapBattlefields_SyncsSceneProxiesOnActiveBattlefield()
     {
         var lobby = new TopDog.Lobby.SkirmishLobbyState { scale = 10, seed = 42 };
         var human = new TopDog.Lobby.LobbyPlayer { local = true, displayName = "P" };
@@ -309,5 +354,9 @@ public sealed class SkirmishSpawnServiceTests
         Assert.That(localBf, Is.Not.Null, "expected fallback hull spawn at local legion fortress");
         Assert.That(state.activeBattlefieldId, Is.EqualTo(localBf!.battlefieldId));
         Assert.That(TopDog.Sim.Vision.VisionGate.ListRailBattlefields(state), Has.Count.GreaterThan(1));
+        Assert.That(
+            localBf.units.Exists(u => BattlefieldSceneProxyService.IsSceneProxy(u)),
+            Is.True,
+            "active battlefield should have scene proxies after bootstrap sync");
     }
 }

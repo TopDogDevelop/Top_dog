@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using TopDog.App;
 using TopDog.Content;
 using TopDog.Content.Map;
 using TopDog.Content.Ships;
+using TopDog.AgentDiag;
 using TopDog.Sim.Possession;
 using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
@@ -13,13 +15,17 @@ using UnityEngine.UIElements;
 
 /*
  * ══ 设计手册嵌入 ══
- * 权威: docs/TACTICAL_VIEW.md §2 右栏双模式 · §物体总览分组
- * 本文件: TacticalRightRail.cs — 右栏可降临战场 / 物体总览切换
+ * 权威: docs/TACTICAL_RIGHT_RAIL_SCENE_PROXY.md §2 · docs/TACTICAL_VIEW.md §3
+ * 本文件: TacticalRightRail.cs — 右栏双模式切换
  * 【机制要点】
- * · Battlefield 模式：VisionGate.ListRailBattlefields 按星系分组（含跃迁目标战场）
- * · Object 模式：跃迁中/舰载机/导弹/董事会翼/吨位分组列表
- * · 点击切换 activeBattlefieldId；物体行选中 target + 友舰框选
- * 【关联】TacticalSelectionState · PossessionService · TacticalIconCatalog
+ * · 模式 B（默认）物体总览 `object-overview-scroll`：当前战场单位 + 「其他场景」（units 或 ListOffSceneLinks）
+ * · 模式 A `vision-rail-scroll`：ListBattlefieldVisionGroups 战场→团员树
+ * · 底栏 `btn-rail-mode-toggle` 在两种 ScrollView 间互斥
+ * 【实现逻辑】
+ * · RefreshBattlefields：按战场组渲染；空战场不显示；点击 ActivateDescentEntry
+ * · RefreshObjects：scene proxy 行不写 tacticalCameraUnitId；BuildOffSceneLinkRow 作 fallback
+ * · BuildObjectRow：ObjectOverviewCompact 单行 + 虚线行分隔；距离 RefreshObjectDistancesOnly
+ * 【关联】TacticalSelectionState · PossessionService · TacticalIconCatalog · VisionLocationService
  * ══
  */
 
@@ -29,21 +35,30 @@ using UnityEngine.UIElements;
 // liketocoode34e
 namespace TopDog.Client.Tactical;
 
-/// <summary>右栏双模式：可降临战场 / 物体总览（TACTICAL_VIEW.md §3）。</summary>
+/// <summary>右栏双模式：场景图标总览（默认）/ 可观察·附身战场列表（TACTICAL_VIEW.md §3）。</summary>
 public sealed class TacticalRightRail
 {
+    private readonly VisualElement _hostRoot;
     private readonly ScrollView _battlefieldScroll;
     private readonly ScrollView _objectScroll;
     private readonly Button _toggleBtn;
     private readonly VisualElement _battlefieldContent;
     private readonly VisualElement _objectContent;
+    private readonly TacticalObjectCommandMenu _objectCommandMenu;
+    private readonly Action? _refreshCombatUi;
 
     private string _lastObjectOverviewKey = "";
     private string _lastBattlefieldRailKey = "";
     private float _nextRailForceRefresh;
 
-    public TacticalRightRail(VisualElement root)
+    public TacticalRightRail(
+        VisualElement root,
+        TacticalObjectCommandMenu objectCommandMenu,
+        Action? refreshCombatUi = null)
     {
+        _hostRoot = root;
+        _objectCommandMenu = objectCommandMenu;
+        _refreshCombatUi = refreshCombatUi;
         _battlefieldScroll = root.Q<ScrollView>("vision-rail-scroll");
         _objectScroll = root.Q<ScrollView>("object-overview-scroll");
         _toggleBtn = root.Q<Button>("btn-rail-mode-toggle");
@@ -55,8 +70,20 @@ public sealed class TacticalRightRail
             _toggleBtn.clicked += () =>
             {
                 TacticalSelectionState.ToggleRailMode();
+                InvalidateCaches();
                 ApplyModeVisibility();
                 RefreshToggleLabel();
+                var core = GameAppHost.Instance?.Core;
+                if (core != null)
+                {
+                    RefreshBattlefields(core.State);
+                }
+
+                AgentSessionDebugLog.Write(
+                    "H3",
+                    "TacticalRightRail.toggle",
+                    "mode_changed",
+                    new { mode = TacticalSelectionState.RightRailMode.ToString() });
             };
         }
 
@@ -72,13 +99,18 @@ public sealed class TacticalRightRail
         if (Time.unscaledTime >= _nextRailForceRefresh)
         {
             _nextRailForceRefresh = Time.unscaledTime + 10f;
-            _lastBattlefieldRailKey = "";
-            _lastObjectOverviewKey = "";
+            InvalidateCaches();
         }
 
         RefreshBattlefields(state);
         RefreshObjects(state);
         RefreshToggleLabel();
+    }
+
+    public void InvalidateCaches()
+    {
+        _lastObjectOverviewKey = "";
+        _lastBattlefieldRailKey = "";
     }
 
     public void RefreshSelectionHighlight()
@@ -108,8 +140,8 @@ public sealed class TacticalRightRail
             return;
         }
         _toggleBtn.text = TacticalSelectionState.RightRailMode == TacticalRightRailMode.Battlefield
-            ? "切换：物体总览"
-            : "切换：可降临战场";
+            ? "切换：场景总览"
+            : "切换：可观察战场";
     }
 
     // liketocoode34e
@@ -118,72 +150,175 @@ public sealed class TacticalRightRail
     {
         if (_battlefieldContent == null)
         {
+            AgentSessionDebugLog.Write(
+                "H3",
+                "TacticalRightRail.RefreshBattlefields",
+                "content_null",
+                new { scrollNull = _battlefieldScroll == null });
             return;
         }
-        var visible = VisionGate.ListRailBattlefields(state);
-        var bfKey = string.Join("|", visible.Select(b =>
-        {
-            var (friendly, enemy, _) = VisionGate.CountCombatUnits(b);
-            var presence = VisionGate.CountFriendlyPresence(state, b);
-            return (b.battlefieldId ?? "?") + ":" + friendly + "/" + enemy + "@" + presence;
-        })) + "#" + (state.activeBattlefieldId ?? "");
-        if (bfKey == _lastBattlefieldRailKey && _battlefieldContent.childCount > 0)
+
+        var groups = VisionLocationService.ListBattlefieldVisionGroups(state);
+        var bfKey = string.Join("|", groups.Select(g =>
+            g.BattlefieldId + ":" + string.Join(",", g.Characters.Select(c =>
+                c.MemberId + ":" + (c.InTransit ? "t" : "f")
+                + ":" + (c.CanPossess ? "p" : "") + (c.CanTacticalLink ? "v" : "")))))
+            + "#" + (state.activeBattlefieldId ?? "")
+            + "#" + (state.possessingMemberId ?? "")
+            + "#" + (state.tacticalCameraUnitId ?? "");
+        var cacheSkip = bfKey == _lastBattlefieldRailKey && _battlefieldContent.childCount > 0
+            && (groups.Count > 0 || TacticalSelectionState.RightRailMode != TacticalRightRailMode.Battlefield);
+        AgentSessionDebugLog.Write(
+            "H3",
+            "TacticalRightRail.RefreshBattlefields",
+            "render",
+            new
+            {
+                mode = TacticalSelectionState.RightRailMode.ToString(),
+                contentNull = false,
+                scrollNull = _battlefieldScroll == null,
+                groupsCount = groups.Count,
+                cacheSkip,
+                childCountBefore = _battlefieldContent.childCount,
+                explain = groups.Count == 0 ? VisionLocationService.ExplainEmptyDescentList(state) : "",
+            });
+        if (cacheSkip)
         {
             return;
         }
+
         _lastBattlefieldRailKey = bfKey;
         _battlefieldContent.Clear();
-        if (visible.Count == 0)
+        if (groups.Count == 0)
         {
-            _battlefieldContent.Add(MakeHint("无可切换战场"));
+            _battlefieldContent.Add(MakeHint(VisionLocationService.ExplainEmptyDescentList(state)
+                + "（点底部按钮可切回场景总览）"));
             return;
         }
 
-        var bySystem = new Dictionary<string, List<BattlefieldState>>();
-        foreach (var bf in visible)
+        foreach (var group in groups)
         {
-            var key = bf.systemId ?? "?";
-            if (!bySystem.TryGetValue(key, out var list))
+            BattlefieldState? bf = null;
+            foreach (var candidate in state.battlefields)
             {
-                list = new List<BattlefieldState>();
-                bySystem[key] = list;
+                if (group.BattlefieldId.Equals(candidate.battlefieldId, StringComparison.Ordinal))
+                {
+                    bf = candidate;
+                    break;
+                }
             }
-            list.Add(bf);
-        }
 
-        foreach (var kv in bySystem)
-        {
-            _battlefieldContent.Add(MakeGroupHeader(MapLocationFormatter.FormatSystemPath(state, kv.Key)));
-            foreach (var bf in kv.Value)
+            var header = bf != null
+                ? MapLocationFormatter.FormatBattlefield(state, bf)
+                : group.LocationKey;
+            _battlefieldContent.Add(MakeGroupHeader(header));
+
+            foreach (var entry in group.Characters)
             {
-                var (friendly, enemy, total) = VisionGate.CountCombatUnits(bf);
-                var presence = VisionGate.CountFriendlyPresence(state, bf);
-                var label = MapLocationFormatter.FormatBattlefield(state, bf);
-                if (total > 0 || presence > 0)
-                {
-                    label += presence > total
-                        ? $" · 友{presence}（含跃迁）/敌{enemy}"
-                        : $" · 友{friendly}/敌{enemy}";
-                }
-
-                var btn = new Button { text = label };
-                btn.AddToClassList("rtcombat-rail-item");
-                if (bf.battlefieldId != null && bf.battlefieldId.Equals(state.activeBattlefieldId, System.StringComparison.Ordinal))
-                {
-                    btn.AddToClassList("rtcombat-rail-item-active");
-                }
-                var bfId = bf.battlefieldId;
-                btn.clicked += () =>
-                {
-                    if (bfId != null)
-                    {
-                        PossessionService.SwitchBattlefield(state, bfId);
-                        TacticalSelectionState.ClearOnBattlefieldSwitch();
-                    }
-                };
-                _battlefieldContent.Add(btn);
+                _battlefieldContent.Add(BuildDescentEntryRow(state, entry, bf));
             }
         }
+    }
+
+    private VisualElement BuildDescentEntryRow(GameState state, VisionDescentEntry entry, BattlefieldState? bf)
+    {
+        var row = new VisualElement();
+        row.AddToClassList("rtcombat-rail-object-row");
+        row.pickingMode = PickingMode.Position;
+        row.focusable = true;
+        if (entry.BattlefieldId.Equals(state.activeBattlefieldId, StringComparison.Ordinal)
+            && (entry.MemberId.Equals(state.possessingMemberId, StringComparison.Ordinal)
+                || entry.UnitId != null && entry.UnitId.Equals(state.tacticalCameraUnitId, StringComparison.Ordinal)))
+        {
+            row.AddToClassList("rtcombat-rail-item-active");
+        }
+
+        var iconHost = BuildRailIconHost(ResolveMemberShipIcon(state, entry.MemberId));
+        row.Add(iconHost);
+
+        var tags = new List<string>();
+        if (entry.CanPossess)
+        {
+            tags.Add("可附身");
+        }
+
+        if (entry.CanTacticalLink)
+        {
+            tags.Add("视角");
+        }
+
+        if (entry.InTransit)
+        {
+            tags.Add("跃迁中");
+        }
+
+        var labelText = entry.MemberName;
+        if (tags.Count > 0)
+        {
+            labelText += " · " + string.Join("/", tags);
+        }
+
+        var name = new Label(labelText);
+        name.pickingMode = PickingMode.Ignore;
+        name.AddToClassList("rtcombat-rail-name");
+        row.Add(name);
+
+        var captured = entry;
+        row.RegisterCallback<ClickEvent>(evt =>
+        {
+            if (evt.button != 0)
+            {
+                return;
+            }
+
+            ActivateDescentEntry(captured);
+            evt.StopPropagation();
+        });
+        return row;
+    }
+
+    private static Texture2D? ResolveMemberShipIcon(GameState state, string memberId)
+    {
+        foreach (var member in state.members)
+        {
+            if (!memberId.Equals(member.memberId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var hull = ShipRegistry.LoadDefault().FindHull(member.equippedHullId);
+            return TacticalIconCatalog.ResolveShipIcon(hull?.tonnageClass);
+        }
+
+        return TacticalIconCatalog.ResolveShipIcon(null);
+    }
+
+    private void ActivateDescentEntry(VisionDescentEntry entry)
+    {
+        var core = GameAppHost.Instance?.Core;
+        if (core == null)
+        {
+            return;
+        }
+
+        var state = core.State;
+        PossessionService.SwitchBattlefield(state, entry.BattlefieldId);
+        TacticalSelectionState.ClearOnBattlefieldSwitch();
+
+        if (entry.CanPossess && !entry.InTransit)
+        {
+            PossessionService.Possess(state, entry.MemberId);
+            _refreshCombatUi?.Invoke();
+            return;
+        }
+
+        state.possessingMemberId = null;
+        if (entry.UnitId != null)
+        {
+            state.tacticalCameraUnitId = entry.UnitId;
+        }
+
+        _refreshCombatUi?.Invoke();
     }
 
     // liketocoo3e345
@@ -206,10 +341,11 @@ public sealed class TacticalRightRail
             return;
         }
 
-        var key = BuildObjectOverviewKey(bf);
+        var key = BuildObjectOverviewKey(bf, state);
         if (key == _lastObjectOverviewKey && _objectContent.childCount > 0)
         {
             UpdateObjectRowSelection();
+            UpdateObjectRowDistances(state, bf);
             return;
         }
 
@@ -220,23 +356,52 @@ public sealed class TacticalRightRail
             .Where(u => BattlefieldSceneProxyService.IsSceneProxy(u) && !u.IsDestroyed())
             .OrderBy(u => u.displayName ?? u.unitId, StringComparer.Ordinal)
             .ToList();
-        if (sceneProxies.Count > 0)
+        var offSceneLinks = sceneProxies.Count == 0
+            ? BattlefieldSceneProxyService.ListOffSceneLinks(state, bf)
+            : new List<TacticalOffSceneLink>();
+        if (sceneProxies.Count > 0 || offSceneLinks.Count > 0)
         {
             _objectContent.Add(MakeGroupHeader("其他场景"));
             foreach (var u in sceneProxies)
             {
-                _objectContent.Add(BuildSceneProxyRow(u));
+                _objectContent.Add(BuildSceneProxyRow(state, u));
+            }
+
+            foreach (var link in offSceneLinks)
+            {
+                _objectContent.Add(BuildOffSceneLinkRow(state, link));
             }
         }
 
         var inbound = bf.units
-            .Where(u => !u.IsDestroyed() && !u.Arrived(bf.timeSec))
+            .Where(u => !u.IsDestroyed() && VisionGate.IsWarpInbound(u, bf.timeSec))
             .OrderBy(u => u.displayName ?? u.unitId)
             .ToList();
         if (inbound.Count > 0)
         {
             _objectContent.Add(MakeGroupHeader("跃迁中"));
             foreach (var u in inbound)
+            {
+                _objectContent.Add(BuildObjectRow(state, u, bf, indent: false, warp: true));
+            }
+        }
+
+        var transitInbound = state.tacticalWarpInTransit
+            .Where(e => e.unit.side == UnitSide.FRIENDLY
+                && !e.unit.IsDestroyed()
+                && bf.battlefieldId != null
+                && bf.battlefieldId.Equals(e.toBattlefieldId, StringComparison.Ordinal))
+            .Select(e => e.unit)
+            .OrderBy(u => u.displayName ?? u.unitId)
+            .ToList();
+        if (transitInbound.Count > 0)
+        {
+            if (inbound.Count == 0)
+            {
+                _objectContent.Add(MakeGroupHeader("跃迁中"));
+            }
+
+            foreach (var u in transitInbound)
             {
                 _objectContent.Add(BuildObjectRow(state, u, bf, indent: false, warp: true));
             }
@@ -340,17 +505,19 @@ public sealed class TacticalRightRail
             AddSideBadge(iconHost, u.side);
         }
 
-        var labelText = warp
-            ? (u.displayName ?? u.unitId ?? "?")
-            : WingRowLabel(u, bf) ?? (u.isBuilding
-                ? (u.displayName ?? u.unitId ?? "?")
-                : DisplayLabels.ShipMemberTitle(state, u, ShipRegistry.LoadDefault()));
-        var name = new Label(labelText);
+        var uid = u.unitId;
+        var ships = ShipRegistry.LoadDefault();
+        var line = DisplayLabels.ObjectOverviewCompact(
+            state,
+            u,
+            ships,
+            warp ? -1f : ResolveDistanceToFocusM(state, bf, u),
+            warp);
+        var name = new Label(line);
         name.pickingMode = PickingMode.Ignore;
         name.AddToClassList("rtcombat-rail-name");
         row.Add(name);
 
-        var uid = u.unitId;
         row.userData = uid;
         row.RegisterCallback<ClickEvent>(evt =>
         {
@@ -364,10 +531,113 @@ public sealed class TacticalRightRail
             {
                 TacticalSelectionState.SetBoxSelection(new[] { uid }, additive: true);
             }
+            else
+            {
+                var iconRect = iconHost.worldBound;
+                var world = new Vector2(iconRect.x + iconRect.width * 0.5f, iconRect.y + iconRect.height * 0.5f);
+                _objectCommandMenu.ShowAtWorld(world, uid);
+            }
 
             evt.StopPropagation();
         });
         return row;
+    }
+
+    private static float ResolveDistanceToFocusM(GameState state, BattlefieldState bf, BattlefieldUnit u)
+    {
+        if (VisionGate.IsWarpInbound(u, bf.timeSec)
+            || u.warpPhase == TacticalWarpPhase.InTransit)
+        {
+            return -1f;
+        }
+
+        var focus = VisionAnchorService.ResolveDefaultFocus(state, bf);
+        if (focus == null)
+        {
+            return -1f;
+        }
+
+        if (ReferenceEquals(focus, u))
+        {
+            return 0f;
+        }
+
+        var dx = u.x - focus.x;
+        var dy = u.y - focus.y;
+        var dz = u.z - focus.z;
+        return MathF.Sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    private void UpdateObjectRowDistances(GameState state, BattlefieldState bf)
+    {
+        if (_objectContent == null)
+        {
+            return;
+        }
+
+        var ships = ShipRegistry.LoadDefault();
+        foreach (var child in _objectContent.Children())
+        {
+            if (child.userData is not string unitId)
+            {
+                continue;
+            }
+
+            var unit = FindOverviewUnit(state, bf, unitId);
+            if (unit == null)
+            {
+                continue;
+            }
+
+            var inTransit = VisionGate.IsWarpInbound(unit, bf.timeSec)
+                || unit.warpPhase == TacticalWarpPhase.InTransit;
+            foreach (var label in child.Children())
+            {
+                if (label is Label nameLabel && nameLabel.ClassListContains("rtcombat-rail-name"))
+                {
+                    nameLabel.text = DisplayLabels.ObjectOverviewCompact(
+                        state,
+                        unit,
+                        ships,
+                        inTransit ? -1f : ResolveDistanceToFocusM(state, bf, unit),
+                        inTransit);
+                }
+            }
+        }
+    }
+
+    private static BattlefieldUnit? FindOverviewUnit(GameState state, BattlefieldState bf, string unitId)
+    {
+        foreach (var u in bf.units)
+        {
+            if (unitId.Equals(u.unitId, StringComparison.Ordinal))
+            {
+                return u;
+            }
+        }
+
+        foreach (var entry in state.tacticalWarpInTransit)
+        {
+            if (unitId.Equals(entry.unit.unitId, StringComparison.Ordinal))
+            {
+                return entry.unit;
+            }
+        }
+
+        return null;
+    }
+
+    private static BattlefieldUnit? FindUnit(BattlefieldState bf, string unitId)
+    {
+        foreach (var u in bf.units)
+        {
+            if (unitId.Equals(u.unitId, StringComparison.Ordinal))
+            {
+                return u;
+            }
+        }
+
+        return null;
     }
 
     private static VisualElement BuildRailIconHost(Texture2D? tex)
@@ -416,7 +686,7 @@ public sealed class TacticalRightRail
         return TacticalIconCatalog.ResolveShipIcon(u.tonnageClass);
     }
 
-    private VisualElement BuildSceneProxyRow(BattlefieldUnit u)
+    private VisualElement BuildSceneProxyRow(GameState state, BattlefieldUnit u)
     {
         var row = new VisualElement();
         row.AddToClassList("rtcombat-rail-object-row");
@@ -446,14 +716,56 @@ public sealed class TacticalRightRail
             }
 
             TacticalSelectionState.SetSelectedTarget(uid);
+            var iconRect = iconHost.worldBound;
+            var world = new Vector2(iconRect.x + iconRect.width * 0.5f, iconRect.y + iconRect.height * 0.5f);
+            _objectCommandMenu.ShowAtWorld(world, uid);
             evt.StopPropagation();
         });
         return row;
     }
 
-    private static string BuildObjectOverviewKey(BattlefieldState bf)
+    private VisualElement BuildOffSceneLinkRow(GameState state, TacticalOffSceneLink link)
     {
-        var parts = new List<string> { bf.battlefieldId ?? "?" };
+        var row = new VisualElement();
+        row.AddToClassList("rtcombat-rail-object-row");
+        row.pickingMode = PickingMode.Position;
+        row.focusable = true;
+        if (link.UnitId.Equals(TacticalSelectionState.SelectedTargetUnitId, System.StringComparison.Ordinal))
+        {
+            row.AddToClassList("rtcombat-rail-item-active");
+        }
+
+        var iconHost = BuildRailIconHost(TacticalIconCatalog.ResolveSceneProxyIcon(link.Kind));
+        AddSideBadge(iconHost, UnitSide.FRIENDLY, "⤴");
+        row.Add(iconHost);
+
+        var name = new Label(link.DisplayName);
+        name.pickingMode = PickingMode.Ignore;
+        name.AddToClassList("rtcombat-rail-name");
+        row.Add(name);
+
+        var uid = link.UnitId;
+        row.userData = uid;
+        row.RegisterCallback<ClickEvent>(evt =>
+        {
+            if (evt.button != 0)
+            {
+                return;
+            }
+
+            TacticalSelectionState.SetSelectedTarget(uid);
+            var iconRect = iconHost.worldBound;
+            var world = new Vector2(iconRect.x + iconRect.width * 0.5f, iconRect.y + iconRect.height * 0.5f);
+            _objectCommandMenu.ShowAtWorld(world, uid);
+            evt.StopPropagation();
+        });
+        return row;
+    }
+
+    private static string BuildObjectOverviewKey(BattlefieldState bf, GameState state)
+    {
+        var parts = new List<string> { bf.battlefieldId ?? "?", "p" + bf.units.Count(u => BattlefieldSceneProxyService.IsSceneProxy(u)) };
+        parts.Add("l" + BattlefieldSceneProxyService.ListOffSceneLinks(state, bf).Count);
         foreach (var u in bf.units.OrderBy(x => x.unitId, StringComparer.Ordinal))
         {
             if (u.unitId == null)
@@ -461,8 +773,20 @@ public sealed class TacticalRightRail
                 continue;
             }
             var arrived = u.Arrived(bf.timeSec) ? "a" : "w";
-            parts.Add(u.unitId + ":" + arrived + ":" + (u.IsDestroyed() ? "x" : "o"));
+            var warp = u.warpPhase.ToString();
+            parts.Add(u.unitId + ":" + arrived + ":" + warp + ":" + (u.IsDestroyed() ? "x" : "o"));
         }
+
+        foreach (var entry in state.tacticalWarpInTransit.OrderBy(e => e.unit.unitId, StringComparer.Ordinal))
+        {
+            if (entry.unit.unitId == null)
+            {
+                continue;
+            }
+
+            parts.Add("t:" + entry.unit.unitId + "@" + entry.toBattlefieldId);
+        }
+
         return string.Join("|", parts);
     }
 

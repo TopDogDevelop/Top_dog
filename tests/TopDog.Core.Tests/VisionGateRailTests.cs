@@ -67,6 +67,50 @@ public sealed class VisionGateRailTests
         Assert.That(total, Is.EqualTo(2));
     }
 
+    [Test]
+    public void CountOnFieldFriendlies_IncludesPrepareInitiateWarp()
+    {
+        var bf = new BattlefieldState
+        {
+            battlefieldId = "bf-a",
+            units =
+            {
+                new BattlefieldUnit
+                {
+                    unitId = "u1",
+                    memberId = "m1",
+                    side = UnitSide.FRIENDLY,
+                    warpPhase = TacticalWarpPhase.PrepareInitiate,
+                },
+            },
+        };
+
+        Assert.That(VisionGate.CountOnFieldFriendlies(bf), Is.EqualTo(1));
+        Assert.That(VisionGate.IsWarpInbound(bf.units[0], bf.timeSec), Is.True);
+    }
+
+    [Test]
+    public void ListPossessableFriendlies_IncludesPrepareInitiate()
+    {
+        var state = new GameState();
+        var bf = new BattlefieldState
+        {
+            battlefieldId = "bf-a",
+            units =
+            {
+                new BattlefieldUnit
+                {
+                    unitId = "u1",
+                    memberId = "m1",
+                    side = UnitSide.FRIENDLY,
+                    warpPhase = TacticalWarpPhase.PrepareInitiate,
+                },
+            },
+        };
+
+        Assert.That(VisionAnchorService.ListPossessableFriendlies(state, bf), Has.Count.EqualTo(1));
+    }
+
     private static GameState DualBfState()
     {
         var state = new GameState { combatRealtimeActive = true };
@@ -125,6 +169,43 @@ public sealed class TacticalViewportFollowServiceTests
             units =
             {
                 new BattlefieldUnit { unitId = "u1", memberId = "m1", side = UnitSide.FRIENDLY },
+            },
+        };
+        var to = new BattlefieldState
+        {
+            battlefieldId = "bf-b",
+            systemId = "sys-a",
+            units =
+            {
+                new BattlefieldUnit { unitId = "u2", memberId = "m2", side = UnitSide.FRIENDLY },
+            },
+        };
+        state.battlefields.Add(from);
+        state.battlefields.Add(to);
+        state.activeBattlefieldId = from.battlefieldId;
+
+        TacticalViewportFollowService.Tick(state);
+        Assert.That(state.activeBattlefieldId, Is.EqualTo(from.battlefieldId));
+    }
+
+    [Test]
+    public void Tick_DoesNotSwitchWhilePrepareInitiateOnCurrentBattlefield()
+    {
+        var state = new GameState { combatRealtimeActive = true };
+        var from = new BattlefieldState
+        {
+            battlefieldId = "bf-a",
+            systemId = "sys-a",
+            units =
+            {
+                new BattlefieldUnit
+                {
+                    unitId = "u-warp",
+                    memberId = "m1",
+                    side = UnitSide.FRIENDLY,
+                    warpPhase = TacticalWarpPhase.PrepareInitiate,
+                    warpTargetBfId = "bf-b",
+                },
             },
         };
         var to = new BattlefieldState

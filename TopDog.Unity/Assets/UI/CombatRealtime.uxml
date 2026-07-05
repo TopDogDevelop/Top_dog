@@ -14,7 +14,6 @@
           <ui:ScrollView name="overview-scroll" class="rtcombat-overview">
             <ui:Label name="lbl-overview" text="未选中目标" />
           </ui:ScrollView>
-          <ui:VisualElement name="skill-bar" class="rtcombat-skill-bar" />
           <ui:Label name="lbl-timer" text="" class="rtcombat-subtitle rtcombat-timer" />
         </ui:VisualElement>
         <ui:VisualElement name="rtcombat-body-row" class="rtcombat-body-row">
@@ -23,6 +22,7 @@
             <ui:VisualElement name="tactical-grid" class="rtcombat-tactical-grid" style="display: none;" />
             <ui:VisualElement name="tactical-markers" class="rtcombat-markers" />
             <ui:VisualElement name="viewport-controls" class="ops-viewport-controls ops-viewport-controls-front">
+              <ui:Button name="btn-system-interior" text="星系内景" class="ops-vp-btn rtcombat-interior-btn" tooltip="打开当前星系内星图" />
               <ui:Button name="btn-vp-orbit-left" text="◀" class="ops-vp-btn" tooltip="环绕左" />
               <ui:Button name="btn-vp-orbit-right" text="▶" class="ops-vp-btn" tooltip="环绕右" />
               <ui:Button name="btn-vp-orbit-up" text="▲" class="ops-vp-btn" tooltip="俯仰上" />
@@ -61,7 +61,7 @@
         <ui:VisualElement name="fleet-command-bar" class="rtcombat-fleet-bar">
           <ui:Button name="btn-possess-friendly" text="切换视野" class="ops-shortcut-btn rtcombat-fleet-btn" />
           <ui:Button name="btn-rally" text="集合" class="ops-shortcut-btn rtcombat-fleet-btn" />
-          <ui:Button name="btn-default-dist" text="默认距离" class="ops-shortcut-btn rtcombat-fleet-btn" tooltip="按住拖动罗盘设定接近/远离/环绕/跃迁的默认距离" />
+          <ui:Button name="btn-default-dist" text="默认距离" class="ops-shortcut-btn rtcombat-fleet-btn" tooltip="滑块调节默认距离（接近/远离/环绕/跃迁）" />
           <ui:Button name="btn-follow" text="接近" class="ops-shortcut-btn rtcombat-fleet-btn" />
           <ui:Button name="btn-away" text="远离" class="ops-shortcut-btn rtcombat-fleet-btn" />
           <ui:Button name="btn-follow-attack" text="跟随攻击" class="ops-shortcut-btn rtcombat-fleet-btn" />

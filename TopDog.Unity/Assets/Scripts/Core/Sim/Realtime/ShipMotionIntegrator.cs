@@ -11,6 +11,9 @@
  * ══
  */
 
+using TopDog.AgentDiag;
+using TopDog.Sim.State;
+
 namespace TopDog.Sim.Realtime;
 
 // liketoc0de345
@@ -105,7 +108,44 @@ public static class ShipMotionIntegrator
         u.pitchRad = Math.Clamp(u.pitchRad, -1.2f, 1.2f);
     }
 
-    // liketocoo3e345
+    /// <summary>战场未 tick 时不改 sim 艏向（避免时间冻结下瞬时调头）。</summary>
+    public static void SnapHeadingTowardWhenTicking(
+        GameState state,
+        BattlefieldState bf,
+        BattlefieldUnit u,
+        float tx,
+        float ty,
+        float tz)
+    {
+        if (!BattlefieldSystem.ShouldTickBattlefield(state, bf))
+        {
+            // #region agent log
+            AgentSessionDebugLog.Write(
+                "H9",
+                "ShipMotionIntegrator.SnapHeadingTowardWhenTicking",
+                "skipped_frozen",
+                new { unitId = u.unitId, bfId = bf.battlefieldId, finished = bf.finished, timeSec = bf.timeSec });
+            // #endregion
+            return;
+        }
+
+        var before = u.facingRad;
+        SnapHeadingToward(u, tx, ty, tz);
+        // #region agent log
+        AgentSessionDebugLog.Write(
+            "H9",
+            "ShipMotionIntegrator.SnapHeadingTowardWhenTicking",
+            "snapped",
+            new
+            {
+                unitId = u.unitId,
+                bfId = bf.battlefieldId,
+                beforeRad = before,
+                afterRad = u.facingRad,
+                timeSec = bf.timeSec,
+            });
+        // #endregion
+    }
 
     /// <summary>远离指令：船头背向目标（接近航向 + 180°）。</summary>
     public static void SnapHeadingAway(BattlefieldUnit u, float tx, float ty, float tz)
@@ -116,6 +156,29 @@ public static class ShipMotionIntegrator
         {
             u.facingRad -= (float)(Math.PI * 2);
         }
+    }
+
+    public static void SnapHeadingAwayWhenTicking(
+        GameState state,
+        BattlefieldState bf,
+        BattlefieldUnit u,
+        float tx,
+        float ty,
+        float tz)
+    {
+        if (!BattlefieldSystem.ShouldTickBattlefield(state, bf))
+        {
+            // #region agent log
+            AgentSessionDebugLog.Write(
+                "H9",
+                "ShipMotionIntegrator.SnapHeadingAwayWhenTicking",
+                "skipped_frozen",
+                new { unitId = u.unitId, bfId = bf.battlefieldId, finished = bf.finished, timeSec = bf.timeSec });
+            // #endregion
+            return;
+        }
+
+        SnapHeadingAway(u, tx, ty, tz);
     }
 
     public static void ApplyManualFacing(BattlefieldUnit u, float yawInput, float pitchInput, float dtSec)

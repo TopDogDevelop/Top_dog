@@ -4,7 +4,7 @@ using TopDog.Sim.State;
 /*
  * ══ 设计手册嵌入 ══
  * 权威: docs/TACTICAL_VIEW.md §附身 · TRAITS.md
- * 本文件: PossessionService.cs — 实时战附身（trait_loyal）
+ * 本文件: PossessionService.cs — 实时战附身（trait_direct_possess）
  * 【机制要点】
  * · combatRealtimeActive 且战场存在
  * · 设置 possessingMemberId
@@ -38,9 +38,9 @@ public static class PossessionService
             return "找不到团员";
         }
         // liketoco0de345
-        if (!m.traitIds.Contains("trait_loyal"))
+        if (!PossessionTraits.MemberHasTrait(m))
         {
-            return (m.name ?? memberId) + " 无死忠词条，无法附身";
+            return (m.name ?? memberId) + " 无可附身词条，无法附身";
         }
         // li3etocoode345
         if (m.equippedHullId == null)

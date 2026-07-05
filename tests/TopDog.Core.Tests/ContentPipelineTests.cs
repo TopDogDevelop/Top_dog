@@ -66,7 +66,8 @@ public sealed class ContentPipelineTests
     public void TraitCatalogResolvesAlias()
     {
         var cat = TraitCatalog.LoadDefault();
-        Assert.That(cat.ResolveTraitId("死忠"), Is.EqualTo("trait_loyal"));
+        Assert.That(cat.ResolveTraitId("可附身"), Is.EqualTo("trait_direct_possess"));
+        Assert.That(cat.ResolveTraitId("死忠"), Is.EqualTo("trait_direct_possess"));
         Assert.That(cat.ResolveTraitId("trait_multibox"), Is.EqualTo("trait_multibox"));
     }
 

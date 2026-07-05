@@ -1,16 +1,18 @@
 using TopDog.Content.Map;
 using TopDog.Content.Modules;
 using TopDog.Content.Ships;
+using TopDog.AgentDiag;
+using TopDog.Sim.Skirmish;
 using TopDog.Sim.State;
 /*
  * ══ 设计手册嵌入 ══
  * 权威: docs/TACTICAL_WARP_AND_ORDERS.md §2 战场间跃迁 · docs/VISION.md §8
  * 本文件: TacticalWarpService.cs — 同星系跃迁 + 跨星系星门
  * 【机制要点】
- * · BeginWarp：ETA = DistanceAu / warpSpeedAups
- * · Tick：倒计时到 → ArriveWarp 或 GateJump
+ * · BeginWarp：ETA = DistanceAu / warpSpeedAups；跨场景 ≤ MaxWarpDistanceAu (1000 AU)
+ * · TryOrderIntraSceneWarp：同 bf、≥150 km 世界坐标冲刺，无 AU 在途
+ * · RecordLandingClearance：起跳/EnterTransit 时落点阻挡扫描（预留）
  * · GateJump：JumpBridgeResolver 对端锚点瞬移
- * · TransferUnit：从 fromBf 移除加入 toBf
  * 【关联】FleetOrderService · JumpBridgeResolver · BattlefieldAnchorResolver
  * ══
  */
@@ -27,11 +29,19 @@ public static class TacticalWarpService
     public const float DefaultWarpSpeedAups = 5f;
     // liketocoode34e
     public const float MinWarpDistanceAu = 0.05f;
+    public const float MaxWarpDistanceAu = 1000f;
     public const float PseudoWarpSpeedMps = 100_000f;
     public const float ApproachTimeoutSec = 10f;
     public const float EntryBurstSec = 10f;
     public const float LandingDecelSec = 2f;
     public const float ProxyArriveThresholdM = 120f;
+    /// <summary>同场景内高速跃迁最短距离（米）。</summary>
+    public const float MinIntraSceneWarpDistM = 150_000f;
+
+    public static bool IsIntraSceneWarp(BattlefieldUnit unit) =>
+        unit.warpFromBfId != null
+        && unit.warpTargetBfId != null
+        && unit.warpFromBfId.Equals(unit.warpTargetBfId, StringComparison.Ordinal);
 
     public static float ResolveWarpSpeedAups(HullDef? hull) =>
         hull is { warpSpeedAups: > 0f } ? hull.warpSpeedAups : DefaultWarpSpeedAups;
@@ -111,6 +121,14 @@ public static class TacticalWarpService
             return err;
         }
 
+        if (unit.warpPhase is TacticalWarpPhase.ApproachProxy
+            or TacticalWarpPhase.EntryBurst
+            or TacticalWarpPhase.LandingDecel
+            or TacticalWarpPhase.InTransit)
+        {
+            return "已在跃迁中";
+        }
+
         if (unit.inTacticalWarp && unit.warpPhase != TacticalWarpPhase.PrepareInitiate)
         {
             return "已在跃迁中";
@@ -130,6 +148,18 @@ public static class TacticalWarpService
             }
 
             QueuePrepareInitiate(unit, fromBf, toBf, hull, px, py, pz, landingDistM);
+            AgentSessionDebugLog.Write(
+                "W2",
+                "TacticalWarpService.TryOrderWarp",
+                "prepare_initiate",
+                new
+                {
+                    unitId = unit.unitId,
+                    phase = unit.warpPhase.ToString(),
+                    fail = fail.ToString(),
+                    fromBfId = fromBf.battlefieldId,
+                    toBfId = toBf.battlefieldId,
+                });
             return null;
         }
 
@@ -138,7 +168,81 @@ public static class TacticalWarpService
             return TacticalWarpInitiateRules.MessageFor(fail);
         }
 
-        BeginWarpAfterGate(unit, fromBf, toBf, hull, px, py, pz, landingDistM);
+        BeginWarpAfterGate(state, unit, fromBf, toBf, hull, px, py, pz, landingDistM);
+        return null;
+    }
+
+    /// <summary>同场景内 &gt;150km 高速跃迁（飞向世界坐标，不经场景边缘占位）。</summary>
+    public static string? TryOrderIntraSceneWarp(
+        GameState state,
+        BattlefieldUnit unit,
+        BattlefieldState bf,
+        float targetX,
+        float targetY,
+        float targetZ,
+        HullDef? hull,
+        bool autoPrepare = true)
+    {
+        if (bf.battlefieldId == null)
+        {
+            return "战场无效";
+        }
+
+        var dx = targetX - unit.x;
+        var dy = targetY - unit.y;
+        var dz = targetZ - unit.z;
+        var distM = MathF.Sqrt(dx * dx + dy * dy + dz * dz);
+        if (distM < MinIntraSceneWarpDistM)
+        {
+            return "同场景跃迁需超过150km";
+        }
+
+        if (unit.warpPhase is TacticalWarpPhase.ApproachProxy
+            or TacticalWarpPhase.EntryBurst
+            or TacticalWarpPhase.LandingDecel
+            or TacticalWarpPhase.InTransit)
+        {
+            return "已在跃迁中";
+        }
+
+        if (unit.inTacticalWarp && unit.warpPhase != TacticalWarpPhase.PrepareInitiate)
+        {
+            return "已在跃迁中";
+        }
+
+        if (unit.pinnedToBattlefield || unit.IsDestroyed())
+        {
+            return "当前无法跃迁";
+        }
+
+        var fail = TacticalWarpInitiateRules.Evaluate(state, bf, unit, hull, targetX, targetY, targetZ);
+        if (fail is TacticalWarpInitiateRules.FailReason.Heading or TacticalWarpInitiateRules.FailReason.ForwardSpeed)
+        {
+            if (!autoPrepare)
+            {
+                return TacticalWarpInitiateRules.MessageFor(fail);
+            }
+
+            QueuePrepareInitiate(unit, bf, bf, hull, targetX, targetY, targetZ, 0f);
+            AgentSessionDebugLog.Write(
+                "H3",
+                "TacticalWarpService.TryOrderIntraSceneWarp",
+                "prepare_initiate",
+                new { unitId = unit.unitId, distM, bfId = bf.battlefieldId });
+            return null;
+        }
+
+        if (fail != TacticalWarpInitiateRules.FailReason.None)
+        {
+            return TacticalWarpInitiateRules.MessageFor(fail);
+        }
+
+        BeginWarpAfterGate(state, unit, bf, bf, hull, targetX, targetY, targetZ, 0f);
+        AgentSessionDebugLog.Write(
+            "H3",
+            "TacticalWarpService.TryOrderIntraSceneWarp",
+            "approach_target",
+            new { unitId = unit.unitId, distM, targetX, targetY, targetZ });
         return null;
     }
 
@@ -183,6 +287,12 @@ public static class TacticalWarpService
             return "目标场景无效";
         }
 
+        var distanceAu = DistanceAu(fromBf, toBf);
+        if (distanceAu > MaxWarpDistanceAu)
+        {
+            return $"目标过远（{distanceAu:0.#} AU，上限 {MaxWarpDistanceAu:0} AU）";
+        }
+
         if (!BattlefieldSceneProxyService.TryResolveProxyPosition(
                 state, fromBf, toBf.systemId, toBf.eventRegionId, out px, out py, out pz))
         {
@@ -206,12 +316,14 @@ public static class TacticalWarpService
         unit.warpPhase = TacticalWarpPhase.PrepareInitiate;
         unit.warpTargetBfId = toBf.battlefieldId;
         unit.warpFromBfId = fromBf.battlefieldId;
-        unit.warpEtaSec = DistanceAu(fromBf, toBf) / ResolveWarpSpeedAups(hull);
+        unit.warpEtaSec = ResolveWarpEtaSec(unit, fromBf, toBf, hull, px, py, pz);
         unit.warpPhaseTimerSec = 0f;
         unit.warpProxyX = px;
         unit.warpProxyY = py;
         unit.warpProxyZ = pz;
-        unit.warpLandingDistM = TacticalWarpLandingService.ClampLandingDistM(landingDistM);
+        unit.warpLandingDistM = landingDistM > 0f
+            ? TacticalWarpLandingService.ClampLandingDistM(landingDistM)
+            : 0f;
         unit.aiOrder = UnitAiOrder.WARP;
         unit.targetUnitId = null;
         unit.explicitFocus = false;
@@ -219,7 +331,31 @@ public static class TacticalWarpService
         unit.orbitTargetUnitId = null;
     }
 
+    private static float ResolveWarpEtaSec(
+        BattlefieldUnit unit,
+        BattlefieldState fromBf,
+        BattlefieldState toBf,
+        HullDef? hull,
+        float targetX,
+        float targetY,
+        float targetZ)
+    {
+        if (fromBf.battlefieldId != null
+            && toBf.battlefieldId != null
+            && fromBf.battlefieldId.Equals(toBf.battlefieldId, StringComparison.Ordinal))
+        {
+            var dx = targetX - unit.x;
+            var dy = targetY - unit.y;
+            var dz = targetZ - unit.z;
+            var distM = MathF.Sqrt(dx * dx + dy * dy + dz * dz);
+            return Math.Max(0.05f, distM / PseudoWarpSpeedMps);
+        }
+
+        return DistanceAu(fromBf, toBf) / ResolveWarpSpeedAups(hull);
+    }
+
     private static void BeginWarpAfterGate(
+        GameState state,
         BattlefieldUnit unit,
         BattlefieldState fromBf,
         BattlefieldState toBf,
@@ -229,23 +365,110 @@ public static class TacticalWarpService
         float pz,
         float landingDistM)
     {
-        var transitSec = DistanceAu(fromBf, toBf) / ResolveWarpSpeedAups(hull);
         unit.inTacticalWarp = true;
         unit.warpPhase = TacticalWarpPhase.ApproachProxy;
         unit.warpTargetBfId = toBf.battlefieldId;
         unit.warpFromBfId = fromBf.battlefieldId;
-        unit.warpEtaSec = transitSec;
+        unit.warpEtaSec = ResolveWarpEtaSec(unit, fromBf, toBf, hull, px, py, pz);
         unit.warpPhaseTimerSec = 0f;
         unit.warpProxyX = px;
         unit.warpProxyY = py;
         unit.warpProxyZ = pz;
-        unit.warpLandingDistM = TacticalWarpLandingService.ClampLandingDistM(landingDistM);
+        unit.warpLandingDistM = landingDistM > 0f
+            ? TacticalWarpLandingService.ClampLandingDistM(landingDistM)
+            : 0f;
         unit.aiOrder = UnitAiOrder.WARP;
         unit.throttleOn = false;
         unit.targetUnitId = null;
         unit.explicitFocus = false;
         unit.approachTargetUnitId = null;
         unit.orbitTargetUnitId = null;
+        RecordLandingClearance(state, unit, fromBf, toBf);
+        AgentSessionDebugLog.Write(
+            "W2",
+            "TacticalWarpService.BeginWarpAfterGate",
+            "approach_proxy",
+            new
+            {
+                unitId = unit.unitId,
+                phase = unit.warpPhase.ToString(),
+                fromBfId = fromBf.battlefieldId,
+                toBfId = toBf.battlefieldId,
+                intraScene = IsIntraSceneWarp(unit),
+                obstructed = unit.warpLandingObstructed,
+            });
+    }
+
+    private static void RecordLandingClearance(
+        GameState state,
+        BattlefieldUnit unit,
+        BattlefieldState fromBf,
+        BattlefieldState toBf)
+    {
+        unit.warpLandingObstructed = false;
+        unit.warpLandingObstructUnitId = null;
+
+        if (IsIntraSceneWarp(unit))
+        {
+            var radiusSq = TacticalWarpLandingService.LandingObstructionRadiusM
+                * TacticalWarpLandingService.LandingObstructionRadiusM;
+            foreach (var blocker in toBf.units)
+            {
+                if (blocker.IsDestroyed()
+                    || BattlefieldSceneProxyService.IsSceneProxy(blocker)
+                    || ReferenceEquals(blocker, unit))
+                {
+                    continue;
+                }
+
+                var dx = blocker.x - unit.warpProxyX;
+                var dy = blocker.y - unit.warpProxyY;
+                var dz = blocker.z - unit.warpProxyZ;
+                if (dx * dx + dy * dy + dz * dz <= radiusSq)
+                {
+                    unit.warpLandingObstructed = true;
+                    unit.warpLandingObstructUnitId = blocker.unitId;
+                    break;
+                }
+            }
+
+            AgentSessionDebugLog.Write(
+                "H4",
+                "TacticalWarpService.RecordLandingClearance",
+                "intra_scene",
+                new
+                {
+                    unitId = unit.unitId,
+                    obstructed = unit.warpLandingObstructed,
+                    obstructId = unit.warpLandingObstructUnitId,
+                });
+            return;
+        }
+
+        var landingDist = TacticalWarpLandingService.ClampLandingDistM(
+            unit.warpLandingDistM > 0f ? unit.warpLandingDistM : state.tacticalWarpLandingDistM);
+        var obstructed = TacticalWarpLandingService.EvaluateLandingClearance(
+            state,
+            fromBf,
+            toBf,
+            landingDist,
+            out _,
+            out _,
+            out _,
+            out var obstructId);
+        unit.warpLandingObstructed = obstructed;
+        unit.warpLandingObstructUnitId = obstructId;
+        AgentSessionDebugLog.Write(
+            "H4",
+            "TacticalWarpService.RecordLandingClearance",
+            "cross_scene",
+            new
+            {
+                unitId = unit.unitId,
+                obstructed,
+                obstructId,
+                landingDistM = landingDist,
+            });
     }
 
     public static void Tick(GameState state, BattlefieldState bf, float dtSec)
@@ -266,8 +489,18 @@ public static class TacticalWarpService
 
             var toBf = FindBattlefield(state, entry.toBattlefieldId);
             var fromBf = FindBattlefield(state, entry.fromBattlefieldId);
-            if (toBf == null || toBf.finished || fromBf == null)
+            if (fromBf == null || !IsResolvableWarpTarget(state, toBf))
             {
+                AgentSessionDebugLog.Write(
+                    "W6",
+                    "TacticalWarpService.TickInTransit",
+                    "target_bf_missing",
+                    new
+                    {
+                        unitId = entry.unit.unitId,
+                        toBfId = entry.toBattlefieldId,
+                        skirmish = SkirmishPhaseRules.IsActiveMatch(state),
+                    });
                 AbortTransitEntry(state, i, entry);
                 continue;
             }
@@ -311,6 +544,7 @@ public static class TacticalWarpService
         BattlefieldUnit u,
         float dtSec)
     {
+        u.warpPhaseTimerSec += dtSec;
         if (u.warpTargetBfId == null)
         {
             CompleteWarp(u);
@@ -318,8 +552,13 @@ public static class TacticalWarpService
         }
 
         var toBf = FindBattlefield(state, u.warpTargetBfId);
-        if (toBf == null || toBf.finished)
+        if (!IsResolvableWarpTarget(state, toBf))
         {
+            AgentSessionDebugLog.Write(
+                "W6",
+                "TacticalWarpService.TickPrepareInitiate",
+                "target_bf_missing",
+                new { unitId = u.unitId, warpTargetBfId = u.warpTargetBfId });
             CompleteWarp(u);
             return;
         }
@@ -340,10 +579,37 @@ public static class TacticalWarpService
             state, bf, u, hull, u.warpProxyX, u.warpProxyY, u.warpProxyZ);
         if (fail != TacticalWarpInitiateRules.FailReason.None)
         {
+            if (u.warpPhaseTimerSec >= ApproachTimeoutSec)
+            {
+                AgentSessionDebugLog.Write(
+                    "W5",
+                    "TacticalWarpService.TickPrepareInitiate",
+                    "timeout_force_warp",
+                    new
+                    {
+                        unitId = u.unitId,
+                        fail = fail.ToString(),
+                        timer = u.warpPhaseTimerSec,
+                        bfId = bf.battlefieldId,
+                    });
+                BeginWarpAfterGate(
+                    state,
+                    u,
+                    bf,
+                    toBf,
+                    hull,
+                    u.warpProxyX,
+                    u.warpProxyY,
+                    u.warpProxyZ,
+                    u.warpLandingDistM);
+                return;
+            }
+
             return;
         }
 
         BeginWarpAfterGate(
+            state,
             u,
             bf,
             toBf,
@@ -394,6 +660,21 @@ public static class TacticalWarpService
             || u.warpPhaseTimerSec >= ApproachTimeoutSec
             || DistToProxy(u) <= ProxyArriveThresholdM)
         {
+            if (IsIntraSceneWarp(u))
+            {
+                u.x = u.warpProxyX;
+                u.y = u.warpProxyY;
+                u.z = u.warpProxyZ;
+                u.vx = u.vy = u.vz = 0f;
+                CompleteWarp(u);
+                AgentSessionDebugLog.Write(
+                    "H3",
+                    "TacticalWarpService.TickApproachProxy",
+                    "intra_scene_arrived",
+                    new { unitId = u.unitId, bfId = bf.battlefieldId });
+                return;
+            }
+
             EnterTransit(state, bf, u, unitIndex);
         }
     }
@@ -402,6 +683,13 @@ public static class TacticalWarpService
     {
         var landing = TacticalWarpLandingService.ClampLandingDistM(
             u.warpLandingDistM > 0f ? u.warpLandingDistM : state.tacticalWarpLandingDistM);
+
+        var toBf = FindBattlefield(state, u.warpTargetBfId);
+        var fromBf = FindBattlefield(state, u.warpFromBfId ?? bf.battlefieldId);
+        if (fromBf != null && toBf != null)
+        {
+            RecordLandingClearance(state, u, fromBf, toBf);
+        }
 
         state.tacticalWarpInTransit.Add(new TacticalWarpTransitEntry
         {
@@ -416,6 +704,18 @@ public static class TacticalWarpService
         u.warpPhase = TacticalWarpPhase.InTransit;
         u.vx = u.vy = u.vz = 0f;
         u.throttleOn = false;
+        AgentSessionDebugLog.Write(
+            "W3",
+            "TacticalWarpService.EnterTransit",
+            "removed_from_source",
+            new
+            {
+                unitId = u.unitId,
+                fromBfId = bf.battlefieldId,
+                toBfId = u.warpTargetBfId,
+                etaSec = u.warpEtaSec,
+                transitCount = state.tacticalWarpInTransit.Count,
+            });
     }
 
     private static void SpawnEntry(
@@ -441,7 +741,11 @@ public static class TacticalWarpService
             ez = 0f;
         }
 
+        BattlefieldSceneOriginService.Resolve(state, toBf, out var ox, out var oy, out var oz);
         TacticalWarpLandingService.ComputeLandingPoint(
+            ox,
+            oy,
+            oz,
             ex,
             ey,
             ez,
@@ -449,6 +753,9 @@ public static class TacticalWarpService
             out var lx,
             out var ly,
             out var lz);
+
+        var burstDistM = TacticalWarpEtaEstimator.EstimateBurstToLandingDistM(ox, oy, oz, ex, ey, ez, landingDistM);
+        var estLandingSec = TacticalWarpEtaEstimator.EstimatePostEntryLandingSec(burstDistM);
 
         unit.x = ex;
         unit.y = ey;
@@ -466,6 +773,25 @@ public static class TacticalWarpService
         unit.aiOrder = UnitAiOrder.WARP;
         unit.throttleOn = false;
         toBf.units.Add(unit);
+        AgentSessionDebugLog.Write(
+            "W5",
+            "TacticalWarpService.SpawnEntry",
+            "entry_burst",
+            new
+            {
+                unitId = unit.unitId,
+                toBfId = toBf.battlefieldId,
+                phase = unit.warpPhase.ToString(),
+                landingDistM,
+                burstDistM,
+                estLandingSec,
+                entryX = ex,
+                entryY = ey,
+                entryZ = ez,
+                landingX = lx,
+                landingY = ly,
+                landingZ = lz,
+            });
     }
 
     private static void TickEntryBurst(BattlefieldUnit u, float dtSec)
@@ -478,9 +804,33 @@ public static class TacticalWarpService
             u.warpLandingZ,
             PseudoWarpSpeedMps,
             dtSec,
-            out _);
+            out var remaining);
 
-        if (u.warpPhaseTimerSec >= EntryBurstSec || arrived)
+        if (u.warpPhaseTimerSec >= EntryBurstSec)
+        {
+            if (remaining > ProxyArriveThresholdM)
+            {
+                // #region agent log
+                AgentSessionDebugLog.Write(
+                    "W5",
+                    "TacticalWarpService.TickEntryBurst",
+                    "burst_timeout",
+                    new
+                    {
+                        unitId = u.unitId,
+                        timerSec = u.warpPhaseTimerSec,
+                        remainingM = remaining,
+                        landingDistM = u.warpLandingDistM,
+                    });
+                // #endregion
+            }
+
+            u.warpPhase = TacticalWarpPhase.LandingDecel;
+            u.warpPhaseTimerSec = 0f;
+            return;
+        }
+
+        if (arrived)
         {
             u.warpPhase = TacticalWarpPhase.LandingDecel;
             u.warpPhaseTimerSec = 0f;
@@ -496,6 +846,23 @@ public static class TacticalWarpService
 
         if (t >= 1f || (arrived && dist <= ProxyArriveThresholdM))
         {
+            if (dist > ProxyArriveThresholdM)
+            {
+                // #region agent log
+                AgentSessionDebugLog.Write(
+                    "W5",
+                    "TacticalWarpService.TickLandingDecel",
+                    "snap_landing",
+                    new
+                    {
+                        unitId = u.unitId,
+                        distM = dist,
+                        timerSec = u.warpPhaseTimerSec,
+                        landingDistM = u.warpLandingDistM,
+                    });
+                // #endregion
+            }
+
             u.x = u.warpLandingX;
             u.y = u.warpLandingY;
             u.z = u.warpLandingZ;
@@ -503,6 +870,13 @@ public static class TacticalWarpService
             u.vy = 0f;
             u.vz = 0f;
             CompleteWarp(u);
+            // #region agent log
+            AgentSessionDebugLog.Write(
+                "W5",
+                "TacticalWarpService.TickLandingDecel",
+                "landed",
+                new { unitId = u.unitId, landingDistM = u.warpLandingDistM });
+            // #endregion
         }
     }
 
@@ -617,6 +991,11 @@ public static class TacticalWarpService
         return null;
     }
 
+    internal static bool IsResolvableWarpTarget(GameState state, BattlefieldState? toBf) =>
+        toBf != null
+        && toBf.battlefieldId != null
+        && (!toBf.finished || SkirmishPhaseRules.IsActiveMatch(state));
+
     /// <summary>供拦截泡等后续机制改写在途/入场落点。</summary>
     public static void OverrideTransitLandingDist(GameState state, string unitId, float landingDistM)
     {
@@ -643,7 +1022,9 @@ public static class TacticalWarpService
                         && BattlefieldSceneProxyService.TryResolveProxyPosition(
                             state, bf, fromBf.systemId, fromBf.eventRegionId, out var ex, out var ey, out var ez))
                     {
-                        TacticalWarpLandingService.ComputeLandingPoint(ex, ey, ez, dist, out u.warpLandingX, out u.warpLandingY, out u.warpLandingZ);
+                        BattlefieldSceneOriginService.Resolve(state, bf, out var ox, out var oy, out var oz);
+                        TacticalWarpLandingService.ComputeLandingPoint(
+                            ox, oy, oz, ex, ey, ez, dist, out u.warpLandingX, out u.warpLandingY, out u.warpLandingZ);
                     }
                 }
             }

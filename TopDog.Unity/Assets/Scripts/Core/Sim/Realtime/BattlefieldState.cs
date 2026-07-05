@@ -7,7 +7,11 @@ using TopDog.Sim.Combat;
  * · battlefieldId/systemId/anchorAu/eventRegion
  * · combatSubtype/resolveMode/timeSec/finished
  * · units[] + pendingHpDeltas[]
+ * · sceneProxiesSealed：场景外占位已在加载时 seed，实时阶段不得再 mutate
  * · 建筑/收割专用字段
+ * 【实现逻辑】
+ * · sceneProxiesSealed 由 BattlefieldSceneProxyService.SeedSceneProxies 置 true
+ * · units 内 SCENE_PROXY 条目与密封标志同寿命；finished 战场可整局移除
  * 【关联】BattlefieldSystem · TacticalWarpService · VisionGate
  * ══
  */
@@ -58,5 +62,7 @@ public sealed class BattlefieldState
     public int buildingDamageWindowSec = -1;
     public List<BattlefieldUnit> units = new();
     public List<CombatHpDeltaEvent> pendingHpDeltas = new();
+    /// <summary>场景外占位已在加载时 seed 并密封；实时 tick/指令不得再增删 proxy。</summary>
+    public bool sceneProxiesSealed;
 // liketocoode3a5
 }

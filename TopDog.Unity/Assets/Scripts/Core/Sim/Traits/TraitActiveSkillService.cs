@@ -1,5 +1,6 @@
 using TopDog.Content.Modules;
 using TopDog.Content.Ships;
+using TopDog.Content.Traits;
 using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
 using TopDog.Sim.Realtime;
@@ -40,6 +41,78 @@ public static class TraitActiveSkillService
   /// <summary>同一现实人共享；每故事回合最多 1 次（xlsx：一个回合只能使用一次）。</summary>
     // li3etocoode345
     public const int CooldownStoryRounds = 1;
+
+    private static readonly Dictionary<string, string> DefaultActiveSkillPhases = new(StringComparer.Ordinal)
+    {
+        [BoardSummonTraitId] = TraitActiveSkillPhase.RealtimeCombat,
+        [PlanningSupportTraitId] = TraitActiveSkillPhase.Operations,
+    };
+
+    /// <summary>读取主动技阶段标签；JSON 优先，缺省回退已知 VIP 词条。</summary>
+    public static string? GetActiveSkillPhase(string? traitId, TraitCatalog? catalog = null)
+    {
+        if (string.IsNullOrWhiteSpace(traitId))
+        {
+            return null;
+        }
+
+        var fromJson = catalog?.Find(traitId)?.activeSkillPhase;
+        if (!string.IsNullOrWhiteSpace(fromJson))
+        {
+            return fromJson;
+        }
+
+        return DefaultActiveSkillPhases.TryGetValue(traitId, out var phase) ? phase : null;
+    }
+
+    public static bool IsActiveSkill(string? traitId, TraitCatalog? catalog = null) =>
+        GetActiveSkillPhase(traitId, catalog) != null;
+
+    public static bool IsOperationsActiveSkill(string? traitId, TraitCatalog? catalog = null) =>
+        TraitActiveSkillPhase.Operations.Equals(
+            GetActiveSkillPhase(traitId, catalog),
+            StringComparison.Ordinal);
+
+    public static bool IsRealtimeCombatActiveSkill(string? traitId, TraitCatalog? catalog = null) =>
+        TraitActiveSkillPhase.RealtimeCombat.Equals(
+            GetActiveSkillPhase(traitId, catalog),
+            StringComparison.Ordinal);
+
+    /// <summary>当前故事阶段是否允许发动该主动技。</summary>
+    public static bool IsGamePhaseAllowed(GameState state, string traitId, TraitCatalog? catalog = null)
+    {
+        var phase = GetActiveSkillPhase(traitId, catalog);
+        if (phase == null)
+        {
+            return false;
+        }
+
+        if (phase == TraitActiveSkillPhase.Operations)
+        {
+            return state.phase is GamePhase.OPERATIONS or GamePhase.COMBAT_PREP;
+        }
+
+        if (phase == TraitActiveSkillPhase.RealtimeCombat)
+        {
+            return state.phase is GamePhase.COMBAT_PREP or GamePhase.COMBAT;
+        }
+
+        return false;
+    }
+
+    public static IEnumerable<string> ListActiveSkillTraitIds(
+        IdentityState id,
+        string activeSkillPhase,
+        TraitCatalog? catalog = null)
+    {
+        foreach (var traitId in id.traitIds)
+        {
+            if (activeSkillPhase.Equals(GetActiveSkillPhase(traitId, catalog), StringComparison.Ordinal))
+            {
+                yield return traitId;
+            }
+        }
+    }
 
 // liketocoode345
 

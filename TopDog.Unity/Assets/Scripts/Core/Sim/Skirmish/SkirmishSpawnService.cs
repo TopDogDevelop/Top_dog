@@ -11,6 +11,20 @@ using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 using TopDog.Sim.Vision;
 
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/TACTICAL_RIGHT_RAIL_SCENE_PROXY.md §3 · docs/LEGION_SKIRMISH.md §2
+ * 本文件: SkirmishSpawnService.cs — 约战战场 bootstrap 与名册 spawn
+ * 【机制要点】
+ * · BootstrapBattlefields：建全部 eventRegion 战场、spawn 名册、设 activeBattlefieldId
+ * · 末段 SeedAllSkirmishSceneProxies + SyncSkirmishLabels（标签仅开局一次）
+ * 【实现逻辑】
+ * · SeedAllSkirmishSceneProxies：对各 bf 调 SeedSceneProxies（非 tick 重复 sync）
+ * · SeedInitialVisionFocus：首个锚点团员附身或 tacticalCameraUnitId
+ * 【关联】BattlefieldSceneProxyService · SkirmishDisplayNames · VisionAnchorService
+ * ══
+ */
+
 namespace TopDog.Sim.Skirmish;
 
 public static class SkirmishSpawnService
@@ -82,12 +96,24 @@ public static class SkirmishSpawnService
         }
 
         SetInitialActiveBattlefield(state);
-
-        state.phase = GamePhase.COMBAT;
-        state.combatRealtimeActive = true;
-        state.combatPrepStep = CombatPrepStep.CHOOSE_STANCE;
-        MatchMemberBaselineService.EnsureSnapshot(state);
         SkirmishDisplayNames.SyncSkirmishLabels(state);
+        SeedInitialVisionFocus(state);
+        SyncAllSkirmishSceneProxiesInternal(state);
+
+        SkirmishPhaseRules.EnsureRealtimeCombat(state);
+        MatchMemberBaselineService.EnsureSnapshot(state);
+    }
+
+    /// <summary>军堡 spawn 半径内均匀立体随机偏移（球体内）。</summary>
+    public static void ApplyFortressSpawnOffset(BattlefieldUnit u, Random rng, float radiusM)
+    {
+        var cosPhi = 1f - 2f * (float)rng.NextDouble();
+        var sinPhi = MathF.Sqrt(MathF.Max(0f, 1f - cosPhi * cosPhi));
+        var theta = (float)(rng.NextDouble() * Math.PI * 2);
+        var r = radiusM * MathF.Pow((float)rng.NextDouble(), 1f / 3f);
+        u.x = r * sinPhi * MathF.Cos(theta);
+        u.y = r * sinPhi * MathF.Sin(theta);
+        u.z = r * cosPhi;
     }
 
     public static int SpawnLegionRoster(
@@ -107,7 +133,8 @@ public static class SkirmishSpawnService
 
         foreach (var member in state.members)
         {
-            if (member.legionId != null && !member.legionId.Equals(legion.legionId, StringComparison.Ordinal))
+            if (string.IsNullOrEmpty(member.legionId)
+                || !member.legionId.Equals(legion.legionId, StringComparison.Ordinal))
             {
                 continue;
             }
@@ -124,8 +151,6 @@ public static class SkirmishSpawnService
                 fallbackHull++;
             }
 
-            var angle = (float)(rng.NextDouble() * Math.PI * 2);
-            var dist = (float)(rng.NextDouble() * radius);
             var u = new BattlefieldUnit
             {
                 unitId = "u-" + Guid.NewGuid().ToString("N")[..8],
@@ -135,10 +160,9 @@ public static class SkirmishSpawnService
                 legionId = legion.legionId,
                 side = side,
                 arrivalAtSec = 0f,
-                x = MathF.Cos(angle) * dist,
-                y = MathF.Sin(angle) * dist,
                 facingRad = side == UnitSide.FRIENDLY ? 0f : (float)Math.PI,
             };
+            ApplyFortressSpawnOffset(u, rng, radius);
             u.fittedModules = new Dictionary<string, string>(MemberFittingService.Fittings(state, member));
             ModuleRuntime.ApplyToUnit(u, hull, modules);
             bf.units.Add(u);
@@ -189,6 +213,85 @@ public static class SkirmishSpawnService
         return null;
     }
 
+    private static void SeedInitialVisionFocus(GameState state)
+    {
+        MemberState? pickMember = null;
+        BattlefieldUnit? pickUnit = null;
+        var preferPossess = false;
+
+        foreach (var member in state.members)
+        {
+            if (member.memberId == null || !VisionLocationService.IsVisionEligibleMember(member, state))
+            {
+                continue;
+            }
+
+            var legion = state.legions.Find(l =>
+                member.legionId != null
+                && member.legionId.Equals(l.legionId, StringComparison.Ordinal));
+            if (legion == null || !legion.isLocal)
+            {
+                continue;
+            }
+
+            foreach (var bf in state.battlefields)
+            {
+                if (bf.finished)
+                {
+                    continue;
+                }
+
+                foreach (var u in bf.units)
+                {
+                    if (!member.memberId.Equals(u.memberId, StringComparison.Ordinal)
+                        || u.side != UnitSide.FRIENDLY
+                        || u.IsDestroyed()
+                        || !VisionGate.IsRailEligibleFriendly(u, bf.timeSec))
+                    {
+                        continue;
+                    }
+
+                    var hasPossess = VisionLocationService.HasPossessTrait(member);
+                    if (pickMember == null || (hasPossess && !preferPossess))
+                    {
+                        pickMember = member;
+                        pickUnit = u;
+                        preferPossess = hasPossess;
+                        if (preferPossess)
+                        {
+                            break;
+                        }
+                    }
+                }
+
+                if (preferPossess)
+                {
+                    break;
+                }
+            }
+
+            if (preferPossess)
+            {
+                break;
+            }
+        }
+
+        if (pickMember?.memberId == null || pickUnit?.unitId == null)
+        {
+            return;
+        }
+
+        if (VisionLocationService.HasPossessTrait(pickMember))
+        {
+            state.possessingMemberId = pickMember.memberId;
+            pickUnit.aiOrder = UnitAiOrder.MANUAL;
+            return;
+        }
+
+        state.possessingMemberId = null;
+        state.tacticalCameraUnitId = pickUnit.unitId;
+    }
+
     private static void SetInitialActiveBattlefield(GameState state)
     {
         foreach (var legion in state.legions)
@@ -228,6 +331,37 @@ public static class SkirmishSpawnService
         if (state.battlefields.Count > 0)
         {
             state.activeBattlefieldId = state.battlefields[0].battlefieldId;
+        }
+    }
+
+    public static void SyncAllSkirmishSceneProxies(GameState state)
+    {
+        foreach (var bf in state.battlefields)
+        {
+            if (!bf.finished && bf.battlefieldId != null)
+            {
+                BattlefieldSceneProxyService.SeedSceneProxies(state, bf);
+            }
+        }
+    }
+
+    private static void SyncAllSkirmishSceneProxiesInternal(GameState state) =>
+        SyncAllSkirmishSceneProxies(state);
+
+    private static void SyncActiveBattlefieldSceneProxies(GameState state)
+    {
+        if (state.activeBattlefieldId == null)
+        {
+            return;
+        }
+
+        foreach (var bf in state.battlefields)
+        {
+            if (state.activeBattlefieldId.Equals(bf.battlefieldId, StringComparison.Ordinal))
+            {
+                BattlefieldSceneProxyService.SeedSceneProxies(state, bf);
+                return;
+            }
         }
     }
 

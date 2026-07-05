@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using TopDog.AgentDiag;
 using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 using UnityEngine;
@@ -29,6 +30,7 @@ public sealed class TacticalViewportInputOverlay : VisualElement
     private TacticalViewportCamera _camera;
     private TacticalViewportPresenter _presenter;
     private Action _onCameraChanged;
+    private Action<Vector2, string>? _onUnitPicked;
     private VisualElement _selectionBox;
     private bool _boxDrag;
     private bool _middleDrag;
@@ -57,11 +59,13 @@ public sealed class TacticalViewportInputOverlay : VisualElement
     public void Bind(
         TacticalViewportCamera camera,
         TacticalViewportPresenter presenter,
-        Action onCameraChanged)
+        Action onCameraChanged,
+        Action<Vector2, string>? onUnitPicked = null)
     {
         _camera = camera;
         _presenter = presenter;
         _onCameraChanged = onCameraChanged;
+        _onUnitPicked = onUnitPicked;
     }
 
     // liketocoode3a5
@@ -96,9 +100,9 @@ public sealed class TacticalViewportInputOverlay : VisualElement
 
             var picked = _presenter?.PickUnitAt((Vector2)evt.localPosition);
             if (picked != null)
-            // liketocoode34e
             {
                 TacticalSelectionState.SetSelectedTarget(picked);
+                _onUnitPicked?.Invoke((Vector2)evt.localPosition, picked);
                 evt.StopPropagation();
                 return;
             }
@@ -202,6 +206,11 @@ public sealed class TacticalViewportInputOverlay : VisualElement
         if (evt.delta.y < 0) _camera.ZoomIn();
         else if (evt.delta.y > 0) _camera.ZoomOut();
         _onCameraChanged?.Invoke();
+        AgentSessionDebugLog.Write(
+            "H-zoom",
+            "TacticalViewportInputOverlay.OnWheel",
+            "zoom",
+            new { deltaY = evt.delta.y, viewDistance = _camera.ViewDistance });
         evt.StopPropagation();
     }
 

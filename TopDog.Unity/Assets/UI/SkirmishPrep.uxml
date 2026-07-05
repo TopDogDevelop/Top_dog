@@ -40,6 +40,7 @@
           <ui:VisualElement name="preset-section" class="skirmish-preset-section">
             <ui:Label text="配置保存槽" class="lobby-section-caption" />
             <ui:ScrollView name="preset-save-picker" class="lobby-pick-scroll skirmish-preset-picker" style="display: none;" />
+            <ui:ScrollView name="preset-load-picker" class="lobby-pick-scroll skirmish-preset-picker" style="display: none;" />
             <ui:VisualElement name="preset-row" class="lobby-option-chip-row" />
           </ui:VisualElement>
 

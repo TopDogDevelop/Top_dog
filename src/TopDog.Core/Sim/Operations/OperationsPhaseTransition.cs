@@ -3,6 +3,7 @@ using TopDog.Content.Modules;
 using TopDog.Content.Ships;
 using TopDog.Sim.Combat;
 using TopDog.Sim.Member;
+using TopDog.Sim.Skirmish;
 using TopDog.Sim.State;
 /*
  * ══ 设计手册嵌入 ══
@@ -28,6 +29,11 @@ public static class OperationsPhaseTransition
     // liketocoode34e
     public static void CompleteOperationsPhase(BrickContext ctx)
     {
+        if (SkirmishPhaseRules.IsActiveMatch(ctx.State))
+        {
+            return;
+        }
+
         // liketocoode3a5
         var state = ctx.State;
         // liketocoo3e345

@@ -191,6 +191,22 @@ public sealed class BattlefieldSceneProxyServiceTests
     }
 
     [Test]
+    public void TryResolveWarpTargetScene_UiFallbackIdWithoutUnit()
+    {
+        var state = new GameState { map = SampleMap() };
+        var bf = new BattlefieldState { battlefieldId = "bf-a", systemId = "sys-a" };
+        state.battlefields.Add(bf);
+
+        Assert.That(
+            FleetOrderService.TryResolveWarpTargetScene(
+                state, bf, "scene-proxy-sys-a-belt-a", out var sys, out var region),
+            Is.True);
+        Assert.That(sys, Is.EqualTo("sys-a"));
+        Assert.That(region, Is.EqualTo("belt-a"));
+        Assert.That(bf.units.Exists(u => u.unitId == "scene-proxy-sys-a-belt-a"), Is.True);
+    }
+
+    [Test]
     public void EnsureSceneBattlefield_LazilyCreatesEmptyBattlefield()
     {
         var state = new GameState { map = SampleMap() };
@@ -200,6 +216,77 @@ public sealed class BattlefieldSceneProxyServiceTests
         Assert.That(bf.eventRegionId, Is.EqualTo("belt-a"));
         Assert.That(bf.units, Is.Empty);
         Assert.That(state.battlefields, Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public void SyncForBattlefield_CollinearOffSceneRegionsShareScreenDirection()
+    {
+        var regions = new List<EventRegionDef>
+        {
+            new()
+            {
+                eventRegionId = "fort",
+                kind = EventRegionKinds.LegionStructure,
+                anchorAu = new[] { 0f, 0f, 0f },
+                radiusKm = 100,
+            },
+        };
+        for (var i = 1; i <= 6; i++)
+        {
+            regions.Add(new EventRegionDef
+            {
+                eventRegionId = $"site-{i}",
+                kind = EventRegionKinds.OreBelt,
+                name = $"站点{i}",
+                anchorAu = new[] { i * 5f, 0f, 0f },
+                radiusKm = 100,
+            });
+        }
+
+        var state = new GameState
+        {
+            combatRealtimeActive = true,
+            map = new LoadedMap(
+                new MapProject
+                {
+                    systems =
+                    {
+                        new SolarSystemDef
+                        {
+                            solarSystemId = "sys-a",
+                            name = "Axis",
+                            eventRegions = regions,
+                        },
+                    },
+                },
+                securityBands: null),
+        };
+        var bf = new BattlefieldState
+        {
+            battlefieldId = "bf-fort",
+            systemId = "sys-a",
+            eventRegionId = "fort",
+            anchorAu = new[] { 0f, 0f, 0f },
+        };
+        state.battlefields.Add(bf);
+
+        BattlefieldSceneProxyService.SeedSceneProxies(state, bf);
+
+        var proxies = bf.units
+            .Where(BattlefieldSceneProxyService.IsSceneProxy)
+            .OrderBy(u => u.sceneProxyTargetEventRegionId, StringComparer.Ordinal)
+            .ToList();
+        Assert.That(proxies, Has.Count.EqualTo(6));
+
+        var first = proxies[0];
+        foreach (var p in proxies.Skip(1))
+        {
+            Assert.That(p.sceneProxyAzimuthRad, Is.EqualTo(first.sceneProxyAzimuthRad).Within(0.001f));
+            Assert.That(p.sceneProxyElevationRad, Is.EqualTo(first.sceneProxyElevationRad).Within(0.001f));
+            Assert.That(p.x, Is.EqualTo(first.x).Within(1f));
+            Assert.That(p.y, Is.EqualTo(first.y).Within(1f));
+            Assert.That(p.z, Is.EqualTo(first.z).Within(1f));
+        }
     }
 
     private static LoadedMap SampleMap(bool withElevatedRegion = false)

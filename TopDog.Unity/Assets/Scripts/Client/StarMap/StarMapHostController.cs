@@ -274,7 +274,7 @@ public sealed class StarMapHostController : MonoBehaviour, IViewportCameraComman
         }
     }
 
-    public void EnterSystemInterior(string systemId)
+    public void EnterSystemInterior(string systemId, string? highlightEventRegionId = null)
     {
         if (_map?.Project.FindSystem(systemId) == null)
         {
@@ -284,7 +284,7 @@ public sealed class StarMapHostController : MonoBehaviour, IViewportCameraComman
         SystemInteriorPopulator.EnsureSystem(sys, _map.Project, systemId.GetHashCode());
         _viewMode = ViewMode.SystemInterior;
         _interiorSystemId = systemId;
-        _selectedEventRegionId = null;
+        _selectedEventRegionId = highlightEventRegionId;
         _bridges?.SetMap(null);
         RebuildMarkers();
         ResetView();

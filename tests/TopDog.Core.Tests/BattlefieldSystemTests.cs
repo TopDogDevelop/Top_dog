@@ -12,7 +12,7 @@ public sealed class BattlefieldSystemTests
     public void TickResolvesWhenOneSideEliminated()
     {
         var state = new GameState { combatRealtimeActive = true, autoFireEnabled = true };
-        var friendly = Member("f1", "hull_bc_spear", "trait_loyal");
+        var friendly = Member("f1", "hull_bc_spear", "trait_direct_possess");
         state.members.Add(friendly);
 
         var entry = new CombatQueueEntry

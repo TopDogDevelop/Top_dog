@@ -10,6 +10,22 @@ public static class SkirmishMapGenerator
     public const string SystemId = "skirmish_sys";
     public const string StarRegionId = "skirmish_er_star";
 
+    private static readonly float[] AxisHops = { -3f, -2f, -1f, 0f, 1f, 2f, 3f };
+    private static readonly string[] RegionNames =
+    {
+        "A 个堡 2", "A 军堡", "A 个堡 1", "恒星", "B 个堡 2", "B 军堡", "B 个堡 1",
+    };
+    private static readonly string[] RegionKinds =
+    {
+        EventRegionKinds.LegionStructure,
+        EventRegionKinds.LegionStructure,
+        EventRegionKinds.LegionStructure,
+        EventRegionKinds.Star,
+        EventRegionKinds.LegionStructure,
+        EventRegionKinds.LegionStructure,
+        EventRegionKinds.LegionStructure,
+    };
+
     public static LoadedMap Generate(int scale, int seed)
     {
         var rng = new Random(seed);
@@ -18,34 +34,15 @@ public static class SkirmishMapGenerator
         var balance = SkirmishBalanceConfig.LoadDefault();
         var scaleCfg = balance.ResolveScale(scale);
 
-        var offsets = new[]
-        {
-            -15f, -10f, -5f, 0f, 5f, 10f, 15f,
-        };
-        var regionNames = new[]
-        {
-            "A 个堡 2", "A 军堡", "A 个堡 1", "恒星", "B 个堡 2", "B 军堡", "B 个堡 1",
-        };
-        var regionKinds = new[]
-        {
-            EventRegionKinds.LegionStructure,
-            EventRegionKinds.LegionStructure,
-            EventRegionKinds.LegionStructure,
-            EventRegionKinds.Star,
-            EventRegionKinds.LegionStructure,
-            EventRegionKinds.LegionStructure,
-            EventRegionKinds.LegionStructure,
-        };
-
         var regions = new List<EventRegionDef>();
-        for (var i = 0; i < offsets.Length; i++)
+        for (var i = 0; i < AxisHops.Length; i++)
         {
-            var anchor = ScaleAu(axis, offsets[i] * balance.eventRegionSpacingAu);
+            var anchor = ScaleAu(axis, AxisHops[i] * balance.eventRegionSpacingAu);
             regions.Add(new EventRegionDef
             {
                 eventRegionId = $"skirmish_er_{i + 1}",
-                kind = regionKinds[i],
-                name = regionNames[i],
+                kind = RegionKinds[i],
+                name = RegionNames[i],
                 radiusKm = i == 3 ? 2000 : 800,
                 anchorAu = anchor,
             });

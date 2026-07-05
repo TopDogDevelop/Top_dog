@@ -1,3 +1,4 @@
+using TopDog.AgentDiag;
 using TopDog.Content.Modules;
 using TopDog.Content.Ships;
 using TopDog.Sim.Building;
@@ -9,7 +10,7 @@ using TopDog.Sim.Vision;
 
 /*
  * ══ 设计手册嵌入 ══
- * 权威: docs/TACTICAL_VIEW.md §0-§2 战斗视野 · §接近指令 · docs/TACTICAL_WARP_AND_ORDERS.md §1.3
+ * 权威: docs/TACTICAL_RIGHT_RAIL_SCENE_PROXY.md §3 · docs/TACTICAL_VIEW.md §0-§2
  * 本文件: BattlefieldSystem.cs — 实时战场 tick（运动·自火·salvo·胜负）
  * 【机制要点】
  * · Tick：逐 battlefield 积分 timeSec，调用 TickBattlefield + 胜负判定
@@ -18,13 +19,15 @@ using TopDog.Sim.Vision;
  * · TickOrbit：OrbitEntryResolver 切入点 + OrbitOnRing 圆轨道
  * · TryFireSalvo：射程内开火 → ApplyDamage + CombatDamageLedger + BattleReport
  * · CheckVictory：友敌存活 + 300s timeout
+ * 【实现逻辑】
+ * · TickBattlefield 不调用 BattlefieldSceneProxyService（占位已密封，见 TACTICAL_RIGHT_RAIL_SCENE_PROXY.md §3.3）
  * 【关联】ShipMotionIntegrator · FleetOrderService · MissileProjectileService · BattleReportService
  * ══
  */
 
 /*
  * ══ 设计手册嵌入 ══
- * 权威: docs/TACTICAL_VIEW.md §0-§2 战斗视野 · §接近指令 · docs/TACTICAL_WARP_AND_ORDERS.md §1.3
+ * 权威: docs/TACTICAL_RIGHT_RAIL_SCENE_PROXY.md §3 · docs/TACTICAL_VIEW.md §0-§2
  * 本文件: BattlefieldSystem.cs — 实时战场 tick（运动·自火·salvo·胜负）
  * 【机制要点】
  * · Tick：逐 battlefield 积分 timeSec，调用 TickBattlefield + 胜负判定
@@ -32,6 +35,8 @@ using TopDog.Sim.Vision;
  * · TickApproachOrAway：每 1s SnapHeadingToward/Away + 满引擎；进射程 STOP
  * · TryFireSalvo：射程内开火 → ApplyDamage + CombatDamageLedger + BattleReport
  * · CheckVictory：友敌存活 + 300s timeout
+ * 【实现逻辑】
+ * · TickBattlefield 不调用 BattlefieldSceneProxyService（占位已密封，见 TACTICAL_RIGHT_RAIL_SCENE_PROXY.md §3.3）
  * 【关联】ShipMotionIntegrator · FleetOrderService · MissileProjectileService · BattleReportService
  * ══
  */
@@ -58,11 +63,13 @@ public static class BattlefieldSystem
             return;
         }
 
+        HealMisfinishedShipBattlefields(state);
+
         TacticalWarpService.TickInTransit(state, dtSec);
 
         foreach (var bf in state.battlefields)
         {
-            if (bf.finished)
+            if (bf.finished && !ShouldTickBattlefield(state, bf))
             {
                 continue;
             }
@@ -88,9 +95,7 @@ public static class BattlefieldSystem
             }
         }
 
-        state.battlefields.RemoveAll(bf =>
-            bf.finished && bf.battlefieldId != null
-            && !bf.battlefieldId.Equals(state.activeBattlefieldId, StringComparison.Ordinal));
+        state.battlefields.RemoveAll(bf => ShouldPruneBattlefield(state, bf));
 
         TacticalViewportFollowService.Tick(state);
     }
@@ -104,12 +109,6 @@ public static class BattlefieldSystem
         ShipRegistry ships,
         float dtSec)
     {
-        if (bf.battlefieldId != null
-            && bf.battlefieldId.Equals(state.activeBattlefieldId, StringComparison.Ordinal))
-        {
-            BattlefieldSceneProxyService.SyncForBattlefield(state, bf);
-        }
-
         PossessionInputService.ApplyPending(state, bf, dtSec);
         TacticalWarpService.Tick(state, bf, dtSec);
         AiRealtimePlayerBrain.Tick(state, bf, dtSec);
@@ -765,12 +764,28 @@ public static class BattlefieldSystem
             }
         }
 
-        if (!friendlyAlive || !enemyAlive)
+        if (!friendlyAlive && !enemyAlive)
+        {
+            return;
+        }
+
+        if (!friendlyAlive)
         {
             bf.finished = true;
-            bf.winnerSide = friendlyAlive && !enemyAlive ? UnitSide.FRIENDLY
-                : enemyAlive && !friendlyAlive ? UnitSide.ENEMY
-                : null;
+            bf.winnerSide = UnitSide.ENEMY;
+            return;
+        }
+
+        if (!enemyAlive)
+        {
+            // #region agent log
+            AgentSessionDebugLog.Write(
+                "H8",
+                "BattlefieldSystem.CheckVictory",
+                "skip_friendly_only",
+                new { bfId = bf.battlefieldId, friendlyAlive, enemyAlive });
+            // #endregion
+            return;
         }
 
         if (bf.timeSec > BattleTimeoutSec && !bf.finished)
@@ -780,6 +795,132 @@ public static class BattlefieldSystem
                 : enemyAlive && !friendlyAlive ? UnitSide.ENEMY
                 : null;
             bf.winReason = "timeout";
+        }
+    }
+
+    /// <summary>战场仍有非建筑舰船（含跃迁中）时应继续 sim tick。</summary>
+    public static bool HasShipCombatPresence(GameState state, BattlefieldState bf)
+    {
+        if (bf.battlefieldId == null)
+        {
+            return false;
+        }
+
+        foreach (var u in bf.units)
+        {
+            if (u.IsDestroyed() || u.isBuilding || BattlefieldSceneProxyService.IsSceneProxy(u))
+            {
+                continue;
+            }
+
+            if (u.warpPhase != TacticalWarpPhase.None || u.inTacticalWarp)
+            {
+                return true;
+            }
+
+            if (u.Arrived(bf.timeSec))
+            {
+                return true;
+            }
+        }
+
+        foreach (var transit in state.tacticalWarpInTransit)
+        {
+            if (transit.unit.IsDestroyed() || transit.unit.isBuilding)
+            {
+                continue;
+            }
+
+            if (bf.battlefieldId.Equals(transit.fromBattlefieldId, StringComparison.Ordinal)
+                || bf.battlefieldId.Equals(transit.toBattlefieldId, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        foreach (var otherBf in state.battlefields)
+        {
+            foreach (var u in otherBf.units)
+            {
+                if (u.IsDestroyed() || u.isBuilding || BattlefieldSceneProxyService.IsSceneProxy(u))
+                {
+                    continue;
+                }
+
+                if (u.warpPhase is not (TacticalWarpPhase.PrepareInitiate or TacticalWarpPhase.ApproachProxy))
+                {
+                    continue;
+                }
+
+                if (bf.battlefieldId.Equals(u.warpTargetBfId, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    internal static bool ShouldPruneBattlefield(GameState state, BattlefieldState bf) =>
+        bf.battlefieldId != null
+        && bf.finished
+        && !ShouldTickBattlefield(state, bf)
+        && !SkirmishPhaseRules.IsActiveMatch(state);
+
+    public static bool ShouldTickBattlefield(GameState state, BattlefieldState bf) =>
+        IsActiveRealtimeBattlefield(state, bf) || HasShipCombatPresence(state, bf);
+
+    private static bool IsActiveRealtimeBattlefield(GameState state, BattlefieldState bf) =>
+        state.combatRealtimeActive
+        && state.activeBattlefieldId != null
+        && bf.battlefieldId != null
+        && state.activeBattlefieldId.Equals(bf.battlefieldId, StringComparison.Ordinal);
+
+    /// <summary>误标 finished 的舰船战场在实时战中恢复 tick。</summary>
+    private static void HealMisfinishedShipBattlefields(GameState state)
+    {
+        if (!state.combatRealtimeActive)
+        {
+            return;
+        }
+
+        foreach (var bf in state.battlefields)
+        {
+            if (!bf.finished || bf.winnerSide != UnitSide.FRIENDLY || !HasShipCombatPresence(state, bf))
+            {
+                continue;
+            }
+
+            var enemyAlive = false;
+            foreach (var u in bf.units)
+            {
+                if (u.IsDestroyed() || !u.Arrived(bf.timeSec) || u.isBuilding
+                    || BattlefieldSceneProxyService.IsSceneProxy(u))
+                {
+                    continue;
+                }
+
+                if (u.side == UnitSide.ENEMY)
+                {
+                    enemyAlive = true;
+                    break;
+                }
+            }
+
+            if (!enemyAlive)
+            {
+                bf.finished = false;
+                bf.winnerSide = null;
+                bf.winReason = null;
+                // #region agent log
+                AgentSessionDebugLog.Write(
+                    "H8",
+                    "BattlefieldSystem.HealMisfinishedShipBattlefields",
+                    "reopened",
+                    new { bfId = bf.battlefieldId });
+                // #endregion
+            }
         }
     }
 

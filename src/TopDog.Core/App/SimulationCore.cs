@@ -18,6 +18,9 @@ using TopDog.Sim.Banter;
 using TopDog.Sim.Exchange;
 using TopDog.Sim.State;
 using TopDog.Sim.Traits;
+using TopDog.AgentDiag;
+using TopDog.Sim.Skirmish;
+using TopDog.Sim.Vision;
 
 /*
  * ══ 设计手册嵌入 ══
@@ -147,6 +150,18 @@ public sealed class SimulationCore
 
     public void SetPhase(GamePhase phase)
     {
+        if (SkirmishPhaseRules.BlocksCampaignPhaseTransition(_state, phase))
+        {
+            // #region agent log
+            AgentSessionDebugLog.Write(
+                "H10",
+                "SimulationCore.SetPhase",
+                "blocked_skirmish",
+                new { target = phase.ToString(), current = _state.phase.ToString() });
+            // #endregion
+            return;
+        }
+
         if (_state.phase != phase)
         {
             _state.phase = phase;
@@ -318,12 +333,58 @@ public sealed class SimulationCore
         {
             if (line.Contains("combat.", StringComparison.Ordinal)
                 || line.Contains("starmap.", StringComparison.Ordinal)
-                || line.Contains("building-defenders", StringComparison.Ordinal))
+                || line.Contains("building-defenders", StringComparison.Ordinal)
+                || line.Contains("vision.rail", StringComparison.Ordinal)
+                || line.Contains("skirmish.spawn", StringComparison.Ordinal))
             {
                 sb.Append('\n').Append(line);
             }
         }
+
+        sb.Append('\n').Append(DumpVisionRailDebug());
         return sb.ToString();
+    }
+
+    public string DumpVisionRailDebug()
+    {
+        var sb = new StringBuilder();
+        sb.Append("vision.rail activeBf=").Append(_state.activeBattlefieldId ?? "(none)");
+        sb.Append(" possessing=").Append(_state.possessingMemberId ?? "(none)");
+        foreach (var bf in VisionGate.ListRailBattlefields(_state))
+        {
+            sb.Append('\n').Append("  bf=").Append(bf.battlefieldId)
+                .Append(" onField=").Append(VisionGate.CountOnFieldFriendlies(bf))
+                .Append(" transit=").Append(VisionGate.CountTransitFriendlies(_state, bf));
+        }
+
+        var active = FindActiveBattlefield(_state);
+        if (active != null)
+        {
+            foreach (var u in VisionAnchorService.ListPossessableFriendlies(_state, active))
+            {
+                sb.Append('\n').Append("  possessable ").Append(u.displayName ?? u.unitId);
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    private static BattlefieldState? FindActiveBattlefield(GameState state)
+    {
+        if (state.activeBattlefieldId == null)
+        {
+            return null;
+        }
+
+        foreach (var bf in state.battlefields)
+        {
+            if (state.activeBattlefieldId.Equals(bf.battlefieldId, StringComparison.Ordinal))
+            {
+                return bf;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>伴聊诊断（MEMBER_BANTER.md · 与战斗 telemetry 隔离）。</summary>

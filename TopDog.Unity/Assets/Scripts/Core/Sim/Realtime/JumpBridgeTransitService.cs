@@ -8,6 +8,8 @@ namespace TopDog.Sim.Realtime;
  * 权威: docs/TACTICAL_WARP_AND_ORDERS.md §2.2 进入建筑
  * 本文件: JumpBridgeTransitService — 跨星系跳桥无延迟瞬移
  * 【机制要点】OrderEnterBuilding → ResolvePeerGate → 对端 anchor 战术坐标；拒绝 closed 桥
+ * 【实现逻辑】
+ * · 跳桥瞬移后仅 JumpBridgeUnitService.SyncForBattlefield；不 Sync scene proxy
  * 【关联】JumpBridgeUnitService · JumpBridgeResolver · TacticalSceneBattlefieldService
  * ══
  */
@@ -97,8 +99,6 @@ public static class JumpBridgeTransitService
             }
         }
 
-        BattlefieldSceneProxyService.SyncForBattlefield(state, fromBf);
-        BattlefieldSceneProxyService.SyncForBattlefield(state, toBf);
         JumpBridgeUnitService.SyncForBattlefield(state, fromBf);
         JumpBridgeUnitService.SyncForBattlefield(state, toBf);
         return true;

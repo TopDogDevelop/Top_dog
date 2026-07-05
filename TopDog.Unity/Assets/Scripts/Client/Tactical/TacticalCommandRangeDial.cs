@@ -7,23 +7,22 @@ namespace TopDog.Client.Tactical;
 /*
  * ══ 设计手册嵌入 ══
  * 权威: docs/TACTICAL_WARP_AND_ORDERS.md §3.2 刻度盘
- * 本文件: TacticalCommandRangeDial — 底栏指令同心圆拖距 UI
- * 【机制要点】PointerDown 弹出；LMB 拖放 → KmFromDialT；单击不拖=默认 null km
+ * 本文件: TacticalCommandRangeDial — 底栏指令同心圆扇区点选 UI
+ * 【机制要点】PointerDown 弹出；点击扇区 → KmFromDialT；中心单击=默认 null km
  * 【关联】FleetCommandBar · TacticalRangeScale
  * ══
  */
 
-/// <summary>以按钮为中心同心圆拖动选距（1–1000 km）。</summary>
+/// <summary>以按钮为中心同心圆扇区点选距离（1–1000 km）。</summary>
 public sealed class TacticalCommandRangeDial
 {
-    private const float MinDragPx = 12f;
+    private const float MinClickRadiusPx = 12f;
+    private const int SectorCount = 8;
     private readonly VisualElement _host;
     private readonly Label _kmLabel;
     private readonly VisualElement _ringOuter;
     private Button _anchorBtn;
     private Action<float?> _onRelease;
-    private Vector2 _pressLocal;
-    private bool _dragging;
     private bool _released;
 
     public TacticalCommandRangeDial(VisualElement root)
@@ -40,7 +39,6 @@ public sealed class TacticalCommandRangeDial
         _kmLabel.AddToClassList("rtcombat-range-dial-km");
         _host.Add(_kmLabel);
 
-        _host.RegisterCallback<PointerMoveEvent>(OnPointerMove);
         _host.RegisterCallback<PointerUpEvent>(OnPointerUp);
         _host.RegisterCallback<PointerCaptureOutEvent>(OnPointerCaptureOut);
     }
@@ -50,7 +48,6 @@ public sealed class TacticalCommandRangeDial
         Cancel();
         _anchorBtn = anchor;
         _onRelease = onRelease;
-        _dragging = false;
         _released = false;
 
         var btnRect = anchor.worldBound;
@@ -66,34 +63,7 @@ public sealed class TacticalCommandRangeDial
         _host.CapturePointer(PointerId.mousePointerId);
         var t = initialKm.HasValue
             ? TopDog.Sim.Realtime.TacticalRangeScale.DialTFromKm(initialKm.Value)
-            : 0.5f;
-        UpdateKm(t);
-    }
-
-    private void OnPointerMove(PointerMoveEvent evt)
-    {
-        if (_anchorBtn == null)
-        {
-            return;
-        }
-
-        var local = _host.WorldToLocal(evt.position);
-        var center = new Vector2(_host.layout.width * 0.5f, _host.layout.height * 0.5f);
-        if (!_dragging)
-        {
-            if (Vector2.Distance(local, center) > MinDragPx)
-            {
-                _dragging = true;
-            }
-            else
-            {
-                return;
-            }
-        }
-
-        var delta = local - center;
-        var angle = Mathf.Atan2(delta.y, delta.x);
-        var t = (angle + Mathf.PI) / (2f * Mathf.PI);
+            : SectorCenterT(SectorCount / 2);
         UpdateKm(t);
     }
 
@@ -104,15 +74,17 @@ public sealed class TacticalCommandRangeDial
             return;
         }
 
+        var local = _host.WorldToLocal(evt.position);
+        var center = new Vector2(_host.layout.width * 0.5f, _host.layout.height * 0.5f);
+        var delta = local - center;
         float? km = null;
-        if (_dragging)
+        if (delta.magnitude >= MinClickRadiusPx)
         {
-            var local = _host.WorldToLocal(evt.position);
-            var center = new Vector2(_host.layout.width * 0.5f, _host.layout.height * 0.5f);
-            var delta = local - center;
             var angle = Mathf.Atan2(delta.y, delta.x);
             var t = (angle + Mathf.PI) / (2f * Mathf.PI);
-            km = TopDog.Sim.Realtime.TacticalRangeScale.KmFromDialT(t);
+            var sector = Mathf.FloorToInt(t * SectorCount) % SectorCount;
+            var snapT = SectorCenterT(sector);
+            km = TopDog.Sim.Realtime.TacticalRangeScale.KmFromDialT(snapT);
         }
 
         Finish(km);
@@ -128,6 +100,8 @@ public sealed class TacticalCommandRangeDial
 
         Finish(null);
     }
+
+    private static float SectorCenterT(int sector) => (sector + 0.5f) / SectorCount;
 
     private void Finish(float? km)
     {
@@ -158,6 +132,5 @@ public sealed class TacticalCommandRangeDial
         _host.style.display = DisplayStyle.None;
         _anchorBtn = null;
         _onRelease = null;
-        _dragging = false;
     }
 }

@@ -77,7 +77,11 @@
     flex-direction: row;
     align-items: center;
     padding: 2px 4px;
-    margin-bottom: 2px;
+    margin-bottom: 1px;
+    padding-bottom: 2px;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(150, 160, 180, 0.38);
+    border-bottom-style: dashed;
 }
 
 .rtcombat-rail-object-indent {
@@ -112,8 +116,10 @@
 }
 
 .rtcombat-rail-name {
-    font-size: 12px;
+    font-size: 11px;
+    line-height: 13px;
     flex-grow: 1;
+    white-space: normal;
 }
 
 .rtcombat-viewport {
@@ -126,6 +132,11 @@
     border-color: rgba(255, 255, 255, 0.15);
     background-color: rgb(8, 10, 14);
     overflow: visible;
+}
+
+.rtcombat-interior-btn {
+    min-width: 72px;
+    font-size: 11px;
 }
 
 .rtcombat-viewport.art-viewport-host {
@@ -585,7 +596,7 @@
 .rtcombat-plane-overlay {
     position: absolute;
     left: 0;
-    right: 68px;
+    right: 0;
     top: 0;
     bottom: 0;
     picking-mode: ignore;
@@ -603,7 +614,7 @@
 .rtcombat-input-overlay {
     position: absolute;
     left: 0;
-    right: 68px;
+    right: 0;
     top: 0;
     bottom: 0;
 }
@@ -722,4 +733,21 @@
 .rtcombat-orbit-hud-ack {
     border-color: rgba(120, 255, 160, 0.95);
     background-color: rgba(40, 90, 60, 0.45);
+}
+
+.rtcombat-object-command-menu {
+    position: absolute;
+    min-width: 148px;
+    padding: 6px;
+    background-color: rgba(12, 16, 24, 0.96);
+    border-width: 1px;
+    border-color: rgba(120, 150, 200, 0.55);
+    border-radius: 6px;
+}
+
+.rtcombat-object-command-scope {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 4px;
 }
