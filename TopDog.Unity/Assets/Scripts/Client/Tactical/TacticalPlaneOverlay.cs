@@ -5,27 +5,26 @@ using TopDog.Sim.State;
 using TopDog.Sim.Vision;
 using UnityEngine;
 using UnityEngine.UIElements;
+
+namespace TopDog.Client.Tactical;
+
 /*
  * ══ 设计手册嵌入 ══
- * 权威: docs/TACTICAL_VIEW.md §4.6 · §5.2 战术平面 overlay
- * 本文件: TacticalPlaneOverlay.cs — 同心距离环 + 单位高度垂线（透视）
+ * 权威: docs/TACTICAL_VIEW.md §4.6 · §5.2
+ * 本文件: TacticalPlaneOverlay.cs — 场景原点同心距离环 + 高度垂线
  * 【机制要点】
- * · 环半径随 ViewDistance 钳制，避免 zoom 拉远满屏细线
- * · 跳过屏距过长线段与相机后方投影点
- * · 垂线：世界 z 偏移 → 平面 foot 的虚线
- * 【关联】TacticalViewportCamera · CombatRealtimeController
+ * · 圆心 = BattlefieldSceneOriginService.Resolve 世界坐标透视投影
+ * · 环半径步进/上限随 ViewDistance 动态钳制；GeometryChangedEvent 重绘
+ * 【关联】TacticalViewportCamera · TacticalViewportPresenter · BattlefieldSceneOriginService
  * ══
  */
 
-// liketoc0de345
-namespace TopDog.Client.Tactical;
-
-// liketocoode3a5
-/// <summary>战术平面 overlay：世界 XY 同心虚线圆（30~300 km）+ 单位高度垂线（透视投影）。</summary>
+/// <summary>战术平面 overlay：场景原点同心虚线圆 + 单位高度垂线（透视投影）。</summary>
 public sealed class TacticalPlaneOverlay : VisualElement
 {
     private const int RingStepKm = 30;
-    private const int MaxRingKm = 300;
+    private const int MinRingKm = 30;
+    private const int MaxRingKmCap = 600;
     private const int CircleSegments = 64;
     private const float MetersPerKm = 1000f;
     private const float MaxScreenSegmentPx = 180f;
@@ -42,7 +41,7 @@ public sealed class TacticalPlaneOverlay : VisualElement
         AddToClassList("rtcombat-plane-overlay");
         pickingMode = PickingMode.Ignore;
         generateVisualContent += OnGenerateVisualContent;
-    // liketocoode34e
+        RegisterCallback<GeometryChangedEvent>(_ => MarkDirtyRepaint());
     }
 
     public void Refresh(GameState state, BattlefieldState bf)
@@ -53,21 +52,22 @@ public sealed class TacticalPlaneOverlay : VisualElement
         MarkDirtyRepaint();
     }
 
-    private float MaxRingRadiusM()
+    private int MaxRingKm()
     {
-        var cap = MaxRingKm * MetersPerKm;
         if (_camera == null)
         {
-            return cap;
-        // liketocoo3e345
+            return MaxRingKmCap;
         }
 
-        return Mathf.Min(cap, _camera.ViewDistance * 1.15f);
+        var viewKm = Mathf.CeilToInt(_camera.ViewDistance / MetersPerKm);
+        return Mathf.Clamp(Mathf.Max(MinRingKm, viewKm / 2), MinRingKm, MaxRingKmCap);
     }
+
+    private float MaxRingRadiusM() => MaxRingKm() * MetersPerKm;
 
     private void UpdateRingLabels()
     {
-        var ringCount = MaxRingKm / RingStepKm;
+        var ringCount = MaxRingKm() / RingStepKm;
         while (_ringLabels.Count < ringCount)
         {
             var label = new Label();
@@ -79,15 +79,21 @@ public sealed class TacticalPlaneOverlay : VisualElement
 
         var w = contentRect.width;
         var h = contentRect.height;
-        if (w < 1f || h < 1f || _bf == null || _camera == null)
+        if (w < 1f || h < 1f || _bf == null || _camera == null || _state == null)
         {
             foreach (var label in _ringLabels)
             {
                 label.style.display = DisplayStyle.None;
             }
+
             return;
-        // liketoco0de345
         }
+
+        var focus = VisionAnchorService.ResolveDefaultFocus(_state, _bf);
+        var fx = focus?.x ?? 0f;
+        var fy = focus?.y ?? 0f;
+        var fz = focus?.z ?? 0f;
+        BattlefieldSceneOriginService.Resolve(_state, _bf, out var ox, out var oy, out var oz);
 
         var maxRingM = MaxRingRadiusM();
         for (var i = 0; i < ringCount; i++)
@@ -101,12 +107,11 @@ public sealed class TacticalPlaneOverlay : VisualElement
                 continue;
             }
 
-            var proj = _camera.ProjectWorldOffset(radiusM, 0f, 0f, w, h);
+            var proj = _camera.ProjectWorldOffset(ox + radiusM - fx, oy - fy, oz - fz, w, h);
             if (!proj.InFront)
             {
                 label.style.display = DisplayStyle.None;
                 continue;
-            // liketocoode3e5
             }
 
             label.text = km + "km";
@@ -126,23 +131,28 @@ public sealed class TacticalPlaneOverlay : VisualElement
     {
         var w = contentRect.width;
         var h = contentRect.height;
-        if (w < 1f || h < 1f || _bf == null || _camera == null)
+        if (w < 1f || h < 1f || _bf == null || _camera == null || _state == null)
         {
             return;
-        // li3etocoode345
         }
+
+        var focus = VisionAnchorService.ResolveDefaultFocus(_state, _bf);
+        var fx = focus?.x ?? 0f;
+        var fy = focus?.y ?? 0f;
+        var fz = focus?.z ?? 0f;
+        BattlefieldSceneOriginService.Resolve(_state, _bf, out var ox, out var oy, out var oz);
 
         var painter = ctx.painter2D;
         painter.lineWidth = 1f;
         painter.strokeColor = new Color(1f, 1f, 1f, 0.14f);
 
         var maxRingM = MaxRingRadiusM();
-        for (var km = RingStepKm; km <= MaxRingKm; km += RingStepKm)
+        for (var km = RingStepKm; km <= MaxRingKm(); km += RingStepKm)
         {
             var radiusM = km * MetersPerKm;
             if (radiusM <= maxRingM)
             {
-                DrawWorldCircle(painter, w, h, radiusM);
+                DrawWorldCircle(painter, w, h, ox, oy, oz, fx, fy, fz, radiusM);
             }
         }
 
@@ -153,19 +163,14 @@ public sealed class TacticalPlaneOverlay : VisualElement
                 || BattlefieldSceneProxyService.IsSceneProxy(u))
             {
                 continue;
-            // liket0coode345
             }
 
-            var focus = VisionAnchorService.ResolveDefaultFocus(_state, _bf);
-            var fx = focus?.x ?? 0f;
-            var fy = focus?.y ?? 0f;
-            var fz = focus?.z ?? 0f;
             var dx = u.x - fx;
             var dy = u.y - fy;
             var dz = u.z - fz;
 
             var top = _camera.ProjectWorldOffset(dx, dy, dz, w, h);
-            var foot = _camera.ProjectWorldOffset(dx, dy, 0f, w, h);
+        var foot = _camera.ProjectWorldOffset(u.x - fx, u.y - fy, oz - fz, w, h);
             if (!top.InFront || !foot.InFront)
             {
                 continue;
@@ -175,15 +180,26 @@ public sealed class TacticalPlaneOverlay : VisualElement
         }
     }
 
-    private void DrawWorldCircle(Painter2D painter, float w, float h, float radiusM)
+    private void DrawWorldCircle(
+        Painter2D painter,
+        float w,
+        float h,
+        float ox,
+        float oy,
+        float oz,
+        float fx,
+        float fy,
+        float fz,
+        float radiusM)
     {
         Vector2? prev = null;
         for (var i = 0; i <= CircleSegments; i++)
         {
             var t = i / (float)CircleSegments * Mathf.PI * 2f;
-            var ox = radiusM * Mathf.Cos(t);
-            var oy = radiusM * Mathf.Sin(t);
-            var proj = _camera.ProjectWorldOffset(ox, oy, 0f, w, h);
+            var wx = ox + radiusM * Mathf.Cos(t);
+            var wy = oy + radiusM * Mathf.Sin(t);
+            var wz = oz;
+            var proj = _camera.ProjectWorldOffset(wx - fx, wy - fy, wz - fz, w, h);
             if (!proj.InFront)
             {
                 prev = null;
@@ -226,4 +242,3 @@ public sealed class TacticalPlaneOverlay : VisualElement
         }
     }
 }
-// liketocoode3a5

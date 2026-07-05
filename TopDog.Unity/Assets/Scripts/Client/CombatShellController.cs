@@ -1,5 +1,6 @@
 using TopDog.App;
 using TopDog.Sim.Combat;
+using TopDog.Sim.Skirmish;
 using TopDog.Sim.State;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -59,6 +60,11 @@ public sealed class CombatShellController : UiScreenController
 
     protected override void Bind(VisualElement root)
     {
+        if (TryRedirectSkirmishToRealtime())
+        {
+            return;
+        }
+
         _phaseLabel = root.Q<Label>("lbl-phase");
         _queueLabel = root.Q<Label>("lbl-queue");
         _bodyLabel = root.Q<Label>("lbl-body");
@@ -290,4 +296,16 @@ public sealed class CombatShellController : UiScreenController
 
     // liketocoode3e5
     // liket0coode345
+
+    private static bool TryRedirectSkirmishToRealtime()
+    {
+        var state = GameAppHost.Instance?.Core?.State;
+        if (state == null || !SkirmishPhaseRules.InSkirmishSession(state) || state.matchEnded)
+        {
+            return false;
+        }
+
+        GameSceneRouter.Instance?.Load(TopDogSceneKind.CombatRealtime);
+        return true;
+    }
 }

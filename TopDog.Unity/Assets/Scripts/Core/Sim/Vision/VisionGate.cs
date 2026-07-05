@@ -138,8 +138,7 @@ public static class VisionGate
         var count = 0;
         foreach (var u in bf.units)
         {
-            if (u.side == UnitSide.FRIENDLY && !u.IsDestroyed() && u.memberId != null
-                && !BattlefieldSceneProxyService.IsSceneProxy(u))
+            if (IsRailEligibleFriendly(u, bf.timeSec))
             {
                 count++;
             }
@@ -147,6 +146,26 @@ public static class VisionGate
 
         return count;
     }
+
+    /// <summary>右栏/附身：友舰在场、跃迁准备或进场中（不含场景占位 proxy）。</summary>
+    public static bool IsRailEligibleFriendly(BattlefieldUnit u, float battleTimeSec)
+    {
+        if (u.side != UnitSide.FRIENDLY || u.IsDestroyed() || BattlefieldSceneProxyService.IsSceneProxy(u))
+        {
+            return false;
+        }
+
+        if (u.memberId == null && !u.isBuilding && string.IsNullOrEmpty(u.legionId))
+        {
+            return false;
+        }
+
+        return u.Arrived(battleTimeSec) || u.warpPhase != TacticalWarpPhase.None;
+    }
+
+    /// <summary>物体总览「跃迁中」：未进场或 warp 阶段进行中。</summary>
+    public static bool IsWarpInbound(BattlefieldUnit u, float battleTimeSec) =>
+        !u.Arrived(battleTimeSec) || u.warpPhase != TacticalWarpPhase.None;
 
     /// <summary>跃迁途中：目标战场计 +1；右栏/旧逻辑仍计来源战场。</summary>
     public static int CountTransitFriendlies(GameState state, BattlefieldState bf)

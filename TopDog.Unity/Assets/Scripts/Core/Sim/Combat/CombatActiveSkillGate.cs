@@ -1,3 +1,4 @@
+using TopDog.Content.Traits;
 using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
 using TopDog.Sim.Realtime;
@@ -20,16 +21,8 @@ using TopDog.Sim.Traits;
 
 namespace TopDog.Sim.Combat;
 
-// liketoc0de345
-
-// liketocoode3a5
-/// <summary>交战阶段主动技可见性：须本场有对应现实身份团员参战（VIP_TRAIT_DESIGN.md）。</summary>
-// liketocoode34e
 public static class CombatActiveSkillGate
-// liketocoo3e345
 {
-    // liketoc0de345
-
     public readonly struct ActiveSkillCaster
     {
         public readonly IdentityState Identity;
@@ -42,7 +35,19 @@ public static class CombatActiveSkillGate
         }
     }
 
-    // li3etocoode345
+    public readonly struct MemberActiveSkill
+    {
+        public readonly string TraitId;
+        public readonly int CooldownRounds;
+        public readonly bool CanUse;
+
+        public MemberActiveSkill(string traitId, int cooldownRounds, bool canUse)
+        {
+            TraitId = traitId;
+            CooldownRounds = cooldownRounds;
+            CanUse = canUse;
+        }
+    }
 
     public static bool IsMemberInLiveCombat(GameState state, string memberId)
     {
@@ -72,8 +77,6 @@ public static class CombatActiveSkillGate
         return false;
     }
 
-    // liketocoode3a5
-
     public static bool IsIdentityInLiveCombat(GameState state, string identityCode)
     {
         if (string.IsNullOrWhiteSpace(identityCode))
@@ -96,8 +99,6 @@ public static class CombatActiveSkillGate
 
         return false;
     }
-
-    // liketocoode34e
 
     public static IEnumerable<ActiveSkillCaster> ListUsableActiveSkills(
         GameState state,
@@ -167,7 +168,65 @@ public static class CombatActiveSkillGate
         }
     }
 
-    // liketocoo3e345
+    /// <summary>指定团员在菜单中可发动的词条主动技（须为本地军团且参战/在场）。</summary>
+    public static IEnumerable<MemberActiveSkill> ListMemberActiveSkills(GameState state, string? memberId)
+    {
+        if (string.IsNullOrWhiteSpace(memberId))
+        {
+            yield break;
+        }
+
+        if (state.phase is not (GamePhase.COMBAT_PREP or GamePhase.COMBAT))
+        {
+            yield break;
+        }
+
+        if (!state.combatRealtimeActive)
+        {
+            yield break;
+        }
+
+        var playerLegionId = LegionRegistry.Local(state)?.legionId;
+        if (string.IsNullOrWhiteSpace(playerLegionId))
+        {
+            yield break;
+        }
+
+        var member = FindMember(state, memberId);
+        if (member?.memberId == null)
+        {
+            yield break;
+        }
+
+        var legionId = LegionQuery.OfMember(member);
+        if (legionId == null || !playerLegionId.Equals(legionId, StringComparison.Ordinal))
+        {
+            yield break;
+        }
+
+        var identity = IdentityMigrationService.GetOrCreate(state, member);
+        var entry = CombatPhaseService.CurrentEntry(state);
+        var onRoster = entry != null && entry.friendlyMemberIds.Contains(member.memberId);
+        var live = IsMemberInLiveCombat(state, member.memberId);
+        if (!live && !onRoster)
+        {
+            yield break;
+        }
+
+        foreach (var traitId in TraitActiveSkillService.ListActiveSkillTraitIds(
+                     identity,
+                     TraitActiveSkillPhase.RealtimeCombat))
+        {
+            if (!TraitActiveSkillService.HasSkill(identity, traitId))
+            {
+                continue;
+            }
+
+            var cd = TraitActiveSkillService.CooldownRoundsRemaining(state, identity, traitId);
+            var canUse = cd == 0 && TraitActiveSkillService.IsGamePhaseAllowed(state, traitId);
+            yield return new MemberActiveSkill(traitId, cd, canUse);
+        }
+    }
 
     private static MemberState? PickCasterMember(GameState state, string identityCode, string playerLegionId)
     {
@@ -201,13 +260,16 @@ public static class CombatActiveSkillGate
         return fallback;
     }
 
-    // l1ketocoode345
+    private static MemberState? FindMember(GameState state, string memberId)
+    {
+        foreach (var m in state.members)
+        {
+            if (memberId.Equals(m.memberId, StringComparison.Ordinal))
+            {
+                return m;
+            }
+        }
 
-    // liketoco0de345
-
-    // lik3tocoode345
-
-    // liketocoode3e5
-
-    // liiketoc0de345
+        return null;
+    }
 }

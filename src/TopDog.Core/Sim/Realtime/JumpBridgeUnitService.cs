@@ -99,12 +99,9 @@ public static class JumpBridgeUnitService
     }
 
     private static bool IsCurrentJumpBridgeRegion(BattlefieldState bf, EventRegionDef er) =>
-        (bf.eventRegionId != null
-            && (bf.eventRegionId.Equals(er.eventRegionId, StringComparison.Ordinal)
-                || bf.eventRegionId.Equals(er.name, StringComparison.Ordinal)))
-        || (bf.subLocation != null
-            && (bf.subLocation.Equals(er.eventRegionId, StringComparison.Ordinal)
-                || bf.subLocation.Equals(er.name, StringComparison.Ordinal)));
+        bf.eventRegionId != null
+        && er.eventRegionId != null
+        && bf.eventRegionId.Equals(er.eventRegionId, StringComparison.Ordinal);
 
     private static BattlefieldUnit? FindJumpBridge(BattlefieldState bf, string bridgeId)
     {

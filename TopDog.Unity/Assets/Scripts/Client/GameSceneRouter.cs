@@ -1,3 +1,5 @@
+using TopDog.AgentDiag;
+using TopDog.Sim.Skirmish;
 using TopDog.Sim.State;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -156,6 +158,23 @@ public sealed class GameSceneRouter : MonoBehaviour
 
     public static TopDogSceneKind MapPhaseToScene(GameState state)
     {
+        if (SkirmishBuildingRules.IsSkirmish(state) && state.skirmish != null)
+        {
+            // #region agent log
+            AgentSessionDebugLog.Write(
+                "H10",
+                "GameSceneRouter.MapPhaseToScene",
+                "skirmish_force_realtime",
+                new
+                {
+                    phase = state.phase.ToString(),
+                    realtime = state.combatRealtimeActive,
+                    matchEnded = state.matchEnded,
+                });
+            // #endregion
+            return TopDogSceneKind.CombatRealtime;
+        }
+
         return state.phase switch
         {
             GamePhase.OPERATIONS => TopDogSceneKind.Operations,

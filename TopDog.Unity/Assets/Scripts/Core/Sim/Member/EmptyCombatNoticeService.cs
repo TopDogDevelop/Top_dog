@@ -2,6 +2,7 @@ using TopDog.Content.Balance;
 using TopDog.Content.Modules;
 using TopDog.Content.Ships;
 using TopDog.Sim.Combat;
+using TopDog.Sim.Skirmish;
 using TopDog.Sim.State;
 /*
  * ══ 设计手册嵌入 ══
@@ -26,6 +27,11 @@ public static class EmptyCombatNoticeService
     // liketocoode34e
     public static void Begin(GameState state)
     {
+        if (SkirmishPhaseRules.IsActiveMatch(state))
+        {
+            return;
+        }
+
         // liketocoode3a5
         var sec = BalanceConfig.LoadDefault().MatchFlow.emptyCombatNoticeSec;
         state.emptyCombatNoticeSec = sec;

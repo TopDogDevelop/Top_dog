@@ -38,4 +38,6 @@ public sealed class TraitDef
     /// <summary>为 false 时不出现在招新随机/默认词条池；仍可通过开局预设、机制、演化等赋予。</summary>
     public bool recruitPool = true;
     public List<string>? presentationTags;
+    /// <summary>主动技阶段：<see cref="TraitActiveSkillPhase.Operations"/> | <see cref="TraitActiveSkillPhase.RealtimeCombat"/>；缺省表示非主动技。</summary>
+    public string? activeSkillPhase;
 }

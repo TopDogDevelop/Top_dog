@@ -11,6 +11,7 @@ using TopDog.Lobby;
 using TopDog.Net.Lan;
 using TopDog.Sim.Member;
 using TopDog.Sim.Ship;
+using TopDog.Sim.Skirmish;
 using TopDog.Sim.State;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -41,6 +42,7 @@ public sealed class SkirmishLobbyController : UiScreenController
     private string? _selectedRosterMemberId;
     private bool _templatePickerVisible;
     private bool _presetSavePickerVisible;
+    private bool _presetLoadPickerVisible;
 
     private ScrollView? _playerList;
     private VisualElement? _playerSection;
@@ -48,6 +50,7 @@ public sealed class SkirmishLobbyController : UiScreenController
     private ScrollView? _rosterCodexScroll;
     private ScrollView? _templateMemberPicker;
     private ScrollView? _presetSavePicker;
+    private ScrollView? _presetLoadPicker;
     private ScrollView? _fittingScroll;
     private VisualElement? _modulePickerPopup;
     private Label? _ruleLabel;
@@ -101,6 +104,7 @@ public sealed class SkirmishLobbyController : UiScreenController
         _rosterCodexScroll = root.Q<ScrollView>("roster-codex-scroll");
         _templateMemberPicker = root.Q<ScrollView>("template-member-picker");
         _presetSavePicker = root.Q<ScrollView>("preset-save-picker");
+        _presetLoadPicker = root.Q<ScrollView>("preset-load-picker");
         _fittingScroll = root.Q<ScrollView>("fitting-scroll");
         _modulePickerPopup = root.Q<VisualElement>("module-picker-popup");
         _ruleLabel = root.Q<Label>("lbl-rule");
@@ -269,7 +273,7 @@ public sealed class SkirmishLobbyController : UiScreenController
                 }
                 else
                 {
-                    LoadPreset(slot);
+                    OpenLoadPresetPicker(slot);
                 }
             };
             btn.RegisterCallback(handler);
@@ -293,9 +297,15 @@ public sealed class SkirmishLobbyController : UiScreenController
         if (_presetSavePickerVisible)
         {
             _templatePickerVisible = false;
+            _presetLoadPickerVisible = false;
             if (_templateMemberPicker != null)
             {
                 _templateMemberPicker.style.display = DisplayStyle.None;
+            }
+
+            if (_presetLoadPicker != null)
+            {
+                _presetLoadPicker.style.display = DisplayStyle.None;
             }
         }
         if (_presetSavePicker != null)
@@ -338,7 +348,7 @@ public sealed class SkirmishLobbyController : UiScreenController
         }
     }
 
-    private void LoadPreset(int slot)
+    private void OpenLoadPresetPicker(int slot)
     {
         var key = "skirmish_preset_" + slot;
         if (!PlayerPrefs.HasKey(key))
@@ -348,17 +358,76 @@ public sealed class SkirmishLobbyController : UiScreenController
         }
 
         var loaded = SkirmishPresetService.Deserialize(PlayerPrefs.GetString(key));
-        if (loaded == null)
+        var scheme = SkirmishPresetScheme.Extract(loaded);
+        if (scheme == null)
         {
             SetStatus("配置保存槽 " + (slot + 1) + " 解析失败");
             return;
         }
 
-        _lobby = loaded;
-        TrimToLocalPlayerOnly();
-        ApplyModeUi();
-        SetStatus("已加载配置保存槽 " + (slot + 1) + " · 规模 " + _lobby.scale);
-        RefreshAll();
+        _presetLoadPickerVisible = true;
+        _presetSavePickerVisible = false;
+        _templatePickerVisible = false;
+        if (_templateMemberPicker != null)
+        {
+            _templateMemberPicker.style.display = DisplayStyle.None;
+        }
+
+        if (_presetSavePicker != null)
+        {
+            _presetSavePicker.style.display = DisplayStyle.None;
+        }
+
+        if (_presetLoadPicker != null)
+        {
+            _presetLoadPicker.style.display = DisplayStyle.Flex;
+        }
+
+        RefreshPresetLoadPicker(slot, scheme);
+        SetStatus("配置槽 " + (slot + 1) + " 方案预览");
+    }
+
+    private void RefreshPresetLoadPicker(int slot, SkirmishPresetScheme scheme)
+    {
+        if (_presetLoadPicker == null)
+        {
+            return;
+        }
+
+        _presetLoadPicker.Clear();
+        var summary = new Label(SkirmishPresetScheme.FormatSummary(scheme));
+        summary.AddToClassList("lobby-section-caption");
+        _presetLoadPicker.Add(summary);
+
+        foreach (var line in scheme.RosterLines)
+        {
+            var hull = string.IsNullOrWhiteSpace(line.HullId) ? "未配舰" : line.HullId;
+            _presetLoadPicker.Add(new Label("· " + line.DisplayName + " · " + hull));
+        }
+
+        var applyBtn = new Button { text = "应用此方案" };
+        applyBtn.AddToClassList("lobby-secondary-btn");
+        applyBtn.clicked += () =>
+        {
+            CancelMatching();
+            SkirmishPresetScheme.ApplyToLobby(_lobby, scheme);
+            TrimToLocalPlayerOnly();
+            ApplyModeUi();
+            _presetLoadPickerVisible = false;
+            if (_presetLoadPicker != null)
+            {
+                _presetLoadPicker.style.display = DisplayStyle.None;
+            }
+
+            SetStatus("已应用配置槽 " + (slot + 1) + " 方案 · 规模 " + _lobby.scale);
+            RefreshAll();
+        };
+        _presetLoadPicker.Add(applyBtn);
+    }
+
+    private void LoadPreset(int slot)
+    {
+        OpenLoadPresetPicker(slot);
     }
 
     private void EnsureAiOpponent()
@@ -601,16 +670,9 @@ public sealed class SkirmishLobbyController : UiScreenController
 
     private bool ValidateLocalRoster()
     {
-        var local = _lobby.FindLocal();
-        if (local == null)
+        if (!SkirmishRosterValidation.TryValidateLocalStart(_lobby, out var error))
         {
-            SetRule("未找到本机玩家");
-            return false;
-        }
-
-        if (!_lobby.rosterByPlayerId.TryGetValue(local.playerId, out var roster) || roster.Count == 0)
-        {
-            SetRule("请至少添加 1 名上场团员");
+            SetRule(error ?? "名册无效");
             return false;
         }
 
@@ -651,9 +713,9 @@ public sealed class SkirmishLobbyController : UiScreenController
             EnsurePeerPlayer(snap.PeerIp, snap.IsLocalHost);
             _lobby.seed = SkirmishMatchLogic.StableHash(_matchBroker?.LocalIp + "|" + snap.PeerIp + "|" + _lobby.scale);
             PullPrepIntoLobby();
-            GameAppHost.Instance?.StartFromSkirmishLobby(_lobby);
             if (snap.IsLocalHost)
             {
+                GameAppHost.Instance?.StartFromSkirmishLobby(_lobby);
                 GameAppHost.Instance?.StartLanHost(GameAppHost.DefaultTcpGamePort);
             }
             else

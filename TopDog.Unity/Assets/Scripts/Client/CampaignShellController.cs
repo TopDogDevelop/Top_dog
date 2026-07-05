@@ -9,6 +9,7 @@ using TopDog.Sim.Combat;
 using TopDog.Sim.Legion;
 using TopDog.Sim.Map;
 using TopDog.Sim.Member;
+using TopDog.Sim.Skirmish;
 using TopDog.Sim.State;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -124,6 +125,11 @@ public sealed class CampaignShellController : UiScreenController
 
     private void BindInner(VisualElement root)
     {
+        if (TryRedirectSkirmishToRealtime())
+        {
+            return;
+        }
+
         _timerLabel = root.Q<Label>("lbl-timer");
         _dateLabel = root.Q<Label>("lbl-date");
         _eventFeedRoot = root.Q<VisualElement>("event-feed-root");
@@ -1531,6 +1537,18 @@ public sealed class CampaignShellController : UiScreenController
             el?.UnregisterCallback(handler);
         }
         _dynamicClickHandlers.Clear();
+    }
+
+    private static bool TryRedirectSkirmishToRealtime()
+    {
+        var state = GameAppHost.Instance?.Core?.State;
+        if (state == null || !SkirmishPhaseRules.InSkirmishSession(state) || state.matchEnded)
+        {
+            return false;
+        }
+
+        GameSceneRouter.Instance?.Load(TopDogSceneKind.CombatRealtime);
+        return true;
     }
 // liketocoode3a5
 }

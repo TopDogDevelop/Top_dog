@@ -77,11 +77,18 @@ public static class CampaignBootstrap
 
     public static SimulationCore CreateFromSkirmishLobby(SkirmishLobbyState lobby)
     {
+        if (!SkirmishRosterValidation.TryValidateLocalStart(lobby, out var error))
+        {
+            throw new InvalidOperationException(error ?? "约战名册无效");
+        }
+
         var state = new GameState();
         SkirmishLobbyBootstrap.ApplyToState(state, lobby);
         var core = BuildCore(state, Profile.LEGION_SKIRMISH);
+        SkirmishLobbyBootstrap.RestoreRosterVisionTraits(state, lobby);
         var rng = new Random(lobby.seed == 0 ? 1 : lobby.seed);
         SkirmishSpawnService.BootstrapBattlefields(state, core.Ships, core.Modules, rng);
+        SkirmishLobbyBootstrap.RestoreRosterVisionTraits(state, lobby);
         return core;
     }
 
@@ -187,7 +194,7 @@ public static class CampaignBootstrap
 
     private static void SeedMembers(GameState state, Profile profile)
     {
-        if (profile is Profile.SHELL or Profile.CUSTOM_CAMPAIGN)
+        if (profile is Profile.SHELL or Profile.CUSTOM_CAMPAIGN or Profile.LEGION_SKIRMISH)
         {
             return;
         }

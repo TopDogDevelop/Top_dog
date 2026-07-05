@@ -126,55 +126,48 @@ public static class MemberDetailPanel
         Action<string, string>? onUseSuppressionSkill)
     {
         var id = IdentityMigrationService.GetOrCreate(core.State, member);
-        var hasSummon = TraitActiveSkillService.HasSkill(id, TraitActiveSkillService.BoardSummonTraitId);
-        var hasPlanning = TraitActiveSkillService.HasSkill(id, TraitActiveSkillService.PlanningSupportTraitId);
-        if (!hasSummon && !hasPlanning)
+        var catalog = TraitCatalog.LoadDefault();
+        var opsSkills = TraitActiveSkillService
+            .ListActiveSkillTraitIds(id, TraitActiveSkillPhase.Operations, catalog)
+            .ToList();
+        var combatSkills = TraitActiveSkillService
+            .ListActiveSkillTraitIds(id, TraitActiveSkillPhase.RealtimeCombat, catalog)
+            .ToList();
+        if (opsSkills.Count == 0 && combatSkills.Count == 0)
         {
             return;
         }
 
         root.Add(MakeCaption("主动技能"));
-        var phase = core.State.phase;
-        var summonPhase = phase is GamePhase.COMBAT_PREP or GamePhase.COMBAT;
-        var planningPhase = phase is GamePhase.OPERATIONS or GamePhase.COMBAT_PREP;
-        // liketocoode34e
-        if (!summonPhase && hasSummon)
+        foreach (var traitId in opsSkills.Concat(combatSkills))
         {
-            root.Add(MakeBody("（董事会召来：交战准备/战斗中可发动）"));
-        }
-        if (!planningPhase && hasPlanning)
-        {
-            root.Add(MakeBody("（策划支援：运营/交战准备可发动）"));
-        }
+            var trait = catalog.Find(traitId);
+            var label = DisplayLabels.TraitBilingual(trait);
+            var phaseOk = TraitActiveSkillService.IsGamePhaseAllowed(core.State, traitId, catalog);
+            var hint = traitId switch
+            {
+                _ when TraitActiveSkillService.IsOperationsActiveSkill(traitId, catalog) =>
+                    "5000 星币揭露团内内鬼",
+                _ when TraitActiveSkillService.IsRealtimeCombatActiveSkill(traitId, catalog) =>
+                    "施法舰旁即时放出 5 翼董事会增援",
+                _ => string.Empty,
+            };
+            if (!phaseOk)
+            {
+                var phaseHint = TraitActiveSkillService.IsOperationsActiveSkill(traitId, catalog)
+                    ? "（运营/交战准备可发动）"
+                    : "（交战准备/战斗中可发动）";
+                root.Add(MakeBody($"（{label}{phaseHint}）"));
+            }
 
-        if (hasSummon)
-        {
-            var catalog = TraitCatalog.LoadDefault();
-            var summonLabel = DisplayLabels.TraitBilingual(catalog.Find(TraitActiveSkillService.BoardSummonTraitId));
             AddSkillButton(
                 root,
                 core,
                 id,
-                TraitActiveSkillService.BoardSummonTraitId,
-                summonLabel,
-                "施法舰旁即时放出 5 翼董事会增援",
-                summonPhase,
-                onMessage,
-                onUseSuppressionSkill);
-        }
-        if (hasPlanning)
-        {
-            var catalog = TraitCatalog.LoadDefault();
-            var planningLabel = DisplayLabels.TraitBilingual(catalog.Find(TraitActiveSkillService.PlanningSupportTraitId));
-            AddSkillButton(
-                root,
-                core,
-                // liketocoo3e345
-                id,
-                TraitActiveSkillService.PlanningSupportTraitId,
-                planningLabel,
-                "5000 星币揭露团内内鬼",
-                planningPhase,
+                traitId,
+                label,
+                hint,
+                phaseOk,
                 onMessage,
                 onUseSuppressionSkill);
         }

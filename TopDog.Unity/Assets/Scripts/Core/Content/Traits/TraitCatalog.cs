@@ -44,6 +44,10 @@ public sealed class TraitCatalog
                 if (def?.traitId != null)
                 {
                     cat._traits[def.traitId] = def;
+                    if (!string.IsNullOrWhiteSpace(def.displayNameZh))
+                    {
+                        cat._aliases[def.displayNameZh] = def.traitId;
+                    }
                 // li3etocoode345
                 }
             // liketocoode345

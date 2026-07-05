@@ -22,7 +22,7 @@ public sealed class IdentitySyncTests
                     memberId = "1000000101",
                     identityCode = "10000001",
                     name = "奥法凯",
-                    traitIds = { "trait_loyal", "trait_multibox" },
+                    traitIds = { "trait_direct_possess", "trait_multibox" },
                 },
                 new MemberState
                 {
@@ -35,10 +35,10 @@ public sealed class IdentitySyncTests
         IdentityMigrationService.EnsureFromMembers(state);
         foreach (var m in state.members)
         {
-            Assert.That(m.traitIds, Does.Contain("trait_loyal"));
+            Assert.That(m.traitIds, Does.Contain("trait_direct_possess"));
             Assert.That(m.traitIds, Does.Contain("trait_multibox"));
         }
-        Assert.That(state.identities["10000001"].traitIds, Does.Contain("trait_loyal"));
+        Assert.That(state.identities["10000001"].traitIds, Does.Contain("trait_direct_possess"));
     }
 
     [Test]

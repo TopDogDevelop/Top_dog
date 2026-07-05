@@ -1,0 +1,9 @@
+{
+  "traitId": "trait_board_summon",
+  "displayNameZh": "董事会召来",
+  "displayNameEn": "Board Summon",
+  "mechanismId": "board_summon",
+  "recruitPool": false,
+  "activeSkillPhase": "realtime_combat",
+  "presentationTags": ["ui_positive"]
+}

@@ -4,6 +4,7 @@ using TopDog.Content.Ships;
 using TopDog.Sim.Building;
 using TopDog.Sim.Operations;
 using TopDog.Sim.Realtime;
+using TopDog.Sim.Skirmish;
 using TopDog.Sim.State;
 using TopDog.Sim.Traits;
 
@@ -193,6 +194,11 @@ public static class CombatPhaseService
 
     public static void EnterCombatPrep(GameState state, ShipRegistry ships, ModuleRegistry? modules = null)
     {
+        if (SkirmishPhaseRules.IsActiveMatch(state))
+        {
+            return;
+        }
+
         state.phase = GamePhase.COMBAT_PREP;
         state.combatQueueIndex = 0;
         state.combatPrepStep = CombatPrepStep.CHOOSE_MODE;
@@ -209,6 +215,11 @@ public static class CombatPhaseService
 
     public static void BeginOperationsRound(GameState state, ShipRegistry ships, ModuleRegistry? modules = null)
     {
+        if (SkirmishPhaseRules.IsActiveMatch(state))
+        {
+            return;
+        }
+
         modules ??= ModuleRegistry.LoadDefault();
         BoardSummonService.PurgeTempMembers(state);
         BetweenRoundsService.OnCombatRoundComplete(state, ships, modules);
@@ -239,6 +250,11 @@ public static class CombatPhaseService
     private static void AdvanceQueueOrOperations(BrickContext ctx)
     {
         var state = ctx.State;
+        if (SkirmishPhaseRules.IsActiveMatch(state))
+        {
+            return;
+        }
+
         state.combatQueueIndex++;
         if (state.combatQueueIndex >= state.combatQueue.Count)
         {

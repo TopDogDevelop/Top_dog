@@ -8,7 +8,8 @@ using UnityEngine;
  * 本文件: TacticalViewportCamera.cs — 战术透视虚拟相机
  * 【机制要点】
  * · 环绕注视点 orbit；滚轮改 ViewDistance（非缩放图标）
- * · UI marker 由世界坐标透视投影到屏幕
+ * · EnterBattlefieldTopDown：切战场恢复默认俯视+视距（距离环可见）
+ * · ResetToTopDown：btn-vp-reset 包住全场单位 fit
  * 【关联】TacticalViewportPresenter · IViewportCameraCommands · TacticalViewportInputOverlay
  * ══
  */
@@ -191,6 +192,14 @@ public sealed class TacticalViewportCamera : MonoBehaviour, IViewportCameraComma
     public void PanDown() { }
 
     public void FrameAll() => ViewDistance = DefaultViewDistanceM;
+
+    /// <summary>切换战场时保持战术默认视距，避免拉远导致距离环不可见。</summary>
+    public void EnterBattlefieldTopDown()
+    {
+        OrbitYawRad = 0f;
+        OrbitPitchRad = DefaultOrbitPitchRad;
+        ViewDistance = DefaultViewDistanceM;
+    }
 
     public void ResetToTopDown(BattlefieldState? bf)
     {

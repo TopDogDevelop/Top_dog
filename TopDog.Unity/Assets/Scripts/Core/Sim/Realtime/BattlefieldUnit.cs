@@ -120,6 +120,9 @@ public sealed class BattlefieldUnit
     public float warpLandingX;
     public float warpLandingY;
     public float warpLandingZ;
+    /// <summary>起跳落地判定：目标场景落点被阻挡（供拦截机制）。</summary>
+    public bool warpLandingObstructed;
+    public string? warpLandingObstructUnitId;
     /// <summary>董事会召来等：不可战术跃迁离场景。</summary>
     public bool pinnedToBattlefield;
     public Dictionary<string, string> fittedModules = new();

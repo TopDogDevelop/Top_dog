@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using TopDog.App;
+using TopDog.AgentDiag;
 using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 using TopDog.Sim.Vision;
@@ -13,7 +14,7 @@ using UnityEngine.UIElements;
  * 【机制要点】
  * · 接近/远离/环绕/跃迁：单击即下令（用「默认距离」）
  * · btn-cease-fire → OrderCeaseFire（舰载机 RECALL）
- * · btn-default-dist + TacticalCommandRangeDial：仅设定默认距离
+ * · btn-default-dist + 滑块：设定默认距离（TacticalRangeScale 非线性 1–1000 km）
  * · btn-enter-building → OrderEnterBuilding（跨星系跳桥）
  * 【关联】FleetOrderService · StrikeWingOrderService · TacticalSelectionState · CombatRealtimeController
  * ══
@@ -26,7 +27,6 @@ public sealed class FleetCommandBar
 {
     private readonly Func<SimulationCore> _core;
     private readonly Action<string, bool> _status;
-    private readonly TacticalCommandRangeDial _rangeDial;
 
     // liketoc0de345
 
@@ -38,7 +38,6 @@ public sealed class FleetCommandBar
     {
         _core = core;
         _status = statusWithSuccess ?? ((msg, _) => status(msg));
-        _rangeDial = new TacticalCommandRangeDial(root);
 
         BindSimple(root, "btn-rally", () => WithBf((s, bf) => FleetOrderService.RallyToBattlefield(s, bf, Sel())));
         BindSimple(root, "btn-scatter", () => WithBf((s, bf) => FleetOrderService.OrderScatter(s, bf, new Random(), Sel())));
@@ -116,7 +115,13 @@ public sealed class FleetCommandBar
     private string IssueWarp(GameState s, BattlefieldState bf, float? landingKm)
     {
         var sel = TacticalSelectionState.SelectedTargetUnitId;
-        if (!FleetOrderService.TryResolveWarpTargetScene(bf, sel, out var systemId, out var eventRegionId))
+        var resolved = FleetOrderService.TryResolveWarpTargetScene(s, bf, sel, out _, out _);
+        AgentSessionDebugLog.Write(
+            "H5",
+            "FleetCommandBar.IssueWarp",
+            "entry",
+            new { sel, bfId = bf.battlefieldId, initialResolve = resolved });
+        if (!resolved)
         {
             foreach (var u in bf.units)
             {
@@ -125,7 +130,7 @@ public sealed class FleetCommandBar
                     continue;
                 }
 
-                if (FleetOrderService.TryResolveWarpTargetScene(bf, u.unitId, out systemId, out eventRegionId))
+                if (FleetOrderService.TryResolveWarpTargetScene(s, bf, u.unitId, out _, out _))
                 {
                     sel = u.unitId;
                     TacticalSelectionState.SetSelectedTarget(sel);
@@ -133,9 +138,17 @@ public sealed class FleetCommandBar
                 }
             }
 
-            if (sel == null || !FleetOrderService.TryResolveWarpTargetScene(bf, sel, out systemId, out eventRegionId))
+            if (!FleetOrderService.TryResolveWarpTargetScene(s, bf, sel, out _, out _))
             {
-                return "请先选中「其他场景」跃迁目标（屏外标记或右栏「其他场景」）";
+                foreach (var link in BattlefieldSceneProxyService.ListOffSceneLinks(s, bf))
+                {
+                    if (FleetOrderService.TryResolveWarpTargetScene(s, bf, link.UnitId, out _, out _))
+                    {
+                        sel = link.UnitId;
+                        TacticalSelectionState.SetSelectedTarget(sel);
+                        break;
+                    }
+                }
             }
         }
 
@@ -145,16 +158,10 @@ public sealed class FleetCommandBar
             return "模拟未启动";
         }
 
-        var target = TacticalSceneBattlefieldService.EnsureSceneBattlefield(s, systemId, eventRegionId);
-        if (target.battlefieldId == null)
-        {
-            return "0 艘执行跃迁";
-        }
-
-        return FleetOrderService.OrderWarp(
+        return FleetOrderService.OrderWarpToSceneTarget(
             s,
             bf,
-            target.battlefieldId,
+            sel,
             c.Ships,
             allFriendly: Sel().Count == 0,
             Sel(),
@@ -229,21 +236,49 @@ public sealed class FleetCommandBar
 
         btn.clicked += () =>
         {
+            if (name == "btn-warp")
+            {
+                AgentSessionDebugLog.Write(
+                    "H4",
+                    "FleetCommandBar.btn-warp",
+                    "clicked",
+                    new { sel = TacticalSelectionState.SelectedTargetUnitId });
+            }
+
             var c = _core();
             if (c == null)
             {
+                if (name == "btn-warp")
+                {
+                    AgentSessionDebugLog.Write("H4", "FleetCommandBar.btn-warp", "core_null", null);
+                }
+
                 return;
             }
 
             var bf = ActiveBf(c.State);
             if (bf == null)
             {
+                if (name == "btn-warp")
+                {
+                    AgentSessionDebugLog.Write("H4", "FleetCommandBar.btn-warp", "no_active_bf", null);
+                }
+
                 Emit("无活跃战场", false);
                 return;
             }
 
             var km = CommandRangeKm();
             var msg = issue(c.State, bf, km);
+            if (name == "btn-warp")
+            {
+                AgentSessionDebugLog.Write(
+                    "H4-H5",
+                    "FleetCommandBar.btn-warp",
+                    "result",
+                    new { msg });
+            }
+
             Emit(msg, msg.StartsWith("已下令", StringComparison.Ordinal));
         };
     }
@@ -251,31 +286,63 @@ public sealed class FleetCommandBar
     private void BindDefaultDistanceDial(VisualElement root)
     {
         var btn = root.Q<Button>("btn-default-dist");
-        if (btn == null)
+        var bar = root.Q<VisualElement>("fleet-command-bar");
+        if (bar == null)
         {
             return;
         }
 
-        btn.RegisterCallback<PointerDownEvent>(evt =>
+        var row = new VisualElement();
+        row.AddToClassList("rtcombat-default-dist-slider");
+        row.style.flexDirection = FlexDirection.Row;
+        row.style.alignItems = Align.Center;
+        row.style.flexGrow = 0;
+        row.style.flexShrink = 1;
+        row.style.minWidth = 140;
+
+        var label = new Label(FormatDefaultDistKm());
+        label.name = "lbl-default-dist-km";
+        label.style.minWidth = 52;
+
+        var slider = new Slider(0f, 1f);
+        slider.name = "slider-default-dist";
+        slider.value = TacticalRangeScale.DialTFromKm(EffectiveDefaultDistKm());
+        slider.style.flexGrow = 1;
+        slider.style.minWidth = 80;
+        slider.RegisterValueChangedCallback(evt =>
         {
-            if (evt.button != 0)
-            {
-                return;
-            }
-
-            evt.StopPropagation();
-            var initial = TacticalSelectionState.DefaultCommandRangeKm;
-            _rangeDial.Begin(btn, km =>
-            {
-                if (!km.HasValue)
-                {
-                    Emit("在罗盘上拖动设置默认距离", false);
-                    return;
-                }
-
-                TacticalSelectionState.DefaultCommandRangeKm = km;
-                Emit($"默认距离 {km.Value:0} km", true);
-            }, initial);
+            var km = TacticalRangeScale.KmFromDialT(evt.newValue);
+            TacticalSelectionState.DefaultCommandRangeKm = km;
+            label.text = FormatDefaultDistKm();
         });
+
+        row.Add(label);
+        row.Add(slider);
+
+        if (btn != null)
+        {
+            btn.tooltip = "默认距离（滑块调节，用于接近/远离/环绕/跃迁）";
+            var idx = bar.IndexOf(btn);
+            if (idx >= 0)
+            {
+                bar.Insert(idx + 1, row);
+            }
+            else
+            {
+                bar.Add(row);
+            }
+        }
+        else
+        {
+            bar.Add(row);
+        }
     }
+
+    private static float EffectiveDefaultDistKm() =>
+        TacticalSelectionState.DefaultCommandRangeKm ?? TacticalRangeScale.MidKm;
+
+    private static string FormatDefaultDistKm() =>
+        TacticalSelectionState.DefaultCommandRangeKm.HasValue
+            ? $"{TacticalSelectionState.DefaultCommandRangeKm.Value:0} km"
+            : $"{EffectiveDefaultDistKm():0} km";
 }

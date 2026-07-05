@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using TopDog.Client;
 using TopDog.Sim.Realtime;
@@ -7,12 +8,16 @@ using UnityEngine;
 using UnityEngine.UIElements;
 /*
  * ══ 设计手册嵌入 ══
- * 权威: docs/TACTICAL_VIEW.md §4-§5 主视野 · docs/VISION.md
+ * 权威: docs/TACTICAL_RIGHT_RAIL_SCENE_PROXY.md §2-§3 · docs/TACTICAL_VIEW.md §4-§5
  * 本文件: TacticalViewportPresenter.cs — 主视野 marker + 环绕 HUD + 屏外 bracket
  * 【机制要点】
- * · glyph 单位绘制
- * · 视野门控过滤
- * 【关联】TacticalIconCatalog · UnitSelectionHud · VisionGate
+ * · glyph 单位绘制；scene proxy 用 azimuth/elevation 投到视口边缘
+ * · 视野门控：ResolveViewportFocus → VisionAnchorService（不因选中 proxy 改相机）
+ * 【实现逻辑】
+ * · Refresh：先绘 bf.units；再 ListOffSceneLinks 补未在 units 中的 off-scene marker
+ * · UpdateOffSceneLinkMarkerVisual：与 scene proxy 同图标/⤴ 角标
+ * · 禁止 ResolveViewportFocus 将选中 proxy 作为相机注视点
+ * 【关联】TacticalIconCatalog · UnitSelectionHud · BattlefieldSceneProxyService
  * ══
  */
 
@@ -69,7 +74,7 @@ public sealed class TacticalViewportPresenter
             return;
         }
 
-        var focus = VisionAnchorService.ResolveDefaultFocus(state, bf);
+        var focus = ResolveViewportFocus(state, bf);
         var fx = focus?.x ?? 0f;
         var fy = focus?.y ?? 0f;
         var fz = focus?.z ?? 0f;
@@ -116,6 +121,25 @@ public sealed class TacticalViewportPresenter
             }
         }
 
+        foreach (var link in BattlefieldSceneProxyService.ListOffSceneLinks(state, bf))
+        {
+            if (aliveIds.Contains(link.UnitId))
+            {
+                continue;
+            }
+
+            aliveIds.Add(link.UnitId);
+            var bundle = GetOrCreateMarker(link.UnitId);
+            var placement = PositionSceneProxy(link.AzimuthRad, link.ElevationRad, hostW, hostH);
+            UpdateOffSceneLinkMarkerVisual(bundle, link);
+            ApplyPlacement(bundle, placement, link.UnitId, isSceneProxy: true);
+            _screenPositions[link.UnitId] = (placement.CenterX, placement.CenterY);
+            if (link.UnitId.Equals(TacticalSelectionState.SelectedTargetUnitId, System.StringComparison.Ordinal))
+            {
+                SelectedMarkerScreenPos = (placement.CenterX, placement.CenterY);
+            }
+        }
+
         var remove = new List<string>();
         foreach (var kv in _markers)
         {
@@ -131,6 +155,9 @@ public sealed class TacticalViewportPresenter
             HideEdgeMarker(id);
         }
     }
+
+    private static BattlefieldUnit? ResolveViewportFocus(GameState state, BattlefieldState bf) =>
+        VisionAnchorService.ResolveDefaultFocus(state, bf);
 
     private void ApplyPlacement(
         MarkerBundle bundle,
@@ -297,7 +324,8 @@ public sealed class TacticalViewportPresenter
         }
         foreach (var u in _lastBf.units)
         {
-            if (u.unitId == null || u.IsDestroyed() || !u.Arrived(_lastBf.timeSec))
+            if (u.unitId == null || u.IsDestroyed() || !u.Arrived(_lastBf.timeSec)
+                || u.isBuilding || BattlefieldSceneProxyService.IsSceneProxy(u))
             {
                 continue;
             }
@@ -345,6 +373,18 @@ public sealed class TacticalViewportPresenter
         }
 
         return bestId;
+    }
+
+    public bool TryGetUnitScreenCenter(string unitId, out Vector2 overlayLocalCenter)
+    {
+        overlayLocalCenter = default;
+        if (!_screenPositions.TryGetValue(unitId, out var pos))
+        {
+            return false;
+        }
+
+        overlayLocalCenter = new Vector2(pos.left, pos.top);
+        return true;
     }
 
     public string? PickFriendlyUnitAt(Vector2 localPos, float radiusPx = 22f)
@@ -556,6 +596,55 @@ public sealed class TacticalViewportPresenter
         }
 
         return placement;
+    }
+
+    private void UpdateOffSceneLinkMarkerVisual(MarkerBundle bundle, TacticalOffSceneLink link)
+    {
+        var marker = bundle.IconHost;
+        var icon = marker.Q(className: "rtcombat-marker-icon");
+        var fallback = marker.Q<Label>("marker-fallback");
+        var badge = marker.Q<Label>("marker-badge");
+        if (badge != null)
+        {
+            badge.text = "⤴";
+            badge.RemoveFromClassList("rtcombat-marker-badge-hostile");
+            badge.AddToClassList("rtcombat-marker-badge-friendly");
+            badge.style.display = DisplayStyle.Flex;
+        }
+
+        if (icon != null)
+        {
+            var tex = TacticalIconCatalog.ResolveSceneProxyIcon(link.Kind);
+            if (tex != null)
+            {
+                icon.style.backgroundImage = new StyleBackground(tex);
+                icon.style.backgroundColor = new StyleColor(new Color(0, 0, 0, 0));
+                icon.style.unityBackgroundImageTintColor = new StyleColor(new Color(0.55f, 0.85f, 1f));
+                icon.style.rotate = new Rotate(new Angle(0, AngleUnit.Degree));
+                if (fallback != null)
+                {
+                    fallback.style.display = DisplayStyle.None;
+                }
+            }
+            else if (fallback != null)
+            {
+                icon.style.backgroundImage = StyleKeyword.None;
+                fallback.text = "景";
+                fallback.style.display = DisplayStyle.Flex;
+            }
+        }
+
+        bundle.Container.tooltip = link.DisplayName;
+        EnsureSceneProxyLabel(bundle, link.DisplayName);
+        var selected = link.UnitId.Equals(TacticalSelectionState.SelectedTargetUnitId, System.StringComparison.Ordinal);
+        if (selected)
+        {
+            marker.AddToClassList("rtcombat-marker-selected");
+        }
+        else
+        {
+            marker.RemoveFromClassList("rtcombat-marker-selected");
+        }
     }
 
     private void UpdateMarkerVisual(MarkerBundle bundle, BattlefieldUnit u, GameState state, BattlefieldState bf)

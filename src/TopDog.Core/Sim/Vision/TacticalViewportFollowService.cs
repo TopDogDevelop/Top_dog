@@ -26,6 +26,11 @@ public static class TacticalViewportFollowService
         }
 
         var active = FindBattlefield(state, state.activeBattlefieldId);
+        if (active != null && HasWarpPipelineFriendlies(state, active))
+        {
+            return;
+        }
+
         var activeScore = active != null ? VisionGate.CountFriendlyFollowScore(state, active) : 0;
         var bestScore = VisionGate.CountFriendlyFollowScore(state, best);
         if (activeScore > 0 && bestScore <= activeScore)
@@ -44,6 +49,24 @@ public static class TacticalViewportFollowService
         {
             state.possessingMemberId = null;
         }
+    }
+
+    private static bool HasWarpPipelineFriendlies(GameState state, BattlefieldState bf)
+    {
+        if (bf.battlefieldId == null)
+        {
+            return false;
+        }
+
+        foreach (var u in bf.units)
+        {
+            if (u.side == UnitSide.FRIENDLY && !u.IsDestroyed() && u.warpPhase != TacticalWarpPhase.None)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static BattlefieldState? FindBestBattlefield(GameState state)

@@ -49,6 +49,103 @@ public sealed class TacticalWarpServiceTests
     }
 
     [Test]
+    public void TryBeginWarp_RejectsBeyondMaxDistanceAu()
+    {
+        var state = NewDualBfState();
+        var from = state.battlefields[0];
+        var to = new BattlefieldState
+        {
+            battlefieldId = "bf-far",
+            systemId = "sys1",
+            eventRegionId = "reg-far",
+            anchorAu = new[] { TacticalWarpService.MaxWarpDistanceAu + 1f, 0f, 0f },
+        };
+        state.battlefields.Add(to);
+        state.map!.Project.systems[0].eventRegions.Add(new EventRegionDef
+        {
+            eventRegionId = "reg-far",
+            kind = EventRegionKinds.Planet,
+            anchorAu = to.anchorAu,
+            radiusKm = 500,
+        });
+        var unit = FriendlyShip("u1");
+        from.units.Add(unit);
+        BattlefieldSceneProxyService.SyncForBattlefield(state, from);
+
+        var err = TacticalWarpService.TryBeginWarp(state, unit, from, to, null, 500_000f);
+        Assert.That(err, Does.Contain("目标过远"));
+        Assert.That(err, Does.Contain("1000"));
+    }
+
+    [Test]
+    public void TryBeginWarp_AllowsAtMaxDistanceAu()
+    {
+        var state = NewDualBfState();
+        var from = state.battlefields[0];
+        var to = new BattlefieldState
+        {
+            battlefieldId = "bf-edge",
+            systemId = "sys1",
+            eventRegionId = "reg-edge",
+            anchorAu = new[] { TacticalWarpService.MaxWarpDistanceAu, 0f, 0f },
+        };
+        state.battlefields.Add(to);
+        state.map!.Project.systems[0].eventRegions.Add(new EventRegionDef
+        {
+            eventRegionId = "reg-edge",
+            kind = EventRegionKinds.Planet,
+            anchorAu = to.anchorAu,
+            radiusKm = 500,
+        });
+        var unit = FriendlyShip("u1");
+        from.units.Add(unit);
+        BattlefieldSceneProxyService.SyncForBattlefield(state, from);
+        TacticalWarpTestHelper.PrepareInitiate(state, from, to, unit);
+
+        var err = TacticalWarpService.TryBeginWarp(state, unit, from, to, new HullDef { warpSpeedAups = 5f }, 500_000f);
+        Assert.That(err, Is.Null);
+        Assert.That(unit.warpEtaSec, Is.EqualTo(TacticalWarpService.MaxWarpDistanceAu / 5f).Within(0.01f));
+    }
+
+    [Test]
+    public void TryOrderIntraSceneWarp_RejectsUnder150km()
+    {
+        var state = NewDualBfState();
+        var bf = state.battlefields[0];
+        var unit = FriendlyShip("u1");
+        bf.units.Add(unit);
+
+        var err = TacticalWarpService.TryOrderIntraSceneWarp(state, unit, bf, 100_000f, 0f, 0f, null);
+        Assert.That(err, Does.Contain("150"));
+    }
+
+    [Test]
+    public void TryOrderIntraSceneWarp_CompletesOnSceneWithoutTransit()
+    {
+        var state = NewDualBfState();
+        var bf = state.battlefields[0];
+        var unit = FriendlyShip("u1");
+        bf.units.Add(unit);
+        ShipMotionIntegrator.SnapHeadingToward(unit, 200_000f, 0f, 0f);
+        unit.vx = 80f;
+
+        var err = TacticalWarpService.TryOrderIntraSceneWarp(state, unit, bf, 200_000f, 0f, 0f, null);
+        Assert.That(err, Is.Null);
+        Assert.That(unit.warpPhase, Is.EqualTo(TacticalWarpPhase.ApproachProxy));
+        Assert.That(unit.warpFromBfId, Is.EqualTo("bf-a"));
+        Assert.That(unit.warpTargetBfId, Is.EqualTo("bf-a"));
+
+        for (var i = 0; i < 500 && unit.warpPhase != TacticalWarpPhase.None; i++)
+        {
+            TacticalWarpService.Tick(state, bf, 0.05f);
+        }
+
+        Assert.That(unit.warpPhase, Is.EqualTo(TacticalWarpPhase.None));
+        Assert.That(state.tacticalWarpInTransit, Is.Empty);
+        Assert.That(unit.x, Is.EqualTo(200_000f).Within(500f));
+    }
+
+    [Test]
     public void FullPseudoWarp_MovesUnitToTargetBattlefield()
     {
         var state = NewDualBfState();
