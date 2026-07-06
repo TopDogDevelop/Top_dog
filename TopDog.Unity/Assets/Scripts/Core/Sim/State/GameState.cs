@@ -105,6 +105,13 @@ public sealed class GameState
     /// <summary>战术跃迁默认落点距中心（米，1–1000 km）；单舰 warpLandingDistM 可覆盖。</summary>
     public float tacticalWarpLandingDistM = TacticalWarpLandingService.DefaultLandingDistM;
     public List<TacticalWarpTransitEntry> tacticalWarpInTransit = new();
+    /// <summary>战术导航白点世界坐标（当前 active 战场）。</summary>
+    public float tacticalNavX;
+    public float tacticalNavY;
+    public float tacticalNavZ;
+    public bool tacticalNavVisible;
+    /// <summary>无框选时舰队命令范围（TACTICAL_NAVIGATION.md）。</summary>
+    public FleetCommandScope fleetCommandScope = FleetCommandScope.AllInScene;
     public float possessionYawInput;
     public float possessionPitchInput;
     public bool possessionToggleThrottle;
@@ -131,6 +138,8 @@ public sealed class GameState
 
     public Skirmish.SkirmishMatchState? skirmish;
 
+    public MechanismTest.MechanismTestMatchState? mechanismTest;
+
     public List<CompanionLogEntry> companionLog = new();
     public Dictionary<string, float> banterReactiveCooldownSec = new(StringComparer.Ordinal);
     public MemberBanterRuntimeState? banterRuntime;
@@ -145,6 +154,9 @@ public sealed class GameState
     public string? pendingBoardSummonIdentityCode;
     public string? pendingBoardSummonLegionId;
     public string? pendingBoardSummonCasterMemberId;
+
+    /// <summary>董事会召来：战术选中友方舰；空则随机军团在场舰。</summary>
+    public string? pendingBoardSummonTargetUnitId;
 
     /// <summary>策划支援已揭露的内鬼现实人 identityCode。</summary>
     public HashSet<string> revealedInfiltratorIdentityCodes = new();

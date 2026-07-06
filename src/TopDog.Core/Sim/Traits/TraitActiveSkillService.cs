@@ -4,6 +4,7 @@ using TopDog.Content.Traits;
 using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
 using TopDog.Sim.Realtime;
+using TopDog.Sim.MechanismTest;
 using TopDog.Sim.Skirmish;
 using TopDog.Sim.State;
 
@@ -136,7 +137,8 @@ public static class TraitActiveSkillService
         GameState state,
         MemberState caster,
         string traitId,
-        MemberState? _ = null)
+        MemberState? _ = null,
+        string? targetUnitId = null)
     {
         var id = IdentityMigrationService.GetOrCreate(state, caster);
         if (!HasSkill(id, traitId))
@@ -152,7 +154,9 @@ public static class TraitActiveSkillService
         string result;
         if (traitId == BoardSummonTraitId)
         {
+            state.pendingBoardSummonTargetUnitId = targetUnitId;
             result = UseBoardSummon(state, caster, id);
+            state.pendingBoardSummonTargetUnitId = null;
         }
         else if (traitId == PlanningSupportTraitId)
         {
@@ -181,6 +185,7 @@ public static class TraitActiveSkillService
         }
 
         if (SkirmishBuildingRules.IsSkirmish(state)
+            && !MechanismTestPhaseRules.ShouldSkipBoardSummonUseLimit(state)
             && state.skirmish != null
             && caster.memberId != null
             && state.skirmish.boardSummonUses.GetValueOrDefault(caster.memberId) >= 1)
@@ -198,10 +203,11 @@ public static class TraitActiveSkillService
                 return "当前无进行中的实时战场";
             }
 
-            result = BoardSummonWingService.TrySpawnFromCaster(
+            result = BoardSummonWingService.TrySummonViaTempTubes(
                 state,
                 bf,
                 caster,
+                state.pendingBoardSummonTargetUnitId,
                 ShipRegistry.LoadDefault(),
                 ModuleRegistry.LoadDefault(),
                 new Random());
@@ -221,7 +227,7 @@ public static class TraitActiveSkillService
             state.pendingBoardSummonIdentityCode = id.identityCode;
             state.pendingBoardSummonLegionId = scheduleLegionId;
             state.pendingBoardSummonCasterMemberId = caster.memberId;
-            PushAlert(state, "董事会召来：进入战场后从施法舰放出 5 翼");
+            PushAlert(state, "董事会召来：进入战场后为目标舰放出 5 翼");
             result = "已预约董事会召来（战场 5 翼增援）";
         }
 

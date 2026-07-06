@@ -550,6 +550,56 @@
 .rtcombat-buff-scatter { background-color: rgb(200, 200, 100); }
 .rtcombat-buff-stop { background-color: rgb(160, 160, 170); }
 .rtcombat-buff-retreat { background-color: rgb(200, 100, 100); }
+.rtcombat-buff-boarding { background-color: rgb(160, 80, 220); }
+
+.rtcombat-buff-field-frame {
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 1px;
+    border-color: rgb(80, 220, 100);
+    justify-content: center;
+    align-items: center;
+}
+
+.rtcombat-buff-field-dot-shield {
+    width: 4px;
+    height: 4px;
+    border-radius: 2px;
+    background-color: rgb(80, 160, 255);
+}
+
+.rtcombat-buff-field-dot-armor {
+    width: 4px;
+    height: 4px;
+    border-radius: 2px;
+    background-color: rgb(240, 200, 60);
+}
+
+.rtcombat-buff-repair {
+    background-color: rgba(40, 80, 50, 0.9);
+    justify-content: center;
+    align-items: center;
+}
+
+.rtcombat-buff-repair-label {
+    font-size: 8px;
+    color: rgb(160, 255, 140);
+    margin: 0;
+    padding: 0;
+    -unity-text-align: middle-center;
+}
+
+.rtcombat-buff-repair-target {
+    background-color: rgba(50, 70, 100, 0.9);
+    border-width: 1px;
+    border-color: rgb(120, 200, 255);
+    justify-content: center;
+    align-items: center;
+}
+
+.rtcombat-marker-boarding-pulse {
+    border-width: 2px;
+    border-color: rgba(200, 120, 255, 0.95);
+}
 
 .rtcombat-ship-detail-energy-rail {
     flex-direction: row;
@@ -600,6 +650,62 @@
     top: 0;
     bottom: 0;
     picking-mode: ignore;
+}
+
+.rtcombat-nav-marker {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    picking-mode: ignore;
+}
+
+.rtcombat-nav-destination-icon {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    -unity-background-scale-mode: scale-to-fit;
+    background-color: rgba(0, 0, 0, 0);
+    picking-mode: ignore;
+}
+
+.rtcombat-unit-hover {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    picking-mode: ignore;
+}
+
+.rtcombat-hover-box {
+    position: absolute;
+    border-width: 2px;
+    border-radius: 2px;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.rtcombat-hover-friendly {
+    border-color: rgba(80, 160, 255, 0.95);
+}
+
+.rtcombat-hover-hostile {
+    border-color: rgba(220, 70, 70, 0.95);
+}
+
+.rtcombat-hover-repair {
+    position: absolute;
+    font-size: 12px;
+    color: rgb(80, 220, 120);
+    -unity-font-style: bold;
+    background-color: rgba(0, 0, 0, 0.45);
+    padding: 1px 4px;
+    border-radius: 2px;
+}
+
+.rtcombat-scope-forced-selected {
+    opacity: 0.45;
 }
 
 .rtcombat-ring-km-label {

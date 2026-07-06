@@ -15,7 +15,7 @@ using TopDog.Sim.Traits;
  * 【机制要点】
  * · SpawnAll：BUILDING_ASSAULT / HARVEST / COUNTER_HARVEST / 单战场分支
  * · 友方 memberId + 敌方 roster line → AddFriendlyMember / AddEnemyLine
- * · 收尾 StrikeWingSpawnService + MissileSpawnService 展开子单位
+ * · 舰载机不在 spawn 时展开（集火指令时 DeployForFocusCommand）
  * · 多区域收割按 opsDeployEventRegionId 拆多场 battlefield
  * 【关联】CombatRosterBuilder · StrikeWingSpawnService · MissileSpawnService · BoardSummonService
  * ══
@@ -65,7 +65,6 @@ public static class BattlefieldSpawner
         BoardSummonService.TryResolvePendingAcrossBattlefields(state, list, ships, modules, rng);
         foreach (var bf in list)
         {
-            StrikeWingSpawnService.ExpandAllWings(bf, modules, rng);
             if (bf.combatSubtype == CombatSubtype.BUILDING_ASSAULT && bf.targetBuildingId != null)
             {
                 BuildingCombatRules.LayoutAssaultStartPositions(bf, rng, state);

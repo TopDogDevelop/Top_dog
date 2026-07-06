@@ -11,15 +11,15 @@ namespace TopDog.Client.Tactical;
 /*
  * ══ 设计手册嵌入 ══
  * 权威: docs/TACTICAL_VIEW.md §4.6 · §5.2
- * 本文件: TacticalPlaneOverlay.cs — 场景原点同心距离环 + 高度垂线
+ * 本文件: TacticalPlaneOverlay.cs — 焦距同心距离环 + 高度垂线
  * 【机制要点】
- * · 圆心 = BattlefieldSceneOriginService.Resolve 世界坐标透视投影
- * · 环半径步进/上限随 ViewDistance 动态钳制；GeometryChangedEvent 重绘
- * 【关联】TacticalViewportCamera · TacticalViewportPresenter · BattlefieldSceneOriginService
+ * · 圆心 = ResolveDefaultFocus 世界坐标（战术注视点）
+ * · 环半径 30 km 步进，最外圈铺满当前视口（随 ViewDistance/FOV）
+ * 【关联】TacticalViewportCamera · TacticalViewportPresenter · VisionAnchorService
  * ══
  */
 
-/// <summary>战术平面 overlay：场景原点同心虚线圆 + 单位高度垂线（透视投影）。</summary>
+/// <summary>战术平面 overlay：焦距同心虚线圆 + 单位高度垂线（透视投影）。</summary>
 public sealed class TacticalPlaneOverlay : VisualElement
 {
     private const int RingStepKm = 30;
@@ -28,6 +28,7 @@ public sealed class TacticalPlaneOverlay : VisualElement
     private const int CircleSegments = 64;
     private const float MetersPerKm = 1000f;
     private const float MaxScreenSegmentPx = 180f;
+    private const float ViewportFillInset = 0.92f;
 
     private readonly TacticalViewportCamera _camera;
     private readonly List<Label> _ringLabels = new();
@@ -52,22 +53,32 @@ public sealed class TacticalPlaneOverlay : VisualElement
         MarkDirtyRepaint();
     }
 
-    private int MaxRingKm()
+    private float MaxRingRadiusM(float viewportW, float viewportH)
     {
-        if (_camera == null)
+        if (_camera == null || viewportW < 1f || viewportH < 1f)
         {
-            return MaxRingKmCap;
+            return MinRingKm * MetersPerKm;
         }
 
-        var viewKm = Mathf.CeilToInt(_camera.ViewDistance / MetersPerKm);
-        return Mathf.Clamp(Mathf.Max(MinRingKm, viewKm / 2), MinRingKm, MaxRingKmCap);
+        var tanHalf = Mathf.Tan(_camera.VerticalFovDeg * Mathf.Deg2Rad * 0.5f);
+        var aspect = viewportW / Mathf.Max(viewportH, 1f);
+        var horizontalM = _camera.ViewDistance * tanHalf * aspect;
+        var verticalM = _camera.ViewDistance * tanHalf;
+        var reachM = Mathf.Max(horizontalM, verticalM) * ViewportFillInset;
+        var stepM = RingStepKm * MetersPerKm;
+        var ringCount = Mathf.Max(1, Mathf.CeilToInt(reachM / stepM));
+        var maxM = ringCount * stepM;
+        return Mathf.Min(maxM, MaxRingKmCap * MetersPerKm);
     }
 
-    private float MaxRingRadiusM() => MaxRingKm() * MetersPerKm;
+    private int RingCount(float viewportW, float viewportH) =>
+        Mathf.Max(1, Mathf.RoundToInt(MaxRingRadiusM(viewportW, viewportH) / (RingStepKm * MetersPerKm)));
 
     private void UpdateRingLabels()
     {
-        var ringCount = MaxRingKm() / RingStepKm;
+        var w = contentRect.width;
+        var h = contentRect.height;
+        var ringCount = RingCount(w, h);
         while (_ringLabels.Count < ringCount)
         {
             var label = new Label();
@@ -77,8 +88,6 @@ public sealed class TacticalPlaneOverlay : VisualElement
             _ringLabels.Add(label);
         }
 
-        var w = contentRect.width;
-        var h = contentRect.height;
         if (w < 1f || h < 1f || _bf == null || _camera == null || _state == null)
         {
             foreach (var label in _ringLabels)
@@ -89,13 +98,8 @@ public sealed class TacticalPlaneOverlay : VisualElement
             return;
         }
 
-        var focus = VisionAnchorService.ResolveDefaultFocus(_state, _bf);
-        var fx = focus?.x ?? 0f;
-        var fy = focus?.y ?? 0f;
-        var fz = focus?.z ?? 0f;
-        BattlefieldSceneOriginService.Resolve(_state, _bf, out var ox, out var oy, out var oz);
+        var maxRingM = MaxRingRadiusM(w, h);
 
-        var maxRingM = MaxRingRadiusM();
         for (var i = 0; i < ringCount; i++)
         {
             var km = RingStepKm * (i + 1);
@@ -107,7 +111,7 @@ public sealed class TacticalPlaneOverlay : VisualElement
                 continue;
             }
 
-            var proj = _camera.ProjectWorldOffset(ox + radiusM - fx, oy - fy, oz - fz, w, h);
+            var proj = _camera.ProjectWorldOffset(radiusM, 0f, 0f, w, h);
             if (!proj.InFront)
             {
                 label.style.display = DisplayStyle.None;
@@ -140,20 +144,15 @@ public sealed class TacticalPlaneOverlay : VisualElement
         var fx = focus?.x ?? 0f;
         var fy = focus?.y ?? 0f;
         var fz = focus?.z ?? 0f;
-        BattlefieldSceneOriginService.Resolve(_state, _bf, out var ox, out var oy, out var oz);
 
         var painter = ctx.painter2D;
         painter.lineWidth = 1f;
         painter.strokeColor = new Color(1f, 1f, 1f, 0.14f);
 
-        var maxRingM = MaxRingRadiusM();
-        for (var km = RingStepKm; km <= MaxRingKm(); km += RingStepKm)
+        var maxRingM = MaxRingRadiusM(w, h);
+        for (var km = RingStepKm; km * MetersPerKm <= maxRingM; km += RingStepKm)
         {
-            var radiusM = km * MetersPerKm;
-            if (radiusM <= maxRingM)
-            {
-                DrawWorldCircle(painter, w, h, ox, oy, oz, fx, fy, fz, radiusM);
-            }
+            DrawWorldCircle(painter, w, h, fx, fy, fz, km * MetersPerKm);
         }
 
         painter.strokeColor = new Color(0.6f, 0.85f, 1f, 0.45f);
@@ -165,12 +164,8 @@ public sealed class TacticalPlaneOverlay : VisualElement
                 continue;
             }
 
-            var dx = u.x - fx;
-            var dy = u.y - fy;
-            var dz = u.z - fz;
-
-            var top = _camera.ProjectWorldOffset(dx, dy, dz, w, h);
-        var foot = _camera.ProjectWorldOffset(u.x - fx, u.y - fy, oz - fz, w, h);
+            var top = _camera.ProjectWorldOffset(u.x - fx, u.y - fy, u.z - fz, w, h);
+            var foot = _camera.ProjectWorldOffset(u.x - fx, u.y - fy, fz - fz, w, h);
             if (!top.InFront || !foot.InFront)
             {
                 continue;
@@ -184,22 +179,18 @@ public sealed class TacticalPlaneOverlay : VisualElement
         Painter2D painter,
         float w,
         float h,
-        float ox,
-        float oy,
-        float oz,
-        float fx,
-        float fy,
-        float fz,
+        float cx,
+        float cy,
+        float cz,
         float radiusM)
     {
         Vector2? prev = null;
         for (var i = 0; i <= CircleSegments; i++)
         {
             var t = i / (float)CircleSegments * Mathf.PI * 2f;
-            var wx = ox + radiusM * Mathf.Cos(t);
-            var wy = oy + radiusM * Mathf.Sin(t);
-            var wz = oz;
-            var proj = _camera.ProjectWorldOffset(wx - fx, wy - fy, wz - fz, w, h);
+            var dx = radiusM * Mathf.Cos(t);
+            var dy = radiusM * Mathf.Sin(t);
+            var proj = _camera.ProjectWorldOffset(dx, dy, 0f, w, h);
             if (!proj.InFront)
             {
                 prev = null;

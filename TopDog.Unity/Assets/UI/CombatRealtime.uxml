@@ -61,12 +61,12 @@
         <ui:VisualElement name="fleet-command-bar" class="rtcombat-fleet-bar">
           <ui:Button name="btn-possess-friendly" text="切换视野" class="ops-shortcut-btn rtcombat-fleet-btn" />
           <ui:Button name="btn-rally" text="集合" class="ops-shortcut-btn rtcombat-fleet-btn" />
+          <ui:Button name="btn-command-scope" text="命令范围：当前场景内所有" class="ops-shortcut-btn rtcombat-fleet-btn" />
           <ui:Button name="btn-default-dist" text="默认距离" class="ops-shortcut-btn rtcombat-fleet-btn" tooltip="滑块调节默认距离（接近/远离/环绕/跃迁）" />
           <ui:Button name="btn-follow" text="接近" class="ops-shortcut-btn rtcombat-fleet-btn" />
           <ui:Button name="btn-away" text="远离" class="ops-shortcut-btn rtcombat-fleet-btn" />
-          <ui:Button name="btn-follow-attack" text="跟随攻击" class="ops-shortcut-btn rtcombat-fleet-btn" />
-          <ui:Button name="btn-focus" text="集火" class="ops-shortcut-btn rtcombat-fleet-btn" />
           <ui:Button name="btn-cease-fire" text="停火" class="ops-shortcut-btn rtcombat-fleet-btn" />
+          <ui:Button name="btn-repair-target" text="维修目标" class="ops-shortcut-btn rtcombat-fleet-btn" />
           <ui:Button name="btn-scatter" text="散开" class="ops-shortcut-btn rtcombat-fleet-btn" />
           <ui:Button name="btn-orbit" text="环绕" class="ops-shortcut-btn rtcombat-fleet-btn" />
           <ui:Button name="btn-warp" text="集体跃迁" class="ops-shortcut-btn rtcombat-fleet-btn" />

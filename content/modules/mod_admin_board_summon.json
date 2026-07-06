@@ -1,0 +1,8 @@
+{
+  "moduleId": "mod_admin_board_summon",
+  "displayName": "董事会管理员模块",
+  "displayNameEn": "Board Admin Module",
+  "slotCategory": "FUNCTION",
+  "moduleKind": "admin_board_summon",
+  "moduleSize": "SMALL"
+}

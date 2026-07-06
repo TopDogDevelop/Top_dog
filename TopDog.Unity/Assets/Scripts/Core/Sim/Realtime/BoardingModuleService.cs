@@ -6,12 +6,12 @@ using TopDog.Sim.State;
 
 /*
  * ══ 设计手册嵌入 ══
- * 权威: docs/SHIP_FITTING.md §登录模块 · docs/SHIPS.md
+ * 权威: docs/BOARDING_MODULE.md §2–§5
  * 本文件: BoardingModuleService.cs — 功能槽登录模块蓄力与夺舍
  * 【机制要点】
- * · boarding_module：在 attackRangeM 内持续 boardingHoldSec 后秒杀目标
+ * · boarding_module：进 2000 m 自动启用；接战态强制 0 km 接近 + 推进器配额
  * · 攻击方继承目标 hullId + fittedModules；目标舰体销毁
- * 【关联】ModuleRuntime · FittingValidator · BattlefieldSystem
+ * 【关联】CombatModuleEnableService · ModuleRuntime · BattlefieldSystem
  * ══
  */
 
@@ -21,7 +21,7 @@ public static class BoardingModuleService
 {
     public const string ModuleKind = "boarding_module";
     public const float DefaultHoldSec = 100f;
-    public const float DefaultRangeM = 100f;
+    public const float DefaultRangeM = 2000f;
 
     public static void Tick(
         GameState state,
@@ -44,23 +44,26 @@ public static class BoardingModuleService
             var boardingMod = FindBoardingModule(attacker, modules);
             if (boardingMod == null)
             {
-                ResetCharge(attacker);
+                DisableBoarding(attacker, ships, modules);
                 continue;
             }
 
             var target = ResolveTarget(bf, attacker);
             if (target == null)
             {
-                ResetCharge(attacker);
+                DisableBoarding(attacker, ships, modules);
                 continue;
             }
 
             var rangeM = boardingMod.attackRangeM > 0f ? boardingMod.attackRangeM : DefaultRangeM;
             if (DistanceM(attacker, target) > rangeM)
             {
-                ResetCharge(attacker);
+                DisableBoarding(attacker, ships, modules);
                 continue;
             }
+
+            attacker.boardingModuleEnabled = true;
+            TickBoardingEngage(attacker, target, ships, modules);
 
             if (!string.Equals(attacker.boardingChargeTargetUnitId, target.unitId, StringComparison.Ordinal))
             {
@@ -76,15 +79,40 @@ public static class BoardingModuleService
             }
 
             ExecuteBoarding(state, bf, attacker, target, ships, modules);
-            ResetCharge(attacker);
+            DisableBoarding(attacker, ships, modules);
         }
+    }
+
+    public static bool IsBoardingEngaged(BattlefieldUnit unit) => unit.boardingModuleEnabled;
+
+    public static bool IsBoardingChargeActive(BattlefieldUnit unit) =>
+        unit.boardingChargeSec > 0f
+        && !string.IsNullOrEmpty(unit.boardingChargeTargetUnitId);
+
+    public static bool IsBeingBoarded(BattlefieldState bf, string? victimUnitId)
+    {
+        if (string.IsNullOrEmpty(victimUnitId))
+        {
+            return false;
+        }
+
+        foreach (var u in bf.units)
+        {
+            if (IsBoardingChargeActive(u)
+                && victimUnitId.Equals(u.boardingChargeTargetUnitId, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public static ModuleDef? FindBoardingModule(BattlefieldUnit unit, ModuleRegistry modules)
     {
-        foreach (var modId in unit.fittedModules.Values)
+        foreach (var kv in unit.fittedModules)
         {
-            var mod = modules.Resolve(modId);
+            var mod = modules.Resolve(kv.Value);
             if (mod != null && ModuleKind.Equals(mod.moduleKind, StringComparison.Ordinal))
             {
                 return mod;
@@ -92,6 +120,25 @@ public static class BoardingModuleService
         }
 
         return null;
+    }
+
+    private static void TickBoardingEngage(
+        BattlefieldUnit attacker,
+        BattlefieldUnit target,
+        ShipRegistry ships,
+        ModuleRegistry modules)
+    {
+        var hull = attacker.hullId != null ? ships.FindHull(attacker.hullId) : null;
+        if (hull != null)
+        {
+            CombatModuleEnableService.ApplyBoardingEngageQuota(attacker, hull, modules);
+        }
+
+        attacker.aiOrder = UnitAiOrder.APPROACH;
+        attacker.approachTargetUnitId = target.unitId;
+        attacker.orbitTargetUnitId = null;
+        attacker.commandMaintainDistM = 0f;
+        attacker.throttleOn = true;
     }
 
     private static BattlefieldUnit? ResolveTarget(BattlefieldState bf, BattlefieldUnit attacker)
@@ -138,6 +185,8 @@ public static class BoardingModuleService
         attacker.hullId = capturedHullId;
         attacker.tonnageClass = hull.tonnageClass;
         attacker.fittedModules = capturedFit;
+        attacker.disabledModuleSlots.Clear();
+        attacker.boardingModuleEnabled = false;
         ModuleRuntime.ApplyToUnit(attacker, hull, modules);
 
         DestroyVictim(bf, victim, attacker);
@@ -162,7 +211,26 @@ public static class BoardingModuleService
         victim.targetUnitId = null;
         victim.boardingChargeTargetUnitId = null;
         victim.boardingChargeSec = 0f;
+        victim.boardingModuleEnabled = false;
         CombatDamageLedger.RecordHit(bf, attacker, victim, victim.structureMax);
+    }
+
+    private static void DisableBoarding(
+        BattlefieldUnit unit,
+        ShipRegistry ships,
+        ModuleRegistry modules)
+    {
+        var wasEngaged = unit.boardingModuleEnabled || unit.disabledModuleSlots.Count > 0;
+        unit.boardingModuleEnabled = false;
+        unit.boardingChargeTargetUnitId = null;
+        unit.boardingChargeSec = 0f;
+        if (!wasEngaged)
+        {
+            return;
+        }
+
+        var hull = unit.hullId != null ? ships.FindHull(unit.hullId) : null;
+        CombatModuleEnableService.RestoreAllEnabled(unit, hull, modules);
     }
 
     private static void PersistBoardingToMember(
@@ -279,11 +347,5 @@ public static class BoardingModuleService
         }
 
         CombatTelemetryLog.Log("boarding", msg);
-    }
-
-    private static void ResetCharge(BattlefieldUnit u)
-    {
-        u.boardingChargeTargetUnitId = null;
-        u.boardingChargeSec = 0f;
     }
 }

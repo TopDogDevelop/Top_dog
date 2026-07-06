@@ -47,5 +47,6 @@ public static class BoardSummonApproachService
         ShipRegistry ships,
         ModuleRegistry modules,
         Random rng) =>
-        BoardSummonWingService.TrySpawnFromCaster(state, bf, caster, ships, modules, rng);
+        BoardSummonWingService.TrySummonViaTempTubes(
+            state, bf, caster, state.pendingBoardSummonTargetUnitId, ships, modules, rng);
 }

@@ -1,0 +1,79 @@
+{
+  "scenarioId": "mt_mitigation",
+  "displayName": "反射弧·磐石",
+  "scenarioOrder": 5,
+  "seed": 1005,
+  "spawnSeparationM": 20000,
+  "legions": [
+    {
+      "legionId": "mt_player",
+      "displayName": "玩家",
+      "isPlayer": true,
+      "isAiControlled": false,
+      "members": [
+        {
+          "memberTemplateRowId": "template_1:10000001:01",
+          "memberId": "mt_mi_p1",
+          "displayName": "奥法凯",
+          "hullId": "hull_dread_ironcoffin",
+          "fitted": {
+            "atk_1": "mod_hybrid_gun_xl",
+            "atk_2": "mod_hybrid_gun_xl",
+            "atk_3": "mod_hybrid_gun_xl",
+            "atk_4": "mod_hybrid_gun_xl",
+            "def_1": "mod_reflex_arc_xl",
+            "def_2": "mod_bedrock_armor_xl"
+          }
+        },
+        {
+          "memberTemplateRowId": "template_1:10000001:02",
+          "memberId": "mt_mi_p2",
+          "displayName": "新手教官",
+          "hullId": "hull_dread_ironcoffin",
+          "fitted": {
+            "atk_1": "mod_hybrid_gun_xl",
+            "atk_2": "mod_hybrid_gun_xl",
+            "atk_3": "mod_hybrid_gun_xl",
+            "atk_4": "mod_hybrid_gun_xl",
+            "def_1": "mod_reflex_arc_xl",
+            "def_2": "mod_bedrock_armor_xl"
+          }
+        }
+      ]
+    },
+    {
+      "legionId": "mt_enemy",
+      "displayName": "镜像",
+      "members": [
+        {
+          "memberTemplateRowId": "template_1:10000001:01",
+          "memberId": "mt_mi_e1",
+          "displayName": "奥法凯",
+          "hullId": "hull_dread_ironcoffin",
+          "fitted": {
+            "atk_1": "mod_hybrid_gun_xl",
+            "atk_2": "mod_hybrid_gun_xl",
+            "atk_3": "mod_hybrid_gun_xl",
+            "atk_4": "mod_hybrid_gun_xl",
+            "def_1": "mod_reflex_arc_xl",
+            "def_2": "mod_bedrock_armor_xl"
+          }
+        },
+        {
+          "memberTemplateRowId": "template_1:10000001:02",
+          "memberId": "mt_mi_e2",
+          "displayName": "新手教官",
+          "hullId": "hull_dread_ironcoffin",
+          "fitted": {
+            "atk_1": "mod_hybrid_gun_xl",
+            "atk_2": "mod_hybrid_gun_xl",
+            "atk_3": "mod_hybrid_gun_xl",
+            "atk_4": "mod_hybrid_gun_xl",
+            "def_1": "mod_reflex_arc_xl",
+            "def_2": "mod_bedrock_armor_xl"
+          }
+        }
+      ]
+    }
+  ]
+}

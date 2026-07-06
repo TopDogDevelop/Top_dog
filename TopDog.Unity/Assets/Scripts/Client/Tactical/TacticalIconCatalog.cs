@@ -27,6 +27,8 @@ public static class TacticalIconCatalog
     private static Texture2D _badgeFriendly;
     private static Texture2D _badgeHostile;
 
+    public static Texture2D ResolveNavDestinationIcon() => Load("nav_destination_32.png");
+
     public static Texture2D ResolveShipIcon(string? tonnageClass)
     {
         var file = tonnageClass switch

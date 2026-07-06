@@ -2,6 +2,7 @@ using System.Linq;
 using TopDog.Content.Modules;
 using TopDog.Content.Ships;
 using TopDog.Sim.Member;
+using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 
 /*
@@ -76,21 +77,35 @@ public static class FittingValidator
         return mod.moduleId != null && mod.moduleId.StartsWith("plug_", StringComparison.Ordinal);
     }
 
-    public static bool HullAllowsModuleKind(HullDef? hull, ModuleDef mod)
+    public static bool ModuleFitsHullLicenses(HullDef? hull, ModuleDef mod) =>
+        HullLicenseCatalog.ModuleFitsHullLicenses(hull, mod);
+
+    public static bool HullAllowsModuleKind(HullDef? hull, ModuleDef mod) =>
+        ModuleFitsHullLicenses(hull, mod);
+
+    public static int CountFleetProtectionModules(
+        GameState state,
+        MemberState m,
+        HullDef? hull,
+        ModuleRegistry modules,
+        string? excludeSlotKey = null)
     {
-        if (string.IsNullOrWhiteSpace(mod.moduleKind))
+        var count = 0;
+        foreach (var e in MemberFittingService.Fittings(state, m))
         {
-            return true;
+            if (excludeSlotKey != null && excludeSlotKey.Equals(e.Key, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var fitted = modules.Resolve(e.Value);
+            if (HullLicenseCatalog.IsFleetProtectionModule(fitted))
+            {
+                count++;
+            }
         }
 
-        if (!"boarding_module".Equals(mod.moduleKind, StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        return hull?.allowedModuleKinds != null
-               && hull.allowedModuleKinds.Any(k =>
-                   "boarding_module".Equals(k, StringComparison.Ordinal));
+        return count;
     }
 
     public static bool ModuleFitsSlot(string? slotKey, ModuleDef? mod, HullDef? hull)
@@ -99,7 +114,7 @@ public static class FittingValidator
         {
             return false;
         }
-        if (!HullAllowsModuleKind(hull, mod))
+        if (!ModuleFitsHullLicenses(hull, mod))
         {
             return false;
         }
@@ -138,6 +153,11 @@ public static class FittingValidator
         ModuleRegistry modules)
     {
         if (!ModuleFitsSlot(slotKey, mod, hull))
+        {
+            return false;
+        }
+        if (HullLicenseCatalog.IsFleetProtectionModule(mod)
+            && CountFleetProtectionModules(state, m, hull, modules, slotKey) >= 1)
         {
             return false;
         }

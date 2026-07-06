@@ -1,0 +1,13 @@
+{
+  "moduleId": "mod_remote_shield_repair_l",
+  "displayName": "远程护盾维修 L",
+  "slotCategory": "ATTACK",
+  "moduleSize": "LARGE",
+  "moduleSubtype": "remote_repair",
+  "repairLayer": "shield",
+  "repairPerSalvo": 1000,
+  "repairCycleSec": 10,
+  "repairRangeM": 15000,
+  "attackRangeM": 15000,
+  "repairFalloffPctPerKm": 10
+}

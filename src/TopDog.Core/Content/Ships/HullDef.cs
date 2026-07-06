@@ -54,6 +54,14 @@ public sealed class HullDef
     public string? hullBonusSummary;
     /// <summary>仅允许装配所列 moduleKind（如 boarding_module）；空 = 不限制种类。</summary>
     public string[]? allowedModuleKinds;
+    /// <summary>船体许可键（JSON snake_en）；模块 requiredHullLicenses 须 ⊆ 本数组。</summary>
+    public string[]? hullLicenses;
+    /// <summary>LARGE 档远程维修器治疗量加成 %（无用级武库舰 +100）。</summary>
+    public float hullLargeRemoteRepairBonusPct;
+    /// <summary>灰狼级：mod_armor_link_s 场半径额外 km。</summary>
+    public float hullArmorLinkSmallRadiusBonusKm;
+    /// <summary>灰狼级：每庇护一艘狈头级 shieldMax +N%。</summary>
+    public float hullFieldProtegeShieldBonusPct;
     public int attackSlots;
     public int functionSlots;
     public int defenseSlots;

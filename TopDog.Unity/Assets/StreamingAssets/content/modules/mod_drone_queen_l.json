@@ -1,0 +1,12 @@
+{
+  "moduleId": "mod_drone_queen_l",
+  "displayName": "无人机母舰 L",
+  "slotCategory": "FUNCTION",
+  "moduleKind": "logistics",
+  "moduleSize": "LARGE",
+  "requiredHullLicenses": ["logistics"],
+  "producerResetIntervalSec": 15,
+  "producerRadiusM": 15000,
+  "producerConsumableKind": "drone",
+  "producerResetTonnageMax": "LARGE"
+}

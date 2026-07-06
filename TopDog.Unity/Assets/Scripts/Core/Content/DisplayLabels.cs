@@ -199,6 +199,16 @@ public static class DisplayLabels
         return memberId;
     }
 
+    public static string HullLicenseLabel(string? licenseKey) => licenseKey switch
+    {
+        "logistics" => JoinBilingual("后勤", "Logistics"),
+        "boarding" => JoinBilingual("登录", "Boarding"),
+        "shield_fleet" => JoinBilingual("盾舰队装备", "Shield Fleet"),
+        "armor_fleet" => JoinBilingual("甲舰队装备", "Armor Fleet"),
+        "anti_missile_laser" => JoinBilingual("反导弹激光", "Anti-Missile Laser"),
+        _ => licenseKey ?? "?",
+    };
+
     public static string TonnageBilingual(string? tonnageClass) => tonnageClass switch
     {
         "FRIGATE" => JoinBilingual("护卫舰", "Frigate"),

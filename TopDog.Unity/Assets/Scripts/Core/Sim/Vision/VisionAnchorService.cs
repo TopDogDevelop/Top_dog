@@ -50,7 +50,9 @@ public static class VisionAnchorService
 
                 ?? FindTransitUnitOnBattlefield(state, bf, state.tacticalCameraUnitId);
 
-            if (pinned != null && !pinned.IsDestroyed()
+            if (pinned != null
+                && pinned.side != UnitSide.ENEMY
+                && !pinned.IsDestroyed()
 
                 && (IsFocusEligible(pinned, bf.timeSec)
 
@@ -63,6 +65,8 @@ public static class VisionAnchorService
                 return pinned;
 
             }
+
+            state.tacticalCameraUnitId = null;
 
         }
 
@@ -168,7 +172,21 @@ public static class VisionAnchorService
 
         {
 
-            return bf.units.Count > 0 ? bf.units[0] : null;
+            foreach (var u in bf.units)
+
+            {
+
+                if (IsTacticalCameraEligible(state, u, bf.timeSec))
+
+                {
+
+                    return u;
+
+                }
+
+            }
+
+            return null;
 
         }
 

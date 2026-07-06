@@ -1,0 +1,12 @@
+{
+  "moduleId": "mod_deterrence_gun_yl",
+  "displayName": "威慑炮",
+  "slotCategory": "ATTACK",
+  "moduleSize": "YOULIANG",
+  "damagePerTick": 30000,
+  "fireCycleSec": 30,
+  "trackingDegPerSec": 0.1,
+  "attackRangeM": 200000,
+  "rangeDamageFalloffPctPerKm": 1,
+  "targetMinTonnageRank": 8
+}

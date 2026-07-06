@@ -2,6 +2,7 @@ using TopDog.Content.Modules;
 using TopDog.Content.Ships;
 using TopDog.Sim.Combat;
 using TopDog.Sim.Member;
+using TopDog.Sim.MechanismTest;
 using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 using TopDog.Sim.Traits;
@@ -11,8 +12,11 @@ namespace TopDog.Core.Tests;
 [TestFixture]
 public sealed class BoardSummonWingTests
 {
+    [SetUp]
+    public void SetUp() => FieldNavTestContent.PinRepoContentRoot();
+
     [Test]
-    public void LiveCombat_Summon_SpawnsFiveWingsFromCaster()
+    public void LiveCombat_Summon_AddsTempTubesAndSpawnsFiveWings()
     {
         var state = new GameState
         {
@@ -47,6 +51,7 @@ public sealed class BoardSummonWingTests
         {
             unitId = "u-caster",
             memberId = caster.memberId,
+            legionId = "VIP",
             displayName = "施法舰",
             side = UnitSide.FRIENDLY,
             arrivalAtSec = 0f,
@@ -59,11 +64,9 @@ public sealed class BoardSummonWingTests
 
         var ships = ShipRegistry.LoadDefault();
         var modules = ModuleRegistry.LoadDefault();
-        Assert.That(ships, Is.Not.Null);
-        Assert.That(modules, Is.Not.Null);
 
-        var echo = BoardSummonWingService.TrySpawnFromCaster(
-            state, bf, caster, ships, modules, new Random(1));
+        var echo = BoardSummonWingService.TrySummonViaTempTubes(
+            state, bf, caster, casterUnit.unitId, ships, modules, new Random(1));
         Assert.That(echo, Does.Contain("翼"));
 
         var wings = bf.units
@@ -73,99 +76,92 @@ public sealed class BoardSummonWingTests
         foreach (var w in wings)
         {
             Assert.That(w.parentUnitId, Is.EqualTo(casterUnit.unitId));
-            Assert.That(w.Arrived(bf.timeSec), Is.True);
-            Assert.That(w.pinnedToBattlefield, Is.True);
-            Assert.That(w.salvoRoundDmg, Is.GreaterThan(0f));
+            Assert.That(w.shieldMax, Is.EqualTo(5000f));
+            Assert.That(w.armorMax, Is.EqualTo(30_000f));
+            Assert.That(w.structureMax, Is.EqualTo(10_000f));
         }
+
+        Assert.That(casterUnit.fittedModules.Keys.Count(k =>
+            BoardSummonWingService.IsTempBoardTube(k)), Is.EqualTo(5));
     }
 
     [Test]
-    public void CapFull_RejectsSpawn()
+    public void WingDestroyed_RemovesTempTube()
     {
-        var bf = new BattlefieldState();
-        for (var i = 0; i < BattlefieldUnitLimits.MaxUnitsPerBattlefield; i++)
+        var bf = new BattlefieldState { battlefieldId = "bf1" };
+        var carrier = new BattlefieldUnit
         {
-            bf.units.Add(new BattlefieldUnit { unitId = "u-" + i, structureHp = 1f, structureMax = 1f });
-        }
-        var caster = new BattlefieldUnit
-        {
-            unitId = "caster",
-            memberId = "m1",
+            unitId = "carrier",
             side = UnitSide.FRIENDLY,
             structureHp = 100f,
             structureMax = 100f,
+            fittedModules = { [BoardSummonWingService.TempTubePrefix + "0"] = BoardSummonWingService.BoardSummonWingModuleId },
+            tubeStates = { [BoardSummonWingService.TempTubePrefix + "0"] = LaunchTubeState.Activated },
         };
-        bf.units.Add(caster);
-        var spawned = BoardSummonWingService.SpawnFromCasterUnit(bf, caster, new Random(1));
-        Assert.That(spawned, Is.EqualTo(0));
+        var wing = new BattlefieldUnit
+        {
+            unitId = "wing",
+            parentUnitId = "carrier",
+            hullId = BoardSummonWingService.BoardSummonWingModuleId,
+            structureHp = 0f,
+            alive = false,
+        };
+        bf.units.Add(carrier);
+        bf.units.Add(wing);
+
+        LaunchTubeStateService.NotifyChildDestroyed(bf, wing);
+        Assert.That(carrier.fittedModules.ContainsKey(BoardSummonWingService.TempTubePrefix + "0"), Is.False);
     }
 
     [Test]
-    public void PendingInject_MultiRegionHarvest_SpawnsOnCastersBattlefield()
+    public void PendingInject_ClearsAfterRealtimeSummon()
     {
-        var state = new GameState { storyRound = 2, phase = GamePhase.COMBAT_PREP };
-        state.pendingBoardSummonCasterMemberId = "m2";
-        state.pendingBoardSummonLegionId = "VIP";
-        state.members.Add(Member("m1", "region_a"));
-        state.members.Add(Member("m2", "region_b"));
-        var entry = new CombatQueueEntry
+        var state = new GameState
         {
-            entryId = "e1",
-            combatSubtype = CombatSubtype.HARVEST,
-            battlefieldSystemId = "sys1",
-            friendlyMemberIds = { "m1", "m2" },
-            enemyRoster =
-            {
-                new CombatRosterLine { displayName = "守军", hullId = "hull_bc_spear", tonnageClass = "BATTLECRUISER" },
-            },
+            storyRound = 2,
+            phase = GamePhase.COMBAT,
+            combatRealtimeActive = true,
+            pendingBoardSummonCasterMemberId = "m2",
         };
+        state.members.Add(Member("m2", "region_b", "legion_a"));
+        var bf = new BattlefieldState
+        {
+            battlefieldId = "bf2",
+            systemId = "sys1",
+            eventRegionId = "region_b",
+            timeSec = 1f,
+        };
+        bf.units.Add(new BattlefieldUnit
+        {
+            unitId = "u-m2",
+            memberId = "m2",
+            legionId = "legion_a",
+            side = UnitSide.FRIENDLY,
+            structureHp = 1000f,
+            structureMax = 1000f,
+            arrivalAtSec = 0f,
+        });
+        state.battlefields.Add(bf);
+
         var ships = ShipRegistry.LoadDefault();
         var modules = ModuleRegistry.LoadDefault();
-
-        var spawned = BattlefieldSpawner.SpawnAll(state, entry, ships, modules, new Random(1));
-
-        Assert.That(spawned, Has.Count.EqualTo(2));
-        var casterBf = spawned.First(b => b.eventRegionId == "region_b");
-        var wings = casterBf.units
-            .Where(u => BoardSummonWingService.WingTonnageClass.Equals(u.tonnageClass, StringComparison.Ordinal))
-            .ToList();
-        Assert.That(wings, Has.Count.EqualTo(BoardSummonWingService.WingCount));
-        Assert.That(state.pendingBoardSummonCasterMemberId, Is.Null);
-    }
-
-    [Test]
-    public void PendingInject_ClearsWhenCasterNotOnAnyBattlefield()
-    {
-        var state = new GameState { storyRound = 2, phase = GamePhase.COMBAT_PREP };
-        state.pendingBoardSummonCasterMemberId = "missing_caster";
-        state.pendingBoardSummonLegionId = "VIP";
-        state.members.Add(Member("m1", "region_a"));
-        var entry = new CombatQueueEntry
-        {
-            entryId = "e1",
-            combatSubtype = CombatSubtype.HARVEST,
-            battlefieldSystemId = "sys1",
-            friendlyMemberIds = { "m1" },
-            enemyRoster =
-            {
-                new CombatRosterLine { displayName = "守军", hullId = "hull_bc_spear", tonnageClass = "BATTLECRUISER" },
-            },
-        };
-        var ships = ShipRegistry.LoadDefault();
-        var modules = ModuleRegistry.LoadDefault();
-
-        BattlefieldSpawner.SpawnAll(state, entry, ships, modules, new Random(1));
+        BoardSummonWingService.TryInjectPendingAtSpawn(state, bf, ships, modules, new Random(2));
 
         Assert.That(state.pendingBoardSummonCasterMemberId, Is.Null);
-        Assert.That(state.alertLog.Last(), Does.Contain("未生效"));
+        Assert.That(
+            bf.units.Count(u => BoardSummonWingService.WingTonnageClass.Equals(u.tonnageClass, StringComparison.Ordinal)),
+            Is.EqualTo(BoardSummonWingService.WingCount));
     }
 
-    private static MemberState Member(string id, string region) => new()
+    private static MemberState Member(string id, string region, string legionId) => new()
     {
         memberId = id,
         name = id,
+        legionId = legionId,
         equippedHullId = "hull_bc_spear",
         opsDeployEventRegionId = region,
         opsDeploySystemId = "sys1",
+        traitIds = { TraitActiveSkillService.BoardSummonTraitId },
+        identityCode = id,
     };
 }

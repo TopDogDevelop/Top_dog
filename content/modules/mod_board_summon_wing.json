@@ -1,0 +1,8 @@
+{
+  "moduleId": "mod_board_summon_wing",
+  "displayName": "董事会增援翼",
+  "displayNameEn": "Board Summon Wing",
+  "slotCategory": "LAUNCH_TUBE",
+  "moduleKind": "board_summon_wing",
+  "moduleSize": "LARGE"
+}

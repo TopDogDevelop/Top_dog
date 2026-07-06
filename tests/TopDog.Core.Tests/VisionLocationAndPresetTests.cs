@@ -414,4 +414,64 @@ public sealed class VisionLocationServiceTests
         Assert.That(list, Has.Count.EqualTo(1));
         Assert.That(list[0].unitId, Is.EqualTo("u-anchor"));
     }
+
+    [Test]
+    public void ResolveDefaultFocus_NonSkirmish_NeverReturnsEnemy()
+    {
+        var state = new GameState { combatRealtimeActive = true };
+        var bf = new BattlefieldState { battlefieldId = "bf-campaign", timeSec = 1f };
+        bf.units.Add(new BattlefieldUnit
+        {
+            unitId = "u-enemy",
+            side = UnitSide.ENEMY,
+            alive = true,
+            arrivalAtSec = 0f,
+            memberId = "m-enemy",
+        });
+        bf.units.Add(new BattlefieldUnit
+        {
+            unitId = "u-friendly",
+            memberId = "m-friendly",
+            side = UnitSide.FRIENDLY,
+            alive = true,
+            arrivalAtSec = 0f,
+        });
+        state.members.Add(new MemberState { memberId = "m-friendly" });
+
+        var focus = VisionAnchorService.ResolveDefaultFocus(state, bf);
+        Assert.That(focus, Is.Not.Null);
+        Assert.That(focus!.side, Is.EqualTo(UnitSide.FRIENDLY));
+        Assert.That(focus.unitId, Is.EqualTo("u-friendly"));
+    }
+
+    [Test]
+    public void ResolveDefaultFocus_ClearsEnemyTacticalCameraPin()
+    {
+        var state = new GameState
+        {
+            combatRealtimeActive = true,
+            tacticalCameraUnitId = "u-enemy",
+        };
+        var bf = new BattlefieldState { battlefieldId = "bf-pin", timeSec = 1f };
+        bf.units.Add(new BattlefieldUnit
+        {
+            unitId = "u-enemy",
+            side = UnitSide.ENEMY,
+            alive = true,
+            arrivalAtSec = 0f,
+        });
+        bf.units.Add(new BattlefieldUnit
+        {
+            unitId = "u-friendly",
+            memberId = "m-friendly",
+            side = UnitSide.FRIENDLY,
+            alive = true,
+            arrivalAtSec = 0f,
+        });
+        state.members.Add(new MemberState { memberId = "m-friendly" });
+
+        var focus = VisionAnchorService.ResolveDefaultFocus(state, bf);
+        Assert.That(state.tacticalCameraUnitId, Is.Null);
+        Assert.That(focus?.unitId, Is.EqualTo("u-friendly"));
+    }
 }

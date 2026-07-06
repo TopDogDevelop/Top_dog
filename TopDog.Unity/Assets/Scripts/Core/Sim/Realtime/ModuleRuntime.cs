@@ -72,6 +72,7 @@ public static class ModuleRuntime
             unit.weaponTrackingDegPerSec = minTracking;
         }
         unit.shieldHp = Math.Min(unit.shieldHp, unit.shieldMax);
+        LaunchTubeStateService.InitTubeStates(unit, modules);
     }
 // liketocoode3a5
 }

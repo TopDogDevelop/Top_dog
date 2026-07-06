@@ -1,0 +1,38 @@
+{
+  "scenarioId": "mt_board_summon",
+  "displayName": "董事会召来",
+  "scenarioOrder": 1,
+  "seed": 1001,
+  "spawnSeparationM": 20000,
+  "legions": [
+    {
+      "legionId": "mt_player",
+      "displayName": "玩家",
+      "isPlayer": true,
+      "isAiControlled": false,
+      "members": [
+        {
+          "memberTemplateRowId": "template_vip_invest:10001001:01",
+          "memberId": "mt_bs_p1",
+          "displayName": "绵羊伸腿",
+          "hullId": "hull_bc_spear",
+          "fitted": {}
+        }
+      ]
+    },
+    {
+      "legionId": "mt_enemy",
+      "displayName": "敌方",
+      "isPlayer": false,
+      "members": [
+        {
+          "memberTemplateRowId": "template_vip_invest:10001008:01",
+          "memberId": "mt_bs_e1",
+          "displayName": "狈头军师",
+          "hullId": "hull_dread_ironcoffin",
+          "fitted": {}
+        }
+      ]
+    }
+  ]
+}

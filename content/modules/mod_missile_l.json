@@ -1,0 +1,12 @@
+{
+  "moduleId": "mod_missile_l",
+  "displayName": "大型导弹",
+  "displayNameEn": "Large Missile",
+  "slotCategory": "LAUNCH_TUBE",
+  "moduleSize": "LARGE",
+  "missileStructureHp": 200,
+  "missileFlightSpeedMps": 8000,
+  "missileFlightMaxSec": 60,
+  "missileAoeBaseDamage": 800,
+  "missileAoeZeroRadiusM": 15000
+}

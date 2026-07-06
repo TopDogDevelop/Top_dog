@@ -206,7 +206,7 @@ public sealed class BoardingModuleTests
             arrivalAtSec = 0f,
             structureHp = wolfStructure,
             structureMax = wolfStructure,
-            x = 500f,
+            x = 2500f,
         };
         bf.units.Add(attacker);
         bf.units.Add(victim);
@@ -214,6 +214,138 @@ public sealed class BoardingModuleTests
 
         BoardingModuleService.Tick(state, bf, modules, ships, 50f);
         Assert.That(attacker.boardingChargeSec, Is.EqualTo(0f));
+        Assert.That(attacker.boardingModuleEnabled, Is.False);
         Assert.That(victim.IsDestroyed(), Is.False);
+    }
+
+    [Test]
+    public void Combat_BoardingModule_AutoEnablesInRange()
+    {
+        var state = new GameState { combatRealtimeActive = true };
+        var ships = ShipRegistry.LoadDefault();
+        var modules = ModuleRegistry.LoadDefault();
+        var bf = new BattlefieldState { battlefieldId = "bf-enable", timeSec = 0f };
+        var attacker = new BattlefieldUnit
+        {
+            unitId = "u-a",
+            hullId = "hull_frigate_leech_landing",
+            side = UnitSide.FRIENDLY,
+            arrivalAtSec = 0f,
+            structureHp = 500f,
+            structureMax = 500f,
+            targetUnitId = "u-b",
+            x = 0f,
+            fittedModules = { ["fn_0"] = "mod_boarding_s" },
+        };
+        var victim = new BattlefieldUnit
+        {
+            unitId = "u-b",
+            hullId = "hull_frigate_shortlegwolf",
+            side = UnitSide.ENEMY,
+            arrivalAtSec = 0f,
+            structureHp = 500f,
+            structureMax = 500f,
+            x = 50f,
+        };
+        bf.units.Add(attacker);
+        bf.units.Add(victim);
+        state.battlefields.Add(bf);
+
+        BoardingModuleService.Tick(state, bf, modules, ships, 1f);
+
+        Assert.That(attacker.boardingModuleEnabled, Is.True);
+        Assert.That(attacker.boardingChargeSec, Is.EqualTo(1f).Within(0.01f));
+        Assert.That(BoardingModuleService.IsBeingBoarded(bf, "u-b"), Is.True);
+    }
+
+    [Test]
+    public void Combat_BoardingEngage_ForcesApproachAndEnablesPropulsion()
+    {
+        var state = new GameState { combatRealtimeActive = true };
+        var ships = ShipRegistry.LoadDefault();
+        var modules = ModuleRegistry.LoadDefault();
+        var hull = ships.FindHull("hull_frigate_leech_landing");
+        Assert.That(hull, Is.Not.Null);
+        var bf = new BattlefieldState { battlefieldId = "bf-engage", timeSec = 0f };
+        var attacker = new BattlefieldUnit
+        {
+            unitId = "u-a",
+            hullId = "hull_frigate_leech_landing",
+            side = UnitSide.FRIENDLY,
+            arrivalAtSec = 0f,
+            structureHp = 500f,
+            structureMax = 500f,
+            targetUnitId = "u-b",
+            aiOrder = UnitAiOrder.STOP,
+            x = 0f,
+            fittedModules =
+            {
+                ["fn_0"] = "mod_boarding_s",
+                ["fn_1"] = "mod_propulsion_m",
+            },
+        };
+        var victim = new BattlefieldUnit
+        {
+            unitId = "u-b",
+            hullId = "hull_frigate_shortlegwolf",
+            side = UnitSide.ENEMY,
+            arrivalAtSec = 0f,
+            structureHp = 500f,
+            structureMax = 500f,
+            x = 100f,
+        };
+        bf.units.Add(attacker);
+        bf.units.Add(victim);
+        state.battlefields.Add(bf);
+
+        BoardingModuleService.Tick(state, bf, modules, ships, 0.5f);
+
+        Assert.That(attacker.boardingModuleEnabled, Is.True);
+        Assert.That(attacker.aiOrder, Is.EqualTo(UnitAiOrder.APPROACH));
+        Assert.That(attacker.approachTargetUnitId, Is.EqualTo("u-b"));
+        Assert.That(attacker.commandMaintainDistM, Is.EqualTo(0f));
+        Assert.That(CombatModuleEnableService.IsSlotEnabled(attacker, "fn_1"), Is.True);
+        Assert.That(attacker.maxSpeedMps, Is.GreaterThan(hull!.baseSpeedMps));
+    }
+
+    [Test]
+    public void Combat_BoardingEngage_IgnoresFleetMovementOrder()
+    {
+        var state = new GameState { combatRealtimeActive = true };
+        var ships = ShipRegistry.LoadDefault();
+        var modules = ModuleRegistry.LoadDefault();
+        var bf = new BattlefieldState { battlefieldId = "bf-ignore", timeSec = 0f };
+        var attacker = new BattlefieldUnit
+        {
+            unitId = "u-a",
+            hullId = "hull_frigate_leech_landing",
+            side = UnitSide.FRIENDLY,
+            arrivalAtSec = 0f,
+            structureHp = 500f,
+            structureMax = 500f,
+            targetUnitId = "u-b",
+            x = 0f,
+            fittedModules = { ["fn_0"] = "mod_boarding_s" },
+        };
+        var victim = new BattlefieldUnit
+        {
+            unitId = "u-b",
+            hullId = "hull_frigate_shortlegwolf",
+            side = UnitSide.ENEMY,
+            arrivalAtSec = 0f,
+            structureHp = 500f,
+            structureMax = 500f,
+            x = 80f,
+        };
+        bf.units.Add(attacker);
+        bf.units.Add(victim);
+        state.battlefields.Add(bf);
+
+        BoardingModuleService.Tick(state, bf, modules, ships, 0.1f);
+        FleetOrderService.OrderStop(state, bf, allFriendly: false, new[] { "u-a" });
+        BoardingModuleService.Tick(state, bf, modules, ships, 0.1f);
+
+        Assert.That(attacker.boardingModuleEnabled, Is.True);
+        Assert.That(attacker.aiOrder, Is.EqualTo(UnitAiOrder.APPROACH));
     }
 }

@@ -157,6 +157,20 @@ public static class FittingCheckSummary
         {
             line += " · 不可装配";
         }
+
+        if (!FittingValidator.ModuleFitsHullLicenses(hull, mod))
+        {
+            var req = mod.requiredHullLicenses;
+            if (req != null && req.Length > 0)
+            {
+                line += " · 缺少许可: " + string.Join("、", req);
+            }
+            else
+            {
+                line += " · 许可不符";
+            }
+        }
+
         return line;
     }
 }

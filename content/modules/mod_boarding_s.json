@@ -6,6 +6,7 @@
   "slotCategory": "FUNCTION",
   "moduleSize": "SMALL",
   "moduleKind": "boarding_module",
-  "attackRangeM": 100,
+  "requiredHullLicenses": ["boarding"],
+  "attackRangeM": 2000,
   "boardingHoldSec": 100
 }

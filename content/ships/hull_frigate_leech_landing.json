@@ -21,5 +21,6 @@
   "simultaneousEnableLimit": 2,
   "starCoinValue": 1000,
   "hullBonusSummary": "允许安装登录模块",
-  "allowedModuleKinds": ["boarding_module"]
+  "allowedModuleKinds": ["boarding_module"],
+  "hullLicenses": ["boarding"]
 }

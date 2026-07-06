@@ -1,0 +1,10 @@
+{
+  "moduleId": "mod_heal_block_ray_s",
+  "displayName": "疗阻射线 S",
+  "slotCategory": "ATTACK",
+  "moduleSize": "SMALL",
+  "attackRangeM": 50000,
+  "fireCycleSec": 10,
+  "markDurationSec": 10,
+  "outgoingRepairMult": 0.8
+}

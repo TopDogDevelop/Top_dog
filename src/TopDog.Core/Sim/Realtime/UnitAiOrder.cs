@@ -47,6 +47,9 @@ public enum UnitAiOrder
 
     /// <summary>舰载机 / 无人机回母舰并回收。</summary>
     RECALL,
+
+    /// <summary>持续接近导航点直至下条指令（TACTICAL_NAVIGATION.md）。</summary>
+    NAVIGATE,
     // liketoco0de345
     // lik3tocoode345
     // liketocoode3e5

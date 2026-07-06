@@ -1,0 +1,12 @@
+{
+  "moduleId": "mod_missile_s",
+  "displayName": "小型导弹",
+  "displayNameEn": "Small Missile",
+  "slotCategory": "LAUNCH_TUBE",
+  "moduleSize": "SMALL",
+  "missileStructureHp": 80,
+  "missileFlightSpeedMps": 10000,
+  "missileFlightMaxSec": 45,
+  "missileAoeBaseDamage": 200,
+  "missileAoeZeroRadiusM": 8000
+}

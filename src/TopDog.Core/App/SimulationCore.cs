@@ -19,6 +19,7 @@ using TopDog.Sim.Exchange;
 using TopDog.Sim.State;
 using TopDog.Sim.Traits;
 using TopDog.AgentDiag;
+using TopDog.Sim.MechanismTest;
 using TopDog.Sim.Skirmish;
 using TopDog.Sim.Vision;
 
@@ -150,7 +151,8 @@ public sealed class SimulationCore
 
     public void SetPhase(GamePhase phase)
     {
-        if (SkirmishPhaseRules.BlocksCampaignPhaseTransition(_state, phase))
+        if (SkirmishPhaseRules.BlocksCampaignPhaseTransition(_state, phase)
+            || MechanismTestPhaseRules.BlocksCampaignPhaseTransition(_state, phase))
         {
             // #region agent log
             AgentSessionDebugLog.Write(
@@ -310,7 +312,11 @@ public sealed class SimulationCore
     public bool CanDismissLegionCommander() =>
         LegionCommanderService.CanDismiss(_state);
 
-    public string UseSuppressionSkill(string traitId, string casterMemberIdOrName, string? targetMemberIdOrName = null)
+    public string UseSuppressionSkill(
+        string traitId,
+        string casterMemberIdOrName,
+        string? targetMemberIdOrName = null,
+        string? targetUnitId = null)
     {
         var caster = FindMember(casterMemberIdOrName);
         if (caster == null)
@@ -322,7 +328,7 @@ public sealed class SimulationCore
         {
             return "找不到目标团员";
         }
-        return TraitActiveSkillService.TryUse(_state, caster, traitId, target);
+        return TraitActiveSkillService.TryUse(_state, caster, traitId, target, targetUnitId);
     }
 
     public string DumpCombatDebug()

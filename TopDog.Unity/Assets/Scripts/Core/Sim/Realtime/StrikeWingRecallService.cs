@@ -5,8 +5,7 @@ using TopDog.Content.Modules;
  * 权威: docs/TACTICAL_VIEW.md §0 舰载机 · docs/TACTICAL_WARP_AND_ORDERS.md
  * 本文件: StrikeWingRecallService.cs — 航母不交战时收起舰载机
  * 【机制要点】
- * · 交战态：FOCUS/APPROACH/FOLLOW_ATTACK/ORBIT 或有 target → 展开翼
- * · 非交战：移除 STRIKE_CRAFT 子单位（视为收回母舰）
+ * · 舰载机仅在集火指令时展开；非集火时收回 STRIKE_CRAFT
  * 【关联】StrikeWingSpawnService · BattlefieldSystem
  * ══
  */
@@ -29,19 +28,15 @@ public static class StrikeWingRecallService
                 continue;
             }
 
-            if (IsEngaged(u))
+            if (!CarrierWantsWingsDeployed(u) && !HasRecallingWings(bf, u.unitId))
             {
-                if (!HasDeployedWings(bf, u.unitId))
-                {
-                    StrikeWingSpawnService.ExpandCarrierWings(bf, u, modules, rng);
-                }
-            }
-            else if (!HasRecallingWings(bf, u.unitId))
-            {
-                RecallWings(bf, u.unitId);
+                RecallWings(bf, u);
             }
         }
     }
+
+    internal static bool CarrierWantsWingsDeployed(BattlefieldUnit u) =>
+        u.explicitFocus && u.aiOrder == UnitAiOrder.FOCUS;
 
     internal static bool IsCarrier(BattlefieldUnit u)
     {
@@ -64,12 +59,7 @@ public static class StrikeWingRecallService
     }
 
     internal static bool IsEngaged(BattlefieldUnit u) =>
-        u.explicitFocus
-        || !string.IsNullOrWhiteSpace(u.targetUnitId)
-        || u.aiOrder is UnitAiOrder.FOCUS
-            or UnitAiOrder.APPROACH
-            or UnitAiOrder.FOLLOW_ATTACK
-            or UnitAiOrder.ORBIT;
+        CarrierWantsWingsDeployed(u);
 
     private static bool HasDeployedWings(BattlefieldState bf, string carrierUnitId)
     {
@@ -101,8 +91,14 @@ public static class StrikeWingRecallService
         return false;
     }
 
-    private static void RecallWings(BattlefieldState bf, string carrierUnitId)
+    private static void RecallWings(BattlefieldState bf, BattlefieldUnit carrier)
     {
+        var carrierUnitId = carrier.unitId;
+        if (carrierUnitId == null)
+        {
+            return;
+        }
+
         for (var i = bf.units.Count - 1; i >= 0; i--)
         {
             var u = bf.units[i];
@@ -112,5 +108,7 @@ public static class StrikeWingRecallService
                 bf.units.RemoveAt(i);
             }
         }
+
+        LaunchTubeStateService.ResetStrikeWingTubesToInactive(carrier);
     }
 }

@@ -1,0 +1,8 @@
+{
+  "templateId": "mechanism_single_belt",
+  "displayName": "机制详测·单矿带",
+  "solarSystemId": "mt_sys",
+  "starRegionId": "mt_star",
+  "beltRegionId": "mt_belt",
+  "beltOffsetAu": 2
+}

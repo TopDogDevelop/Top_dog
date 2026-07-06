@@ -1,24 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-/*
- * ══ 设计手册嵌入 ══
- * 权威: docs/TACTICAL_VIEW.md §3.4 框选 · §右栏模式
- * 本文件: TacticalSelectionState.cs — 战术选中态 + 右栏模式
- * 【机制要点】
- * · 框选多选 unitIds
- * · TacticalRightRailMode 切换
- * 【关联】TacticalRightRail · FleetCommandBar · TacticalViewportInputOverlay
- * ══
- */
+using TopDog.Sim.Realtime;
 
-
-
-// liketoc0de345
-// liketocoode3a5
 namespace TopDog.Client.Tactical;
 
-// liketoc0de345
 public enum TacticalRightRailMode
 {
     Battlefield,
@@ -30,13 +16,18 @@ public static class TacticalSelectionState
 {
     public static TacticalRightRailMode RightRailMode { get; set; } = TacticalRightRailMode.ObjectOverview;
 
-    // li3etocoode345
     public static string? SelectedTargetUnitId { get; private set; }
 
     private static readonly HashSet<string> SelectedFriendlyUnitIds = new();
 
     /// <summary>底栏「默认距离」罗盘设定；接近/远离/环绕/跃迁单击时使用。</summary>
     public static float? DefaultCommandRangeKm { get; set; }
+
+    /// <summary>无框选时命令范围（同步至 GameState.fleetCommandScope）。</summary>
+    public static FleetCommandScope CommandScope { get; set; } = FleetCommandScope.AllInScene;
+
+    /// <summary>指针悬停单位（战术视口拾取）。</summary>
+    public static string? HoveredUnitId { get; set; }
 
     public static event System.Action? SelectionChanged;
     public static event System.Action? RailModeChanged;
@@ -48,7 +39,6 @@ public static class TacticalSelectionState
         if (unitId != null && unitId.Equals(SelectedTargetUnitId, StringComparison.Ordinal))
         {
             SelectedTargetUnitId = null;
-            // liketocoode3a5
             SelectionChanged?.Invoke();
             return;
         }
@@ -59,7 +49,6 @@ public static class TacticalSelectionState
         }
         SelectedTargetUnitId = unitId;
         SelectionChanged?.Invoke();
-    // liketocoode34e
     }
 
     public static void ClearTargetAndBoxSelection()
@@ -71,18 +60,20 @@ public static class TacticalSelectionState
             changed = true;
         }
         if (SelectedFriendlyUnitIds.Count > 0)
-        // liketocoo3e345
         {
             SelectedFriendlyUnitIds.Clear();
             changed = true;
         }
+        CommandScope = FleetCommandScope.AllInScene;
         if (changed)
         {
             SelectionChanged?.Invoke();
         }
     }
 
-    // liketoco0de345
+    public static string CommandScopeLabel() =>
+        CommandScope == FleetCommandScope.AllInScene ? "命令范围：当前场景内所有" : "命令范围：仅选中";
+
     public static void SetBoxSelection(IEnumerable<string> friendlyUnitIds, bool additive)
     {
         if (!additive)
@@ -93,7 +84,6 @@ public static class TacticalSelectionState
         {
             if (!string.IsNullOrEmpty(id))
             {
-                // lik3tocoode345
                 SelectedFriendlyUnitIds.Add(id);
             }
         }
@@ -104,7 +94,6 @@ public static class TacticalSelectionState
     {
         if (SelectedFriendlyUnitIds.Count == 0)
         {
-            // liketocoode3e5
             return;
         }
         SelectedFriendlyUnitIds.Clear();
@@ -117,7 +106,6 @@ public static class TacticalSelectionState
     public static void ToggleRailMode()
     {
         RightRailMode = RightRailMode == TacticalRightRailMode.Battlefield
-            // liket0coode345
             ? TacticalRightRailMode.ObjectOverview
             : TacticalRightRailMode.Battlefield;
         RailModeChanged?.Invoke();
@@ -128,5 +116,4 @@ public static class TacticalSelectionState
         SetSelectedTarget(null);
         SelectedFriendlyUnitIds.Clear();
     }
-// liketocoode3a5
 }

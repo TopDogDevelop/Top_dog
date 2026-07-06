@@ -74,4 +74,29 @@ public sealed class ModuleDef
 
     /// <summary>跃迁干扰模块强度；缺省 warp_scram 为 2。</summary>
     public float warpScramStrength;
+
+    /// <summary>装配所需船体许可（JSON snake_en）。</summary>
+    public string[]? requiredHullLicenses;
+    public string? moduleFamily;
+    public string? moduleSubtype;
+    public float fieldRadiusKm;
+    public string? damageMitigationKind;
+    public float flatDamageReduction;
+    public float blockShieldPctOfMax;
+    public float blockLockSec;
+    public float repairPerSalvo;
+    public float repairRangeM;
+    public float repairFalloffPctPerKm;
+    /// <summary>shield / armor</summary>
+    public string? repairLayer;
+    public string? targetFilter;
+    public int targetMinTonnageRank;
+    public float rangeDamageFalloffPctPerKm;
+    public float producerResetIntervalSec;
+    public float producerRadiusM;
+    public string? producerConsumableKind;
+    public string? producerResetTonnageMax;
+    public float markDurationSec;
+    public float incomingDamageMult;
+    public float outgoingRepairMult;
 }

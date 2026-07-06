@@ -102,8 +102,49 @@ public sealed class BattlefieldUnit
     /// <summary>跳桥建筑：bridgeId（进入建筑指令）。</summary>
     public string? bridgeId;
     public string? rallyPointUnitId;
+    /// <summary>NAVIGATE 目标世界坐标。</summary>
+    public float navigateX;
+    public float navigateY;
+    public float navigateZ;
+    /// <summary>待执行维修轮次（右键友舰 +1，max 20）。</summary>
+    public int pendingRepairRounds;
+    /// <summary>维修轮次冷却（与最长远程维修 CD 同步递减）。</summary>
+    public float repairRoundCooldownSec;
+    /// <summary>护盾立场持有舰 unitId（粘性归属）。</summary>
+    public string? shieldFieldHostUnitId;
+    /// <summary>装甲域场持有舰 unitId（粘性归属）。</summary>
+    public string? armorFieldHostUnitId;
+    /// <summary>格挡盾层数（反射弧等）。</summary>
+    public int blockShieldLayers;
+    /// <summary>格挡锁血剩余秒数。</summary>
+    public float blockLockSec;
+    /// <summary>反射弧等模块计时。</summary>
+    public float reflexArcTimerSec;
+    /// <summary>场域主导/压制（持有舰）。</summary>
+    public bool fieldAuraDominant;
+    public bool fieldAuraSuppressed;
+    public float fieldAuraEnabledAtSec;
+    public float fieldAuraCollapseCooldownSec;
+    /// <summary>场域代承池（护盾立场）。</summary>
+    public float fieldShieldPoolCap;
+    public float fieldShieldPoolCurrent;
+    /// <summary>场域代承池（装甲域场）。</summary>
+    public float fieldArmorPoolCap;
+    public float fieldArmorPoolCurrent;
+    /// <summary>进入装甲域场时快照（离场归还）。</summary>
+    public float fieldEntryArmorCap;
+    public float fieldEntryArmorCurrent;
+    /// <summary>发射管槽位三态。</summary>
+    public Dictionary<string, LaunchTubeState> tubeStates = new(StringComparer.Ordinal);
+    /// <summary>战斗标记：受伤倍率叠乘因子。</summary>
+    public float combatMarkIncomingMult = 1f;
+  /// <summary>战斗标记：发出维修倍率叠乘因子。</summary>
+    public float combatMarkOutgoingRepairMult = 1f;
+    public float combatMarkExpireSec;
     // lik3tocoode345
     public UnitAiOrder aiOrder = UnitAiOrder.IDLE;
+    /// <summary>后勤自动瞄准：无玩家指令时接近场域友舰（LogisticsAutoTargetingService）。</summary>
+    public bool logisticsAutoAimActive;
     public bool inTacticalWarp;
     public string? warpTargetBfId;
     public string? warpFromBfId;
@@ -126,11 +167,17 @@ public sealed class BattlefieldUnit
     /// <summary>董事会召来等：不可战术跃迁离场景。</summary>
     public bool pinnedToBattlefield;
     public Dictionary<string, string> fittedModules = new();
+    /// <summary>按槽位独立武器 CD（反导弹/威慑炮/射线等）。</summary>
+    public Dictionary<string, float> moduleSalvoCooldownSec = new(StringComparer.Ordinal);
 
     /// <summary>登录模块蓄力目标 unitId；断档或离射程则清零。</summary>
     public string? boardingChargeTargetUnitId;
     /// <summary>登录模块已对 boardingChargeTargetUnitId 累计秒数。</summary>
     public float boardingChargeSec;
+    /// <summary>登录模块进射程后自动启用；离射程或未装配则 false。</summary>
+    public bool boardingModuleEnabled;
+    /// <summary>战斗内关闭的装配槽（不参与 salvo/场域/速度）。</summary>
+    public HashSet<string> disabledModuleSlots = new(StringComparer.Ordinal);
     /// <summary>本生命周期内曾登录夺舍敌舰（重生时回滚至 match 基准舰）。</summary>
     public bool combatSeizedHullThisLife;
 

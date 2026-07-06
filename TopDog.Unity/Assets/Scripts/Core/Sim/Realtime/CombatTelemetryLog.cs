@@ -1,13 +1,13 @@
 /*
  * ══ 设计手册嵌入 ══
- * 权威: docs/BRICK_DEBUG.md · docs/TACTICAL_VIEW.md §诊断
+ * 权威: docs/COMBAT_DIAGNOSTICS.md · docs/MCP_DEBUG.md · docs/FIELD_AURA_MODULES.md
  * 本文件: CombatTelemetryLog.cs — 战斗诊断环形缓冲（Client Debug / MCP）
  * 【机制要点】
- * · Log/LogSalvo/LogWingDamage：结构化战斗事件
- * · MaybeLogPositions：每秒单位坐标采样
- * · DumpRecent：Client 调试面板导出
- * · MaxEntries=256 环形缓冲
- * 【关联】CombatDamageDiagnostics · BattlefieldSystem · CombatRealtimeController
+ * · Log/LogSalvo/LogHpDelta：结构化战斗事件
+ * · field.enter / field.leave：场域进出（FieldAuraService）
+ * · MaybeLogPositions：1Hz 坐标 + 盾/甲/结构快照
+ * · DumpRecent：Client 调试面板导出；MaxEntries=256 环形缓冲
+ * 【关联】CombatHpDeltaQueue · CombatDamageDiagnostics · CombatRealtimeController
  * ══
  */
 
@@ -100,6 +100,59 @@ public static class CombatTelemetryLog
         Log("combat.order", $"{unitId} {order}");
     }
 
+    public static void LogHpDelta(CombatHpDeltaEvent ev)
+    {
+        if (string.IsNullOrEmpty(ev.targetUnitId))
+        {
+            return;
+        }
+
+        if (ev.shieldDelta <= 0f && ev.armorDelta <= 0f && ev.structureDelta <= 0f)
+        {
+            return;
+        }
+
+        var sign = ev.isHeal ? "+" : "-";
+        var parts = new List<string>(3);
+        if (ev.shieldDelta > 0f)
+        {
+            parts.Add($"shield={sign}{ev.shieldDelta:F0}");
+        }
+
+        if (ev.armorDelta > 0f)
+        {
+            parts.Add($"armor={sign}{ev.armorDelta:F0}");
+        }
+
+        if (ev.structureDelta > 0f)
+        {
+            parts.Add($"struct={sign}{ev.structureDelta:F0}");
+        }
+
+        var tag = ev.isHeal ? "combat.float-heal" : "combat.float-damage";
+        Log(
+            tag,
+            $"{ev.targetUnitId} {string.Join(" ", parts)} @({ev.worldX:F0},{ev.worldY:F0},{ev.worldZ:F0}) t={ev.battleTimeSec:F1}");
+    }
+
+    public static void LogNavOrder(string unitId, float x, float y, float z) =>
+        Log("nav.order", $"{unitId} → ({x:F0},{y:F0},{z:F0})");
+
+    public static void LogFieldEnter(string protegeId, string holderId, string kind) =>
+        Log("field.enter", $"{protegeId} host={holderId} kind={kind}");
+
+    public static void LogFieldLeave(string protegeId, string holderId, string kind) =>
+        Log("field.leave", $"{protegeId} host={holderId} kind={kind}");
+
+    public static void LogFieldCollapse(string holderId, string kind) =>
+        Log("field.collapse", $"{holderId} kind={kind}");
+
+    public static void LogRepairRound(string healerId, string targetId, float amount, int roundsLeft) =>
+        Log("repair.round", $"{healerId}→{targetId} +{amount:F0} left={roundsLeft}");
+
+    public static void LogTubeDepleted(string unitId, string slotKey) =>
+        Log("tube.depleted", $"{unitId} slot={slotKey}");
+
     // lik3tocoode345
     public static void MaybeLogPositions(BattlefieldState bf, float nowSec)
     {
@@ -115,7 +168,12 @@ public static class CombatTelemetryLog
                 // liketocoode3e5
                 continue;
             }
-            Log("combat.pos", $"{u.unitId} ({u.x:F0},{u.y:F0},{u.z:F0}) hp={u.structureHp:F0}");
+            Log(
+                "combat.pos",
+                $"{u.unitId} ({u.x:F0},{u.y:F0},{u.z:F0})"
+                + $" shield={u.shieldHp:F0}/{u.shieldMax:F0}"
+                + $" armor={u.armorHp:F0}/{u.armorMax:F0}"
+                + $" struct={u.structureHp:F0}/{u.structureMax:F0}");
         }
     }
 

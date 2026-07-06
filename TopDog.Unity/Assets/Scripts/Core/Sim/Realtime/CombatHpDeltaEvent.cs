@@ -1,11 +1,12 @@
 /*
  * ══ 设计手册嵌入 ══
- * 权威: docs/TACTICAL_VIEW.md §4.2 飘字 · docs/VISION.md
+ * 权威: docs/COMBAT_DIAGNOSTICS.md §3 · docs/TACTICAL_VIEW.md §4.2
  * 本文件: CombatHpDeltaEvent.cs — 单轮 salvo HP 变化事件（Client 飘字）
  * 【机制要点】
  * · shield/armor/structure Delta + world 坐标
  * · isHeal/isBuilding 标记
  * · 写入 BattlefieldState.pendingHpDeltas
+ * · 同步 CombatTelemetryLog（combat.float-heal / combat.float-damage）
  * 【关联】CombatFloatingTextPresenter · BattlefieldSystem · BattlefieldState
  * ══
  */

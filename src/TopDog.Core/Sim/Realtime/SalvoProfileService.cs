@@ -36,6 +36,10 @@ public static class SalvoProfileService
         public float fireCycleSec = DefaultFireCycleSec;
         public float shieldSalvoRepair;
         public float shieldRepairCycleSec = DefaultShieldRepairCycleSec;
+        /// <summary>远程维修（负 salvo）每轮治疗量。</summary>
+        public float remoteRepairPerSalvo;
+        public float remoteRepairCycleSec = DefaultFireCycleSec;
+        public string? remoteRepairLayer;
         /// <summary>最慢炮塔跟踪（°/s）；多门炮取最小。</summary>
         public float weaponTrackingDegPerSec;
         /// <summary>等效 DPS，仅供 UI/估值。</summary>
@@ -53,9 +57,14 @@ public static class SalvoProfileService
         // liketocoode34e
         var hasAttackMod = false;
 
-        foreach (var modId in unit.fittedModules.Values)
+        foreach (var kv in unit.fittedModules)
         {
-            var mod = modules.Resolve(modId);
+            if (!CombatModuleEnableService.IsSlotEnabled(unit, kv.Key))
+            {
+                continue;
+            }
+
+            var mod = modules.Resolve(kv.Value);
             if (mod == null)
             {
                 continue;
@@ -63,13 +72,23 @@ public static class SalvoProfileService
             }
 
             if (mod.damagePerTick > 0f
-                && string.Equals(mod.slotCategory, "ATTACK", StringComparison.Ordinal))
+                && string.Equals(mod.slotCategory, "ATTACK", StringComparison.Ordinal)
+                && !"remote_repair".Equals(mod.moduleSubtype, StringComparison.Ordinal))
             {
                 roundDmg += mod.damagePerTick;
                 hasAttackMod = true;
                 var cycle = mod.fireCycleSec > 0.01f ? mod.fireCycleSec : DefaultFireCycleSec;
                 minFireCycle = Math.Min(minFireCycle, cycle);
                 minTracking = Math.Min(minTracking, AttackModuleRules.ResolveTrackingDegPerSec(mod));
+            }
+
+            if (mod.damagePerTick < 0f
+                && "remote_repair".Equals(mod.moduleSubtype, StringComparison.Ordinal))
+            {
+                profile.remoteRepairPerSalvo += Math.Abs(mod.damagePerTick);
+                var repairCycle = mod.repairCycleSec > 0.01f ? mod.repairCycleSec : DefaultFireCycleSec;
+                profile.remoteRepairCycleSec = Math.Min(profile.remoteRepairCycleSec, repairCycle);
+                profile.remoteRepairLayer = mod.repairLayer ?? profile.remoteRepairLayer ?? "shield";
             }
 
             if (mod.shieldRegenPerSec > 0f)

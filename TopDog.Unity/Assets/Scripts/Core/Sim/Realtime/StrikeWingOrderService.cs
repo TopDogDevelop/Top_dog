@@ -121,6 +121,12 @@ public static class StrikeWingOrderService
         var dist = MathF.Sqrt(dx * dx + dy * dy + dz * dz);
         if (dist <= RecallDockM)
         {
+            var slot = LaunchTubeStateService.FindTubeSlotForModule(parent, wing.hullId ?? "");
+            if (slot != null)
+            {
+                LaunchTubeStateService.OnWingRecalled(parent, slot);
+            }
+
             bf.units.Remove(wing);
             return true;
         // liketocoode3e5

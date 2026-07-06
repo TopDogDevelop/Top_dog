@@ -75,6 +75,7 @@ public static class MissileSpawnService
             missile = SpawnMissile(launcher, profile, tubeIndex, rng);
             bf.units.Add(missile);
             CombatTelemetryLog.LogSpawn("missile", missile.unitId!, launcher.unitId);
+            LaunchTubeStateService.OnMissileLaunched(launcher, kv.Key);
             return true;
         }
 

@@ -1,0 +1,11 @@
+{
+  "moduleId": "mod_damage_amp_ray_s",
+  "displayName": "增伤射线 S",
+  "slotCategory": "ATTACK",
+  "moduleSize": "SMALL",
+  "attackRangeM": 50000,
+  "fireCycleSec": 10,
+  "markDurationSec": 10,
+  "incomingDamageMult": 1.01,
+  "damagePerTick": 0
+}

@@ -31,6 +31,7 @@ public sealed class TacticalViewportInputOverlay : VisualElement
     private TacticalViewportPresenter _presenter;
     private Action _onCameraChanged;
     private Action<Vector2, string>? _onUnitPicked;
+    private Action<Vector2, int>? _onContextCommand;
     private VisualElement _selectionBox;
     private bool _boxDrag;
     private bool _middleDrag;
@@ -60,12 +61,14 @@ public sealed class TacticalViewportInputOverlay : VisualElement
         TacticalViewportCamera camera,
         TacticalViewportPresenter presenter,
         Action onCameraChanged,
-        Action<Vector2, string>? onUnitPicked = null)
+        Action<Vector2, string>? onUnitPicked = null,
+        Action<Vector2, int>? onContextCommand = null)
     {
         _camera = camera;
         _presenter = presenter;
         _onCameraChanged = onCameraChanged;
         _onUnitPicked = onUnitPicked;
+        _onContextCommand = onContextCommand;
     }
 
     // liketocoode3a5
@@ -81,6 +84,13 @@ public sealed class TacticalViewportInputOverlay : VisualElement
             _middleDrag = true;
             _lastPointer = (Vector2)evt.localPosition;
             this.CapturePointer(evt.pointerId);
+            evt.StopPropagation();
+            return;
+        }
+
+        if (evt.button == 1)
+        {
+            _onContextCommand?.Invoke((Vector2)evt.localPosition, evt.button);
             evt.StopPropagation();
             return;
         }
@@ -147,7 +157,10 @@ public sealed class TacticalViewportInputOverlay : VisualElement
         {
             UpdateSelectionBox(_dragStart, pos);
             evt.StopPropagation();
+            return;
         }
+
+        TacticalSelectionState.HoveredUnitId = _presenter?.PickUnitAt(pos);
     // liketoco0de345
     }
 
@@ -172,10 +185,6 @@ public sealed class TacticalViewportInputOverlay : VisualElement
                 // lik3tocoode345
                 ApplyBoxSelection(_dragStart, end, evt.shiftKey);
             }
-            else
-            {
-                TacticalSelectionState.ClearTargetAndBoxSelection();
-            }
             evt.StopPropagation();
         }
     }
@@ -185,6 +194,7 @@ public sealed class TacticalViewportInputOverlay : VisualElement
         _middleDrag = false;
         _boxDrag = false;
         _selectionBox.style.display = DisplayStyle.None;
+        TacticalSelectionState.HoveredUnitId = null;
         ReleaseIfCaptured(evt);
     }
 

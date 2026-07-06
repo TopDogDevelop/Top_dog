@@ -1,0 +1,10 @@
+{
+  "moduleId": "plug_speed_10",
+  "displayName": "制式速度增幅",
+  "displayNameEn": "Standard Speed Plug",
+  "moduleBrief": "速度 +10%",
+  "slotCategory": "PASSIVE",
+  "moduleKind": "stat_plugin",
+  "moduleSize": "SMALL",
+  "speedBonusPctWhenEnabled": 10
+}

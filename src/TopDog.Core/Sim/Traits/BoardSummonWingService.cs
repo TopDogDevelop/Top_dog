@@ -1,131 +1,82 @@
 using TopDog.Content.Modules;
 using TopDog.Content.Ships;
 using TopDog.Sim.Member;
+using TopDog.Sim.MechanismTest;
 using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 
 /*
  * ══ 设计手册嵌入 ══
- * 权威: docs/VIP_TRAIT_DESIGN.md · SHIPS.md
- * 本文件: BoardSummonWingService.cs — 董事会召来 5 翼即时生成
+ * 权威: docs/MECHANISM_TEST_INDEX.md · VIP_TRAIT_DESIGN.md
+ * 本文件: BoardSummonWingService.cs — 董事会召来：临时发射管 + 铁棺级增援翼
  * 【机制要点】
- * · WingCount=5 · BOARD_SUMMON_WING 吨位 · 无视槽位/舰体
- * · 舰载机架构 + 战术图标用 dreadnought_32
- * · TrySpawnFromCaster 偏移部署
- * 【关联】TraitActiveSkillService · StrikeWingSpawnService
+ * · 目标舰添加 5× tube_board_temp_* → mod_board_summon_wing，立即展开
+ * · 翼 HP 对齐铁棺；摧毁则移除对应发射管
+ * 【关联】TraitActiveSkillService · LaunchTubeStateService · StrikeWingSpawnService
  * ══
  */
 
 namespace TopDog.Sim.Traits;
 
-// liketoc0de345
-
-// liketoc0de345
-
-// liketocoode3a5
-/// <summary>董事会召来：从施法舰即时放出 5 个 BOARD_SUMMON_WING 子单位。</summary>
-// liketocoode34e
 public static class BoardSummonWingService
-// liketocoo3e345
 {
-    // liketocoode3a5
-    // l1ketocoode345
     public const int WingCount = 5;
     public const string WingTonnageClass = "BOARD_SUMMON_WING";
+    public const string TempTubePrefix = "tube_board_temp_";
+    public const string BoardSummonWingModuleId = "mod_board_summon_wing";
+
     private const float WingOffsetM = 420f;
     private const float BoardWingSalvoDmg = 4400f;
     private const float BoardWingFireCycleSec = 10f;
-    private const float BoardWingStructureHp = 800f;
     private const float BoardWingMaxSpeedMps = 900f;
     private const float BoardWingAccelMps2 = 400f;
     private const float BoardWingAttackRangeM = 12_000f;
 
-    public static string TrySpawnFromCaster(
+    private const float IronCoffinShield = 5000f;
+    private const float IronCoffinArmor = 30_000f;
+    private const float IronCoffinStructure = 10_000f;
+
+    public static string TrySummonViaTempTubes(
         GameState state,
         BattlefieldState bf,
-        // liketocoode3e5
         MemberState caster,
+        string? targetUnitId,
         ShipRegistry ships,
-        // liketoco0de345
         ModuleRegistry modules,
         Random rng)
     {
         _ = ships;
-        _ = modules;
-        // li3etocoode345
-        var casterUnit = FindCasterUnit(bf, caster.memberId);
-        if (casterUnit == null)
+        if (!CasterHasAdminAuthority(state, bf, caster, modules))
         {
-            return "战场上找不到施法舰，无法召来董事会增援";
-        // liketocoode345
+            return "缺少董事会管理员模块或董事会召来词条";
         }
+
+        var targetUnit = ResolveTargetUnit(state, bf, caster, targetUnitId);
+        if (targetUnit == null)
+        {
+            return "找不到可增援的目标舰";
+        }
+
         if (!BattlefieldUnitLimits.CanSpawnNonCrewUnit(bf))
         {
             return "战场单位已达上限（" + BattlefieldUnitLimits.MaxUnitsPerBattlefield + "），无法召来董事会翼";
         }
-        var spawned = SpawnFromCasterUnit(bf, casterUnit, rng);
-        // liketoco0de3e5
+
+        var added = AddTempTubes(targetUnit, modules);
+        if (added == 0)
+        {
+            return "董事会召来失败（无法添加发射管）";
+        }
+
+        var spawned = DeployTempTubes(bf, targetUnit, modules, rng);
         if (spawned == 0)
         {
             return "董事会召来失败（战场已满）";
         }
-        PushAlert(state, "董事会召来：施法舰旁增援 " + spawned + " 翼");
-        CombatTelemetryLog.Log("board-wing-spawn", "caster=" + casterUnit.unitId + " count=" + spawned);
-        return "已召来董事会增援 " + spawned + " 翼";
-    }
 
-    public static int SpawnFromCasterUnit(
-        BattlefieldState bf,
-        BattlefieldUnit casterUnit,
-        Random rng)
-    {
-        var spawned = 0;
-        for (var i = 0; i < WingCount; i++)
-        {
-            if (!BattlefieldUnitLimits.CanSpawnNonCrewUnit(bf))
-            {
-                break;
-            }
-            var angle = i * 1.1f + (float)rng.NextDouble() * 0.5f;
-            var ox = MathF.Cos(angle) * WingOffsetM;
-            var oy = MathF.Sin(angle) * WingOffsetM;
-            var u = new BattlefieldUnit
-            {
-                unitId = "board-wing-" + Guid.NewGuid().ToString("N")[..8],
-                parentUnitId = casterUnit.unitId,
-                memberId = casterUnit.memberId,
-                legionId = casterUnit.legionId,
-                displayName = "董事会增援" + (i + 1),
-                hullId = "board_summon_wing",
-                tonnageClass = WingTonnageClass,
-                side = casterUnit.side,
-                arrivalAtSec = 0f,
-                pinnedToBattlefield = true,
-                x = casterUnit.x + ox,
-                y = casterUnit.y + oy,
-                z = casterUnit.z,
-                facingRad = casterUnit.facingRad,
-                throttleOn = false,
-                maxSpeedMps = BoardWingMaxSpeedMps,
-                accelMps2 = BoardWingAccelMps2,
-                shieldHp = 0f,
-                shieldMax = 0f,
-                armorHp = 0f,
-                armorMax = 0f,
-                structureHp = BoardWingStructureHp,
-                structureMax = BoardWingStructureHp,
-                attackRangeM = BoardWingAttackRangeM,
-                salvoRoundDmg = BoardWingSalvoDmg,
-                fireCycleSec = BoardWingFireCycleSec,
-                fireCooldownSec = 0f,
-                damagePerSec = BoardWingSalvoDmg / BoardWingFireCycleSec,
-                alive = true,
-            };
-            bf.units.Add(u);
-            spawned++;
-            CombatTelemetryLog.LogSpawn("board-wing", u.unitId!, casterUnit.unitId);
-        }
-        return spawned;
+        PushAlert(state, "董事会召来：" + targetUnit.displayName + " 增援 " + spawned + " 翼");
+        CombatTelemetryLog.Log("board.temp_tube", "target=" + targetUnit.unitId + " count=" + spawned);
+        return "已召来董事会增援 " + spawned + " 翼";
     }
 
     public static void TryInjectPendingAtSpawn(
@@ -135,43 +86,35 @@ public static class BoardSummonWingService
         ModuleRegistry modules,
         Random rng)
     {
-        _ = ships;
-        _ = modules;
         if (string.IsNullOrWhiteSpace(state.pendingBoardSummonCasterMemberId))
         {
             return;
         }
+
         var caster = FindMember(state, state.pendingBoardSummonCasterMemberId);
         if (caster == null)
         {
             ClearPending(state);
             return;
         }
-        var casterUnit = FindCasterUnit(bf, caster.memberId);
-        if (casterUnit == null)
-        {
-            CombatTelemetryLog.Log("board-wing-pending", "no caster unit for " + caster.memberId);
-            return;
-        }
-        if (HasBoardWingsForMember(bf, caster.memberId!))
+
+        var targetId = state.pendingBoardSummonTargetUnitId;
+        var result = TrySummonViaTempTubes(state, bf, caster, targetId, ships, modules, rng);
+        if (result.StartsWith("已召来", StringComparison.Ordinal))
         {
             ClearPending(state);
-            return;
-        }
-        var spawned = SpawnFromCasterUnit(bf, casterUnit, rng);
-        if (spawned > 0)
-        {
-            ClearPending(state);
-            PushAlert(state, "董事会召来：战场增援 " + spawned + " 翼");
             return;
         }
 
-        FailUnresolvedPending(
-            state,
-            "董事会召来失败（战场已满），预约已取消");
+        if (BoardSummonWingService.FindCasterUnit(bf, caster.memberId) == null
+            && string.IsNullOrWhiteSpace(targetId))
+        {
+            return;
+        }
+
+        FailUnresolvedPending(state, "董事会召来未生效：" + result);
     }
 
-    /// <summary>Spawn 后仍无法注入预约增援时清除 pending，避免与冷却状态长期不一致。</summary>
     public static void FailUnresolvedPending(GameState state, string message)
     {
         if (string.IsNullOrWhiteSpace(state.pendingBoardSummonCasterMemberId))
@@ -184,47 +127,223 @@ public static class BoardSummonWingService
         CombatTelemetryLog.Log("board-wing-pending", "failed: " + message);
     }
 
-    public static BattlefieldUnit? ResolveAnchorUnit(
-        BattlefieldState bf,
-        string? memberId,
-        string? legionId) =>
-        FindCasterUnit(bf, memberId);
-
     public static BattlefieldUnit? FindCasterUnit(BattlefieldState bf, string? memberId)
     {
         if (memberId == null)
         {
             return null;
         }
+
         foreach (var u in bf.units)
         {
             if (u.isBuilding || u.parentUnitId != null || u.IsDestroyed())
             {
                 continue;
             }
+
             if (memberId.Equals(u.memberId, StringComparison.Ordinal))
             {
                 return u;
             }
         }
+
         return null;
     }
 
-    private static bool HasBoardWingsForMember(BattlefieldState bf, string memberId)
+    public static BattlefieldUnit? ResolveAnchorUnit(
+        BattlefieldState bf,
+        string? memberId,
+        string? legionId) =>
+        FindCasterUnit(bf, memberId);
+
+    public static bool IsTempBoardTube(string slotKey) =>
+        slotKey.StartsWith(TempTubePrefix, StringComparison.Ordinal);
+
+    public static void RemoveTempTube(BattlefieldUnit carrier, string slotKey)
     {
-        foreach (var u in bf.units)
+        carrier.fittedModules.Remove(slotKey);
+        carrier.tubeStates.Remove(slotKey);
+    }
+
+    private static int AddTempTubes(BattlefieldUnit target, ModuleRegistry modules)
+    {
+        _ = modules;
+        var added = 0;
+        for (var i = 0; i < WingCount; i++)
         {
-            if (u.IsDestroyed()
-                || !WingTonnageClass.Equals(u.tonnageClass, StringComparison.Ordinal))
+            var key = TempTubePrefix + i;
+            if (target.fittedModules.ContainsKey(key))
             {
                 continue;
             }
-            if (memberId.Equals(u.memberId, StringComparison.Ordinal))
+
+            target.fittedModules[key] = BoardSummonWingModuleId;
+            target.tubeStates[key] = LaunchTubeState.Inactive;
+            added++;
+        }
+
+        return added;
+    }
+
+    private static int DeployTempTubes(
+        BattlefieldState bf,
+        BattlefieldUnit carrier,
+        ModuleRegistry modules,
+        Random rng)
+    {
+        var spawned = 0;
+        foreach (var kv in carrier.fittedModules.ToList())
+        {
+            if (!IsTempBoardTube(kv.Key))
+            {
+                continue;
+            }
+
+            if (!BoardSummonWingModuleId.Equals(kv.Value, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (carrier.tubeStates.TryGetValue(kv.Key, out var tubeState)
+                && tubeState != LaunchTubeState.Inactive)
+            {
+                continue;
+            }
+
+            if (!BattlefieldUnitLimits.CanSpawnNonCrewUnit(bf))
+            {
+                break;
+            }
+
+            var wingIndex = spawned + 1;
+            bf.units.Add(SpawnBoardSummonWing(carrier, kv.Key, wingIndex, rng));
+            LaunchTubeStateService.OnWingLaunched(carrier, kv.Key);
+            spawned++;
+            CombatTelemetryLog.LogSpawn("board-wing", bf.units[^1].unitId!, carrier.unitId);
+        }
+
+        _ = modules;
+        return spawned;
+    }
+
+    private static BattlefieldUnit SpawnBoardSummonWing(
+        BattlefieldUnit carrier,
+        string tubeSlotKey,
+        int wingIndex,
+        Random rng)
+    {
+        var angle = wingIndex * 1.1f + (float)rng.NextDouble() * 0.5f;
+        var ox = MathF.Cos(angle) * WingOffsetM;
+        var oy = MathF.Sin(angle) * WingOffsetM;
+        return new BattlefieldUnit
+        {
+            unitId = "board-wing-" + Guid.NewGuid().ToString("N")[..8],
+            parentUnitId = carrier.unitId,
+            memberId = carrier.memberId,
+            legionId = carrier.legionId,
+            displayName = "董事会增援" + wingIndex,
+            hullId = BoardSummonWingModuleId,
+            tonnageClass = WingTonnageClass,
+            side = carrier.side,
+            arrivalAtSec = 0f,
+            pinnedToBattlefield = true,
+            x = carrier.x + ox,
+            y = carrier.y + oy,
+            z = carrier.z,
+            facingRad = carrier.facingRad,
+            throttleOn = false,
+            maxSpeedMps = BoardWingMaxSpeedMps,
+            accelMps2 = BoardWingAccelMps2,
+            shieldHp = IronCoffinShield,
+            shieldMax = IronCoffinShield,
+            armorHp = IronCoffinArmor,
+            armorMax = IronCoffinArmor,
+            structureHp = IronCoffinStructure,
+            structureMax = IronCoffinStructure,
+            attackRangeM = BoardWingAttackRangeM,
+            salvoRoundDmg = BoardWingSalvoDmg,
+            fireCycleSec = BoardWingFireCycleSec,
+            fireCooldownSec = 0f,
+            damagePerSec = BoardWingSalvoDmg / BoardWingFireCycleSec,
+            alive = true,
+            fittedModules = { [tubeSlotKey] = BoardSummonWingModuleId },
+        };
+    }
+
+    private static bool CasterHasAdminAuthority(
+        GameState state,
+        BattlefieldState bf,
+        MemberState caster,
+        ModuleRegistry modules)
+    {
+        if (caster.traitIds.Contains(TraitActiveSkillService.BoardSummonTraitId))
+        {
+            return true;
+        }
+
+        var casterUnit = FindCasterUnit(bf, caster.memberId);
+        if (casterUnit == null)
+        {
+            return false;
+        }
+
+        foreach (var modId in casterUnit.fittedModules.Values)
+        {
+            var mod = modules.Resolve(modId);
+            if (mod != null
+                && "admin_board_summon".Equals(mod.moduleKind, StringComparison.Ordinal))
             {
                 return true;
             }
         }
+
         return false;
+    }
+
+    private static BattlefieldUnit? ResolveTargetUnit(
+        GameState state,
+        BattlefieldState bf,
+        MemberState caster,
+        string? targetUnitId)
+    {
+        if (!string.IsNullOrWhiteSpace(targetUnitId))
+        {
+            var selected = BattlefieldSystem.FindUnit(bf, targetUnitId);
+            if (selected != null
+                && !selected.IsDestroyed()
+                && selected.side == UnitSide.FRIENDLY
+                && selected.parentUnitId == null
+                && !selected.isBuilding)
+            {
+                return selected;
+            }
+        }
+
+        var legionId = caster.legionId;
+        var candidates = new List<BattlefieldUnit>();
+        foreach (var u in bf.units)
+        {
+            if (u.IsDestroyed() || u.isBuilding || u.parentUnitId != null || u.side != UnitSide.FRIENDLY)
+            {
+                continue;
+            }
+
+            if (legionId != null
+                && u.legionId != null
+                && !legionId.Equals(u.legionId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            candidates.Add(u);
+        }
+
+        if (candidates.Count == 0)
+        {
+            return FindCasterUnit(bf, caster.memberId);
+        }
+
+        return candidates[new Random().Next(candidates.Count)];
     }
 
     private static void ClearPending(GameState state)
@@ -232,6 +351,7 @@ public static class BoardSummonWingService
         state.pendingBoardSummonCasterMemberId = null;
         state.pendingBoardSummonIdentityCode = null;
         state.pendingBoardSummonLegionId = null;
+        state.pendingBoardSummonTargetUnitId = null;
     }
 
     private static MemberState? FindMember(GameState state, string memberId)
@@ -243,6 +363,7 @@ public static class BoardSummonWingService
                 return m;
             }
         }
+
         return null;
     }
 

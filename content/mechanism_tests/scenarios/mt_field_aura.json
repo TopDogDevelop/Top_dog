@@ -1,0 +1,64 @@
+{
+  "scenarioId": "mt_field_aura",
+  "displayName": "场域·灰狼·威慑炮",
+  "scenarioOrder": 3,
+  "seed": 1003,
+  "spawnSeparationM": 20000,
+  "legions": [
+    {
+      "legionId": "mt_player",
+      "displayName": "羊村",
+      "isPlayer": true,
+      "isAiControlled": false,
+      "expandTemplate": {
+        "templateId": "template_vip_invest",
+        "identityCode": "10001005",
+        "defaultHullId": "hull_frigate_shortlegwolf",
+        "defaultFitted": {},
+        "randomRepairSlotKey": "atk_1",
+        "randomRepairModules": [
+          "mod_remote_shield_repair_s",
+          "mod_remote_shield_repair_m",
+          "mod_remote_shield_repair_l",
+          "mod_remote_shield_repair_xl",
+          "mod_remote_armor_repair_s",
+          "mod_remote_armor_repair_m",
+          "mod_remote_armor_repair_l",
+          "mod_remote_armor_repair_xl"
+        ],
+        "overrides": [
+          {
+            "displayName": "羊村铁菊",
+            "hullId": "hull_cruiser_greywolf_guard",
+            "fitted": { "fn_1": "mod_armor_link_s" }
+          },
+          {
+            "displayName": "羊村星猫",
+            "hullId": "hull_frigate_shortlegwolf",
+            "fitted": { "atk_1": "mod_deterrence_gun_yl" }
+          }
+        ]
+      }
+    },
+    {
+      "legionId": "mt_enemy",
+      "displayName": "敌方",
+      "members": [
+        {
+          "memberTemplateRowId": "template_vip_invest:10001001:01",
+          "memberId": "mt_fa_e1",
+          "displayName": "绵羊伸腿",
+          "hullId": "hull_dread_ironcoffin",
+          "fitted": { "atk_1": "mod_hybrid_gun_xl", "atk_2": "mod_hybrid_gun_xl" }
+        },
+        {
+          "memberTemplateRowId": "template_vip_invest:10001001:05",
+          "memberId": "mt_fa_e2",
+          "displayName": "盖奶",
+          "hullId": "hull_bc_spear",
+          "fitted": {}
+        }
+      ]
+    }
+  ]
+}

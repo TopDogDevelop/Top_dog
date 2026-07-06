@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using TopDog.App;
+using TopDog.Content.Modules;
 using TopDog.Content;
 using TopDog.Content.Ships;
 using TopDog.Sim.Building;
@@ -13,10 +14,12 @@ using UnityEngine;
 using UnityEngine.UIElements;
 /*
  * ══ 设计手册嵌入 ══
- * 权威: docs/COMBAT_SHIP_DETAIL_HUD.md · docs/TACTICAL_VIEW.md
+ * 权威: docs/COMBAT_SHIP_DETAIL_HUD.md §3.2 · docs/TACTICAL_VIEW.md
  * 本文件: UnitOrbitHudWidget.cs — 舰船/建筑详情环绕 HUD
  * 【机制要点】
- * · 模版实装 COMBAT_SHIP_DETAIL_HUD
+ * · 场域 buff：镂空绿框 + 盾蓝点/甲黄点（shieldFieldHostUnitId / armorFieldHostUnitId）
+ * · 维修 buff：发起方 pendingRepairRounds；被维修方 CountIncomingRepairRounds
+ * · 选中或框选友舰时显示 buff 栏（非悬停框）
  * 【关联】CombatShipDetailHudTemplate · CombatHudPercentBar · TacticalViewportPresenter
  * ══
  */
@@ -94,7 +97,7 @@ public sealed class UnitOrbitHudWidget
     {
         _ = rangeTarget;
         _ = boxSelected;
-        var showHud = selected;
+        var showHud = selected || boxSelected;
         if (!showHud)
         {
             _root.style.display = DisplayStyle.None;
@@ -207,7 +210,7 @@ public sealed class UnitOrbitHudWidget
         var core = GameAppHost.Instance?.Core;
         var hull = ResolveHull(core?.Ships, u);
         var fit = u.fittedModules;
-        var enabledCount = CountEquippedModules(fit);
+        var enabledCount = CombatModuleEnableService.CountEnabledEquipped(u, fit);
         if (hull == null)
         {
             SetVisible(_enableQuotaBar, false);
@@ -249,6 +252,12 @@ public sealed class UnitOrbitHudWidget
     // lik3tocoode345
     {
         _buffRail.Clear();
+        if (BoardingModuleService.IsBoardingChargeActive(u)
+            || BoardingModuleService.IsBeingBoarded(bf, u.unitId))
+        {
+            _buffRail.Add(MakeBuffIcon("rtcombat-buff-boarding"));
+        }
+
         if (u.explicitFocus)
         {
             _buffRail.Add(MakeBuffIcon("rtcombat-buff-focus"));
@@ -277,6 +286,41 @@ public sealed class UnitOrbitHudWidget
         {
             _buffRail.Add(MakeBuffIcon(orderIcon));
         }
+
+        var modules = ModuleRegistry.LoadDefault();
+        if (!string.IsNullOrEmpty(u.shieldFieldHostUnitId))
+        {
+            _buffRail.Add(MakeFieldBuffIcon(shieldField: true));
+        }
+
+        if (!string.IsNullOrEmpty(u.armorFieldHostUnitId))
+        {
+            _buffRail.Add(MakeFieldBuffIcon(shieldField: false));
+        }
+
+        if (u.fieldAuraEnabledAtSec > 0f && u.fieldAuraCollapseCooldownSec <= bf.timeSec && u.fieldAuraDominant)
+        {
+            if (FieldAuraService.FindFieldModule(u, modules, "shield_fusion_field") != null)
+            {
+                _buffRail.Add(MakeFieldBuffIcon(shieldField: true));
+            }
+
+            if (FieldAuraService.FindFieldModule(u, modules, "armor_link_field") != null)
+            {
+                _buffRail.Add(MakeFieldBuffIcon(shieldField: false));
+            }
+        }
+
+        if (u.pendingRepairRounds > 0)
+        {
+            _buffRail.Add(MakeRepairBuffIcon(u.pendingRepairRounds));
+        }
+
+        var incomingRepair = RemoteRepairSalvoService.CountIncomingRepairRounds(bf, u);
+        if (incomingRepair > 0)
+        {
+            _buffRail.Add(MakeRepairTargetBuffIcon(incomingRepair));
+        }
     }
 
     // liketocoode3e5
@@ -285,6 +329,39 @@ public sealed class UnitOrbitHudWidget
         var icon = new VisualElement();
         icon.AddToClassList("rtcombat-buff-icon");
         icon.AddToClassList(className);
+        return icon;
+    }
+
+    private static VisualElement MakeFieldBuffIcon(bool shieldField)
+    {
+        var icon = new VisualElement();
+        icon.AddToClassList("rtcombat-buff-icon");
+        icon.AddToClassList("rtcombat-buff-field-frame");
+        var dot = new VisualElement();
+        dot.AddToClassList(shieldField ? "rtcombat-buff-field-dot-shield" : "rtcombat-buff-field-dot-armor");
+        icon.Add(dot);
+        return icon;
+    }
+
+    private static VisualElement MakeRepairBuffIcon(int rounds)
+    {
+        var icon = new VisualElement();
+        icon.AddToClassList("rtcombat-buff-icon");
+        icon.AddToClassList("rtcombat-buff-repair");
+        var label = new Label(rounds.ToString());
+        label.AddToClassList("rtcombat-buff-repair-label");
+        icon.Add(label);
+        return icon;
+    }
+
+    private static VisualElement MakeRepairTargetBuffIcon(int rounds)
+    {
+        var icon = new VisualElement();
+        icon.AddToClassList("rtcombat-buff-icon");
+        icon.AddToClassList("rtcombat-buff-repair-target");
+        var label = new Label(rounds.ToString());
+        label.AddToClassList("rtcombat-buff-repair-label");
+        icon.Add(label);
         return icon;
     }
 

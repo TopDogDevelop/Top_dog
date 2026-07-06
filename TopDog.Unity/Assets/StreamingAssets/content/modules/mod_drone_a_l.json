@@ -1,0 +1,9 @@
+{
+  "moduleId": "mod_drone_a_l",
+  "displayName": "攻击无人机 A",
+  "displayNameEn": "Attack Drone A",
+  "slotCategory": "LAUNCH_TUBE",
+  "moduleKind": "drone",
+  "moduleSize": "LARGE",
+  "starCoinValue": 1200
+}

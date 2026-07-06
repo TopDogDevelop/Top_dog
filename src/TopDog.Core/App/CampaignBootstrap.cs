@@ -20,6 +20,7 @@ using TopDog.Sim.Banter;
 using TopDog.Sim.Map;
 using TopDog.Sim.Economy;
 using TopDog.Sim.Member;
+using TopDog.Sim.MechanismTest;
 using TopDog.Sim.Skirmish;
 
 /*
@@ -53,6 +54,7 @@ public static class CampaignBootstrap
         // liketocoo3e345
         CUSTOM_CAMPAIGN,
         LEGION_SKIRMISH,
+        MECHANISM_TEST,
     // l1ketocoode345
     }
 
@@ -73,6 +75,21 @@ public static class CampaignBootstrap
         var state = new GameState();
         LobbyBootstrap.ApplyToState(state, lobby);
         return BuildCore(state, Profile.CUSTOM_CAMPAIGN);
+    }
+
+    public static SimulationCore CreateFromMechanismTest(string scenarioId)
+    {
+        if (!MechanismTestCatalog.TryGet(scenarioId, out var scenario))
+        {
+            throw new InvalidOperationException("未知机制详测场景: " + scenarioId);
+        }
+
+        var state = new GameState();
+        MechanismTestBootstrap.ApplyToState(state, scenario, scenarioId);
+        var core = BuildCore(state, Profile.MECHANISM_TEST);
+        var rng = new Random(scenario.seed == 0 ? 1 : scenario.seed);
+        MechanismTestSpawnService.BootstrapBattlefields(state, scenario, core.Ships, core.Modules, rng);
+        return core;
     }
 
     public static SimulationCore CreateFromSkirmishLobby(SkirmishLobbyState lobby)
@@ -117,10 +134,14 @@ public static class CampaignBootstrap
             graph.Add(new BattlefieldSystemBrick());
             graph.Add(new MemberBanterBrick());
         }
-        else if (profile == Profile.LEGION_SKIRMISH)
+        else if (profile is Profile.LEGION_SKIRMISH or Profile.MECHANISM_TEST)
         {
             graph.Add(new BattlefieldSystemBrick());
-            graph.Add(new SkirmishSystemBrick());
+            if (profile == Profile.LEGION_SKIRMISH)
+            {
+                graph.Add(new SkirmishSystemBrick());
+            }
+
             graph.Add(new MemberBanterBrick());
         }
         else if (profile >= Profile.SHIPS_AND_MAP)
@@ -194,7 +215,7 @@ public static class CampaignBootstrap
 
     private static void SeedMembers(GameState state, Profile profile)
     {
-        if (profile is Profile.SHELL or Profile.CUSTOM_CAMPAIGN or Profile.LEGION_SKIRMISH)
+        if (profile is Profile.SHELL or Profile.CUSTOM_CAMPAIGN or Profile.LEGION_SKIRMISH or Profile.MECHANISM_TEST)
         {
             return;
         }

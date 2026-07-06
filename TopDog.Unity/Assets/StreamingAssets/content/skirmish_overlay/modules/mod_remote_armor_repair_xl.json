@@ -1,0 +1,12 @@
+{
+  "moduleId": "mod_remote_armor_repair_xl",
+  "displayName": "远程装甲维修 XL",
+  "slotCategory": "ATTACK",
+  "moduleSize": "EXTRA_LARGE",
+  "moduleSubtype": "remote_repair",
+  "repairLayer": "armor",
+  "repairPerSalvo": 10000,
+  "repairCycleSec": 30,
+  "repairRangeM": 80000,
+  "attackRangeM": 80000
+}

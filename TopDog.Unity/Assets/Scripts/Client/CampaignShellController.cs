@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using TopDog.App;
 using TopDog.Client.StarMap;
+using TopDog.Client.Tactical;
 using TopDog.Sim.Building;
 using TopDog.Sim.Combat;
 using TopDog.Sim.Legion;
@@ -935,7 +936,10 @@ public sealed class CampaignShellController : UiScreenController
         {
             return;
         }
-        var echo = core.UseSuppressionSkill(traitId, m.memberId);
+        var echo = core.UseSuppressionSkill(
+            traitId,
+            m.memberId,
+            targetUnitId: ResolveBoardSummonTargetUnitId());
         PushEvent(label + "：" + echo);
         if (s != null)
         {
@@ -1539,10 +1543,16 @@ public sealed class CampaignShellController : UiScreenController
         _dynamicClickHandlers.Clear();
     }
 
+    private static string? ResolveBoardSummonTargetUnitId()
+    {
+        var ids = TacticalSelectionState.GetSelectedFriendlyUnitIds();
+        return ids.Count > 0 ? ids.First() : TacticalSelectionState.SelectedTargetUnitId;
+    }
+
     private static bool TryRedirectSkirmishToRealtime()
     {
         var state = GameAppHost.Instance?.Core?.State;
-        if (state == null || !SkirmishPhaseRules.InSkirmishSession(state) || state.matchEnded)
+        if (state == null || !DirectCombatEntryRules.ShouldEnterRealtimeDirect(state))
         {
             return false;
         }

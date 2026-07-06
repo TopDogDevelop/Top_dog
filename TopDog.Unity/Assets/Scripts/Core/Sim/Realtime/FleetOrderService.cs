@@ -1,7 +1,9 @@
+using TopDog.Content.Modules;
 using TopDog.Content.Ships;
 using TopDog.AgentDiag;
 using TopDog.Sim.State;
 using TopDog.Sim.Traits;
+using TopDog.Sim.Vision;
 
 /*
  * ══ 设计手册嵌入 ══
@@ -25,7 +27,7 @@ using TopDog.Sim.Traits;
  * 【机制要点】
  * · OrderApproach：aiOrder=APPROACH，approachTargetUnitId；每 1s 对准目标+满引擎，进射程 STOP
  * · OrderAway：aiOrder=AWAY，船头背向目标 180°，其余同接近逻辑
- * · 无框选时「全体」= 当前场景本方团员各一艘主舰（非全场全部友方单位）；集合 Rally 除外
+ * · 无框选时「全体」= 当前场景全部可指挥友舰（TACTICAL_NAVIGATION.md）；集合 Rally 全战场 NAVIGATE
  * · OrderOrbit/OrderWarp/OrderStop 等经 ResolveCommandTargets(state,…) 过滤建筑与损毁单位
  * · 集体跃迁 OrderWarp：同星系 TacticalWarpService.BeginWarp，跨星系 GateJump
  * 【关联】TacticalWarpService · BattlefieldSystem · ShipMotionIntegrator · FleetCommandBar
@@ -44,6 +46,10 @@ public static class FleetOrderService
     // liketoc0de345
 
     // liketocoode34e
+    /// <summary>非 NAVIGATE / Rally 舰队指令时隐藏战术导航白点（TACTICAL_NAVIGATION.md §4）。</summary>
+    public static void HideTacticalNavMarker(GameState state) =>
+        state.tacticalNavVisible = false;
+
     private static void SetAck(IEnumerable<BattlefieldUnit> units)
     {
         LastAcknowledgedUnitIds = units
@@ -194,8 +200,11 @@ public static class FleetOrderService
     private static bool IsValidFireTarget(BattlefieldUnit? target) =>
         target != null && !target.IsDestroyed() && !BattlefieldSceneProxyService.IsSceneProxy(target);
 
-    public static string OrderRetreat(GameState state, BattlefieldState bf) =>
-        HarvestCombatRules.OrderHarvesterRetreat(state, bf);
+    public static string OrderRetreat(GameState state, BattlefieldState bf)
+    {
+        HideTacticalNavMarker(state);
+        return HarvestCombatRules.OrderHarvesterRetreat(state, bf);
+    }
 
     // liketocoode3a5
 
@@ -210,7 +219,7 @@ public static class FleetOrderService
         BattlefieldState bf,
         IReadOnlyCollection<string>? selectedFriendlyUnitIds,
         bool allFriendlyIfEmpty = true,
-        bool sceneMembersWhenEmpty = true)
+        bool sceneMembersWhenEmpty = false)
     {
         foreach (var u in ResolveRawCommandTargets(
                      state,
@@ -231,7 +240,7 @@ public static class FleetOrderService
         BattlefieldState bf,
         IReadOnlyCollection<string>? selectedFriendlyUnitIds,
         bool allFriendlyIfEmpty = true,
-        bool sceneMembersWhenEmpty = true)
+        bool sceneMembersWhenEmpty = false)
     {
         if (selectedFriendlyUnitIds != null && selectedFriendlyUnitIds.Count > 0)
         {
@@ -371,6 +380,13 @@ public static class FleetOrderService
             yield break;
         }
 
+        if (state != null
+            && state.fleetCommandScope == FleetCommandScope.SelectedOnly
+            && (selectedFriendlyUnitIds == null || selectedFriendlyUnitIds.Count == 0))
+        {
+            yield break;
+        }
+
         if (state != null && sceneMembersWhenEmpty)
         {
             foreach (var u in ResolveSceneMemberCommandUnits(state, bf))
@@ -393,6 +409,7 @@ public static class FleetOrderService
     private static bool AcceptsFleetMovementOrder(BattlefieldUnit u) =>
         !u.IsBallisticMissile()
         && !BattlefieldSceneProxyService.IsSceneProxy(u)
+        && !u.boardingModuleEnabled
         && (u.parentUnitId == null
             || !("STRIKE_CRAFT".Equals(u.tonnageClass, StringComparison.Ordinal)
                 || BoardSummonWingService.WingTonnageClass.Equals(u.tonnageClass, StringComparison.Ordinal)));
@@ -404,15 +421,77 @@ public static class FleetOrderService
         BattlefieldState bf,
         IReadOnlyCollection<string>? selectedFriendlyUnitIds = null)
     {
+        var anchorX = 0f;
+        var anchorY = 0f;
+        var anchorZ = 0f;
         var possessor = BattlefieldSystem.FindPossessedUnit(state, bf);
+        if (possessor != null)
+        {
+            anchorX = possessor.x;
+            anchorY = possessor.y;
+            anchorZ = possessor.z;
+        }
+        else
+        {
+            var focus = VisionAnchorService.ResolveDefaultFocus(state, bf);
+            if (focus != null)
+            {
+                anchorX = focus.x;
+                anchorY = focus.y;
+                anchorZ = focus.z;
+            }
+        }
+
+        var count = 0;
+        foreach (var battlefield in state.battlefields)
+        {
+            foreach (var u in ResolveCommandTargets(state, battlefield, selectedFriendlyUnitIds))
+            {
+                NavigationService.AssignNavigate(u, anchorX, anchorY, anchorZ);
+                count++;
+            }
+        }
+
+        state.tacticalNavX = anchorX;
+        state.tacticalNavY = anchorY;
+        state.tacticalNavZ = anchorZ;
+        state.tacticalNavVisible = count > 0;
+        CombatTelemetryLog.Log("nav.order", $"rally all bf count={count}");
+        return count > 0 ? "已向全战场集合 " + count + " 艘" : "无可集合舰";
+    }
+
+    public static string OrderNavigateToPoint(
+        GameState state,
+        BattlefieldState bf,
+        float x,
+        float y,
+        float z,
+        IReadOnlyCollection<string>? selectedFriendlyUnitIds = null)
+    {
         var count = 0;
         foreach (var u in ResolveCommandTargets(state, bf, selectedFriendlyUnitIds))
         {
-            u.aiOrder = UnitAiOrder.RALLY;
-            u.rallyPointUnitId = possessor?.unitId;
+            NavigationService.AssignNavigate(u, x, y, z);
             count++;
         }
-        return count > 0 ? "已向本战场集合 " + count + " 艘" : "无可集合舰";
+
+        state.tacticalNavX = x;
+        state.tacticalNavY = y;
+        state.tacticalNavZ = z;
+        state.tacticalNavVisible = count > 0;
+        CombatTelemetryLog.Log("nav.order", $"navigate ({x:0},{y:0},{z:0}) count={count}");
+        SetAck(ResolveCommandTargets(state, bf, selectedFriendlyUnitIds));
+        return FormatOrderAck(count, "导航");
+    }
+
+    public static string OrderRepairTarget(
+        GameState state,
+        BattlefieldState bf,
+        string? targetUnitId,
+        IReadOnlyCollection<string>? selectedFriendlyUnitIds = null)
+    {
+        return RemoteRepairSalvoService.OrderRepairTarget(
+            state, bf, targetUnitId, selectedFriendlyUnitIds, ModuleRegistry.LoadDefault());
     }
 
     // liketocoo3e345
@@ -422,6 +501,7 @@ public static class FleetOrderService
         BattlefieldState bf,
         IReadOnlyCollection<string>? selectedFriendlyUnitIds = null)
     {
+        HideTacticalNavMarker(state);
         var possessor = BattlefieldSystem.FindPossessedUnit(state, bf);
         if (possessor == null)
         {
@@ -434,6 +514,7 @@ public static class FleetOrderService
             {
                 continue;
             }
+            LogisticsAutoTargetingService.SuppressForPlayerOrder(u);
             u.aiOrder = UnitAiOrder.FOLLOW;
             count++;
         }
@@ -444,7 +525,8 @@ public static class FleetOrderService
         GameState state,
         BattlefieldState bf,
         string? targetUnitId,
-        IReadOnlyCollection<string>? selectedFriendlyUnitIds = null)
+        IReadOnlyCollection<string>? selectedFriendlyUnitIds = null,
+        ModuleRegistry? modules = null)
     {
         EnsureCommandSceneReady(state, bf, targetUnitId);
         var possessor = BattlefieldSystem.FindPossessedUnit(state, bf);
@@ -454,6 +536,7 @@ public static class FleetOrderService
         {
             foreach (var u in targets)
             {
+                LogisticsAutoTargetingService.SuppressForPlayerOrder(u);
                 u.aiOrder = UnitAiOrder.FOCUS;
                 u.targetUnitId = focusId;
                 u.explicitFocus = true;
@@ -464,6 +547,11 @@ public static class FleetOrderService
                 possessor.targetUnitId = focusId;
                 possessor.explicitFocus = true;
             }
+
+            var modReg = modules ?? ModuleRegistry.LoadDefault();
+            var rng = new Random(HashCode.Combine(focusId, bf.timeSec, bf.units.Count));
+            StrikeWingSpawnService.DeployForFocusCommand(
+                bf, selectedFriendlyUnitIds, modReg, rng);
         }
 
         SetAck(targets);
@@ -478,6 +566,7 @@ public static class FleetOrderService
         bool allFriendly,
         IReadOnlyCollection<string>? selectedFriendlyUnitIds = null)
     {
+        HideTacticalNavMarker(state);
         var count = 0;
         foreach (var u in ResolveCommandTargets(state, bf, allFriendly ? null : selectedFriendlyUnitIds))
         {
@@ -487,6 +576,7 @@ public static class FleetOrderService
             {
                 continue;
             }
+            LogisticsAutoTargetingService.SuppressForPlayerOrder(u);
             u.aiOrder = UnitAiOrder.STOP;
             u.approachTargetUnitId = null;
             u.orbitTargetUnitId = null;
@@ -521,6 +611,7 @@ public static class FleetOrderService
         IReadOnlyCollection<string>? selectedFriendlyUnitIds = null,
         float? rangeKm = null)
     {
+        HideTacticalNavMarker(state);
         EnsureCommandSceneReady(state, bf, targetUnitId);
         var targets = ResolveCommandTargets(state, bf, selectedFriendlyUnitIds, allFriendlyIfEmpty: true).ToList();
         if (!TryResolveCommandTarget(state, bf, targetUnitId, out var orbitTarget))
@@ -532,6 +623,7 @@ public static class FleetOrderService
         var count = 0;
         foreach (var u in targets)
         {
+            LogisticsAutoTargetingService.SuppressForPlayerOrder(u);
             u.aiOrder = UnitAiOrder.ORBIT;
             u.orbitTargetUnitId = targetUnitId;
             u.approachTargetUnitId = null;
@@ -562,6 +654,7 @@ public static class FleetOrderService
         IReadOnlyCollection<string>? selectedFriendlyUnitIds = null,
         float? rangeKm = null)
     {
+        HideTacticalNavMarker(state);
         EnsureCommandSceneReady(state, bf, targetUnitId);
         var targets = ResolveApproachTargets(state, bf, selectedFriendlyUnitIds).ToList();
         var maintainM = rangeKm.HasValue ? TacticalRangeScale.KmToMeters(rangeKm.Value) : 0f;
@@ -578,6 +671,7 @@ public static class FleetOrderService
         var count = 0;
         foreach (var u in targets)
         {
+            LogisticsAutoTargetingService.SuppressForPlayerOrder(u);
             u.aiOrder = UnitAiOrder.APPROACH;
             u.approachTargetUnitId = targetUnitId;
             u.approachHeadingTimerSec = 0f;
@@ -614,6 +708,7 @@ public static class FleetOrderService
         IReadOnlyCollection<string>? selectedFriendlyUnitIds = null,
         float? rangeKm = null)
     {
+        HideTacticalNavMarker(state);
         EnsureCommandSceneReady(state, bf, targetUnitId);
         var targets = ResolveApproachTargets(state, bf, selectedFriendlyUnitIds).ToList();
         var maintainM = rangeKm.HasValue ? TacticalRangeScale.KmToMeters(rangeKm.Value) : 0f;
@@ -625,6 +720,7 @@ public static class FleetOrderService
         var count = 0;
         foreach (var u in targets)
         {
+            LogisticsAutoTargetingService.SuppressForPlayerOrder(u);
             u.aiOrder = UnitAiOrder.AWAY;
             u.approachTargetUnitId = targetUnitId;
             u.approachHeadingTimerSec = 0f;
@@ -675,6 +771,7 @@ public static class FleetOrderService
         string? targetUnitId,
         IReadOnlyCollection<string>? selectedFriendlyUnitIds = null)
     {
+        HideTacticalNavMarker(state);
         var possessor = BattlefieldSystem.FindPossessedUnit(state, bf);
         var focusId = targetUnitId ?? possessor?.targetUnitId;
         var targets = ResolveCommandTargets(state, bf, selectedFriendlyUnitIds).ToList();
@@ -691,6 +788,7 @@ public static class FleetOrderService
                 continue;
             }
 
+            LogisticsAutoTargetingService.SuppressForPlayerOrder(u);
             u.aiOrder = UnitAiOrder.FOLLOW_ATTACK;
             u.targetUnitId = focusId;
             u.explicitFocus = true;
@@ -712,6 +810,7 @@ public static class FleetOrderService
         Random rng,
         IReadOnlyCollection<string>? selectedFriendlyUnitIds = null)
     {
+        HideTacticalNavMarker(state);
         var count = 0;
         foreach (var u in ResolveCommandTargets(state, bf, selectedFriendlyUnitIds))
         {
@@ -719,6 +818,7 @@ public static class FleetOrderService
             {
                 continue;
             }
+            LogisticsAutoTargetingService.SuppressForPlayerOrder(u);
             u.aiOrder = UnitAiOrder.SCATTER;
             u.facingRad = (float)(rng.NextDouble() * Math.PI * 2);
             u.pitchRad = (float)(rng.NextDouble() * 0.4 - 0.2);
@@ -741,6 +841,7 @@ public static class FleetOrderService
         bool allFriendly,
         IReadOnlyCollection<string>? selectedFriendlyUnitIds = null)
     {
+        HideTacticalNavMarker(state);
         EnsureCommandSceneReady(state, bf);
         var count = 0;
         string? lastError = null;
@@ -788,6 +889,7 @@ public static class FleetOrderService
         IReadOnlyCollection<string>? selectedFriendlyUnitIds = null,
         float? landingKm = null)
     {
+        HideTacticalNavMarker(state);
         AgentSessionDebugLog.Write(
             "H5",
             "FleetOrderService.OrderWarpToSceneTarget",
@@ -989,6 +1091,7 @@ public static class FleetOrderService
         IReadOnlyCollection<string>? selectedFriendlyUnitIds = null,
         float? landingKm = null)
     {
+        HideTacticalNavMarker(state);
         EnsureCommandSceneReady(state, bf);
         var target = TacticalWarpService.FindBattlefield(state, targetBattlefieldId);
         if (target == null || target.finished)
@@ -1030,6 +1133,9 @@ public static class FleetOrderService
                 continue;
             }
 
+            LogisticsAutoTargetingService.SuppressForPlayerOrder(u);
+            FieldAuraWarpGate.PrepareHolderForWarp(bf, u);
+
             var unitLanding = landingKm.HasValue
                 ? TacticalRangeScale.KmToMeters(landingKm.Value)
                 : u.warpLandingDistM >= TacticalWarpLandingService.MinLandingDistM
@@ -1066,6 +1172,7 @@ public static class FleetOrderService
         string? targetUnitId,
         IReadOnlyCollection<string>? selectedFriendlyUnitIds = null)
     {
+        HideTacticalNavMarker(state);
         if (targetUnitId == null)
         {
             return FormatOrderAck(0, "进入建筑");

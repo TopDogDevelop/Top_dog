@@ -228,6 +228,13 @@ public sealed class GameAppHost : MonoBehaviour
         BindLocalSession();
     }
 
+    public void StartFromMechanismTest(string scenarioId)
+    {
+        ResetNetwork();
+        Core = CampaignBootstrap.CreateFromMechanismTest(scenarioId);
+        BindLocalSession();
+    }
+
     public void StartLanHost(int port = DefaultTcpGamePort)
     {
         if (Core == null)

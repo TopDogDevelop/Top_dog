@@ -128,18 +128,25 @@ public sealed class StoryLevelsController : UiScreenController
         }
 
         switch (levelId)
-        // liketocoode3e5
         {
             case "ch01_ops":
                 host.PendingWorldline = WorldlineType.STORY;
                 host.Profile = CampaignBootstrap.Profile.TUTORIAL_OPS;
                 host.StartTutorialCampaign();
+                GameSceneRouter.Instance?.EnterMatch(TopDogSceneKind.Operations);
                 break;
             default:
+                if (levelId.StartsWith("mt_", StringComparison.Ordinal))
+                {
+                    host.PendingWorldline = WorldlineType.STORY;
+                    host.Profile = CampaignBootstrap.Profile.MECHANISM_TEST;
+                    host.StartFromMechanismTest(levelId);
+                    GameSceneRouter.Instance?.EnterMatch(TopDogSceneKind.CombatRealtime);
+                    break;
+                }
+
                 throw new InvalidOperationException("未知关卡: " + levelId);
         }
-
-        GameSceneRouter.Instance?.EnterMatch(TopDogSceneKind.Operations);
     }
 
     private void SetStatus(string msg)

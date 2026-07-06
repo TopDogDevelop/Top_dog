@@ -40,6 +40,7 @@ public sealed class TacticalViewportPresenter
     private readonly Dictionary<string, MarkerBundle> _markers = new();
     private readonly Dictionary<string, VisualElement> _edgeMarkers = new();
     private readonly Dictionary<string, (float left, float top)> _screenPositions = new();
+    private readonly Dictionary<string, bool> _boardingFlashActive = new();
     private GameState _lastState;
     private BattlefieldState _lastBf;
     private float _hostW = 400f;
@@ -791,6 +792,42 @@ public sealed class TacticalViewportPresenter
         }
 
         bundle.Hud.Refresh(u, state, bf, selected, boxSel, rangeTarget);
+        ApplyBoardingMarkerFlash(bundle, u, bf);
+    }
+
+    private void ApplyBoardingMarkerFlash(MarkerBundle bundle, BattlefieldUnit u, BattlefieldState bf)
+    {
+        if (u.unitId == null)
+        {
+            return;
+        }
+
+        var icon = bundle.IconHost.Q(className: "rtcombat-marker-icon");
+        if (icon == null)
+        {
+            return;
+        }
+
+        var active = BoardingModuleService.IsBoardingChargeActive(u)
+            || BoardingModuleService.IsBeingBoarded(bf, u.unitId);
+        if (active)
+        {
+            var pulse = 0.35f + 0.65f * (0.5f + 0.5f * Mathf.Sin(bf.timeSec * 8f));
+            icon.style.opacity = pulse;
+        }
+        else
+        {
+            icon.style.opacity = 1f;
+        }
+
+        _boardingFlashActive.TryGetValue(u.unitId, out var wasActive);
+        if (active && !wasActive)
+        {
+            icon.AddToClassList("rtcombat-marker-boarding-pulse");
+            icon.schedule.Execute(() => icon.RemoveFromClassList("rtcombat-marker-boarding-pulse")).StartingIn(600);
+        }
+
+        _boardingFlashActive[u.unitId] = active;
     }
 
     private static void EnsureSceneProxyLabel(MarkerBundle bundle, string text)

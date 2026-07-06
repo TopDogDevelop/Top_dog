@@ -27,6 +27,7 @@ public sealed class FleetCommandBar
 {
     private readonly Func<SimulationCore> _core;
     private readonly Action<string, bool> _status;
+    private Button? _scopeBtn;
 
     // liketoc0de345
 
@@ -39,17 +40,31 @@ public sealed class FleetCommandBar
         _core = core;
         _status = statusWithSuccess ?? ((msg, _) => status(msg));
 
+        _scopeBtn = root.Q<Button>("btn-command-scope");
+
         BindSimple(root, "btn-rally", () => WithBf((s, bf) => FleetOrderService.RallyToBattlefield(s, bf, Sel())));
         BindSimple(root, "btn-scatter", () => WithBf((s, bf) => FleetOrderService.OrderScatter(s, bf, new Random(), Sel())));
         BindSimple(root, "btn-stop", () => WithBf((s, bf) => FleetOrderService.OrderStop(s, bf, false, Sel())));
         BindSimple(root, "btn-stop-all", () => WithBf((s, bf) => FleetOrderService.OrderStop(s, bf, true, Sel())));
         BindSimple(root, "btn-retreat", () => WithBf((s, bf) => FleetOrderService.OrderRetreat(s, bf)));
-        BindSimple(root, "btn-focus", () =>
-            WithBf((s, bf) => FleetOrderService.OrderFocus(s, bf, TacticalSelectionState.SelectedTargetUnitId, Sel())));
         BindSimple(root, "btn-cease-fire", () =>
             WithBf((s, bf) => FleetOrderService.OrderCeaseFire(s, bf, Sel())));
-        BindSimple(root, "btn-follow-attack", () =>
-            WithBf((s, bf) => FleetOrderService.OrderFollowAttack(s, bf, TacticalSelectionState.SelectedTargetUnitId, Sel())));
+        BindSimple(root, "btn-repair-target", () =>
+            WithBf((s, bf) => FleetOrderService.OrderRepairTarget(
+                s, bf, TacticalSelectionState.SelectedTargetUnitId, Sel())));
+        BindSimple(root, "btn-command-scope", () =>
+        {
+            TacticalSelectionState.CommandScope = TacticalSelectionState.CommandScope == FleetCommandScope.AllInScene
+                ? FleetCommandScope.SelectedOnly
+                : FleetCommandScope.AllInScene;
+            var c = _core();
+            if (c != null)
+            {
+                c.State.fleetCommandScope = TacticalSelectionState.CommandScope;
+            }
+
+            Emit(TacticalSelectionState.CommandScopeLabel(), true);
+        });
         BindSimple(root, "btn-enter-building", () =>
             WithBf((s, bf) => FleetOrderService.OrderEnterBuilding(s, bf, TacticalSelectionState.SelectedTargetUnitId, Sel())));
         BindSimple(root, "btn-auto-fire", () =>
@@ -104,7 +119,14 @@ public sealed class FleetCommandBar
 
     public void RefreshGate(GameState state)
     {
-        // 实时战底栏始终可点；星图模式由 CombatRealtimeController 整栏 SetEnabled。
+        var hasSelection = TacticalSelectionState.GetSelectedFriendlyUnitIds().Count > 0
+            || !string.IsNullOrEmpty(TacticalSelectionState.SelectedTargetUnitId);
+        if (_scopeBtn != null)
+        {
+            _scopeBtn.SetEnabled(!hasSelection);
+            _scopeBtn.text = TacticalSelectionState.CommandScopeLabel();
+            _scopeBtn.EnableInClassList("rtcombat-scope-forced-selected", hasSelection);
+        }
     }
 
     public void SetBarEnabled(bool enabled)
@@ -188,6 +210,7 @@ public sealed class FleetCommandBar
             return;
         }
 
+        c.State.fleetCommandScope = TacticalSelectionState.CommandScope;
         var msg = action(c.State, bf);
         Emit(msg, msg.StartsWith("已下令", StringComparison.Ordinal));
     }

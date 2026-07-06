@@ -50,6 +50,8 @@ public sealed class CombatRealtimeController : UiScreenController
     private TacticalViewportPresenter _viewportPresenter;
     private TacticalViewportCamera _viewportCamera;
     private TacticalPlaneOverlay _planeOverlay;
+    private TacticalNavMarkerPresenter _navMarker;
+    private TacticalUnitHoverOverlay _unitHover;
     private TacticalViewportInputOverlay _inputOverlay;
     private FleetCommandBar _fleetBar;
     private VisualElement _viewportHost;
@@ -98,16 +100,19 @@ public sealed class CombatRealtimeController : UiScreenController
         }
 
         _planeOverlay = new TacticalPlaneOverlay(_viewportCamera);
+        _navMarker = new TacticalNavMarkerPresenter(_viewportCamera);
         var grid = root.Q<VisualElement>("tactical-grid");
         if (_viewportHost != null)
         {
             if (grid != null)
             {
                 _viewportHost.Insert(_viewportHost.IndexOf(grid) + 1, _planeOverlay);
+                _viewportHost.Insert(_viewportHost.IndexOf(grid) + 2, _navMarker);
             }
             else
             {
                 _viewportHost.Insert(1, _planeOverlay);
+                _viewportHost.Insert(2, _navMarker);
             }
         }
 
@@ -120,6 +125,19 @@ public sealed class CombatRealtimeController : UiScreenController
             _viewportHost.Add(edgeMarkersHost);
         }
         _viewportPresenter = new TacticalViewportPresenter(markersHost, _viewportCamera, edgeMarkersHost);
+        _unitHover = new TacticalUnitHoverOverlay(_viewportPresenter);
+        if (_viewportHost != null && _navMarker != null)
+        {
+            var navIdx = _viewportHost.IndexOf(_navMarker);
+            if (navIdx >= 0)
+            {
+                _viewportHost.Insert(navIdx + 1, _unitHover);
+            }
+            else
+            {
+                _viewportHost.Add(_unitHover);
+            }
+        }
         _floatingText = new CombatFloatingTextPresenter(markersHost, _viewportCamera);
         _objectCommandMenu = new TacticalObjectCommandMenu(
             root,
@@ -142,7 +160,7 @@ public sealed class CombatRealtimeController : UiScreenController
         {
             var markersIdx = markersHost != null ? _viewportHost.IndexOf(markersHost) : _viewportHost.childCount;
             _viewportHost.Insert(Mathf.Max(0, markersIdx), _inputOverlay);
-            _inputOverlay.Bind(_viewportCamera, _viewportPresenter, RefreshAll, OnViewportUnitPicked);
+            _inputOverlay.Bind(_viewportCamera, _viewportPresenter, RefreshAll, OnViewportUnitPicked, OnViewportContextCommand);
             RegisterTacticalWheel(_viewportHost);
             var viewportControls = root.Q<VisualElement>("viewport-controls");
             RegisterTacticalWheel(viewportControls);
@@ -423,11 +441,29 @@ public sealed class CombatRealtimeController : UiScreenController
         }
     }
 
+    private void IssueFleetOrder(string msg) =>
+        OnCommandIssued(msg, msg.StartsWith("已下令", System.StringComparison.Ordinal));
+
     private void BindKeyboard(VisualElement root)
     {
         root.focusable = true;
         _keyHandler = evt =>
         {
+            if (evt.keyCode == KeyCode.Space)
+            {
+                var core = GameAppHost.Instance?.Core;
+                TacticalSelectionState.ClearTargetAndBoxSelection();
+                if (core != null)
+                {
+                    core.State.fleetCommandScope = FleetCommandScope.AllInScene;
+                    core.State.tacticalNavVisible = false;
+                }
+
+                RefreshAll();
+                evt.StopPropagation();
+                return;
+            }
+
             if (evt.keyCode != KeyCode.Escape)
             {
                 return;
@@ -542,6 +578,8 @@ public sealed class CombatRealtimeController : UiScreenController
 
         _rightRail?.Refresh(s);
         _planeOverlay?.Refresh(s, bf);
+        _navMarker?.Refresh(s, bf);
+        _unitHover?.Refresh(s, bf);
         _viewportPresenter?.Refresh(s, bf);
         _floatingText?.Refresh(s, bf);
         _fleetBar?.RefreshGate(s);
@@ -702,6 +740,83 @@ public sealed class CombatRealtimeController : UiScreenController
             }
         }
         return null;
+    }
+
+    private static BattlefieldUnit? FindBfUnit(BattlefieldState bf, string unitId)
+    {
+        foreach (var u in bf.units)
+        {
+            if (unitId.Equals(u.unitId, System.StringComparison.Ordinal))
+            {
+                return u;
+            }
+        }
+
+        return null;
+    }
+
+    private void OnViewportContextCommand(Vector2 overlayLocalPos, int button)
+    {
+        if (button != 1)
+        {
+            return;
+        }
+
+        var core = GameAppHost.Instance?.Core;
+        if (core == null)
+        {
+            return;
+        }
+
+        var s = core.State;
+        var bf = ActiveBf(s);
+        if (bf == null)
+        {
+            return;
+        }
+
+        s.fleetCommandScope = TacticalSelectionState.CommandScope;
+        var picked = _viewportPresenter?.PickUnitAt(overlayLocalPos);
+        if (picked != null)
+        {
+            var unit = FindBfUnit(bf, picked);
+            if (unit == null)
+            {
+                return;
+            }
+
+            if (unit.side == UnitSide.ENEMY && !unit.isBuilding)
+            {
+                IssueFleetOrder(FleetOrderService.OrderFocus(
+                    s, bf, picked, TacticalSelectionState.GetSelectedFriendlyUnitIds(),
+                    GameAppHost.Instance?.Core?.Modules));
+                return;
+            }
+
+            if (unit.side == UnitSide.FRIENDLY && !unit.isBuilding)
+            {
+                IssueFleetOrder(FleetOrderService.OrderRepairTarget(
+                    s, bf, picked, TacticalSelectionState.GetSelectedFriendlyUnitIds()));
+                return;
+            }
+
+            if (unit.isBuilding || BattlefieldSceneProxyService.IsSceneProxy(unit))
+            {
+                TacticalSelectionState.SetSelectedTarget(picked);
+                IssueFleetOrder(FleetOrderService.OrderEnterBuilding(
+                    s, bf, picked, TacticalSelectionState.GetSelectedFriendlyUnitIds()));
+                return;
+            }
+        }
+
+        var w = _inputOverlay?.contentRect.width ?? 0f;
+        var h = _inputOverlay?.contentRect.height ?? 0f;
+        if (_viewportCamera != null
+            && TacticalScreenRaycast.TryRaycastFocusPlane(_viewportCamera, s, bf, overlayLocalPos, w, h, out var x, out var y, out var z))
+        {
+            IssueFleetOrder(FleetOrderService.OrderNavigateToPoint(
+                s, bf, x, y, z, TacticalSelectionState.GetSelectedFriendlyUnitIds()));
+        }
     }
 
     private void OnViewportUnitPicked(Vector2 overlayLocalPos, string unitId)

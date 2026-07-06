@@ -300,7 +300,7 @@ public sealed class CombatShellController : UiScreenController
     private static bool TryRedirectSkirmishToRealtime()
     {
         var state = GameAppHost.Instance?.Core?.State;
-        if (state == null || !SkirmishPhaseRules.InSkirmishSession(state) || state.matchEnded)
+        if (state == null || !DirectCombatEntryRules.ShouldEnterRealtimeDirect(state))
         {
             return false;
         }
