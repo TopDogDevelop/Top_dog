@@ -9,9 +9,9 @@ using TopDog.Sim.State;
  * 权威: docs/LEGION_ASSETS_AND_VALUATION.md §5 派遣自动填装 · §战前守方领军团舰
  * 本文件: CombatHullPrepService.cs — 战前 AI 守方从军团仓领取舰体
  * 【机制要点】
- * · 仅 AI 团员（isAi 或 isAiControlled 军团）可从 legionStock 领 hull
- * · 真人守方不从军团仓代领，须个人仓已有舰或手动装备
- * · 选估值最高 hull，军团扣 1→个人仓+1→EquipFromPersonal
+ * · 仅 AI 团员（isAi 或 isAiControlled 军团）可从 legionStock 领 hull（非战前 API）
+ * · 战前 TryEquipFromLegionStockForCombat：真人亦可领；多艘时存量加权随机
+ * · 非战前 AI：选估值最高 hull，军团扣 1→个人仓+1→EquipFromPersonal
  * · IsAiMember 解析成员所属军团 AI 标记
  * 【关联】CombatRosterPrepService · MemberAutoEquipHullService · AssetValuation
  * ══
@@ -22,7 +22,7 @@ namespace TopDog.Sim.Combat;
 // liketoc0de345
 
 // liketocoode3a5
-/// <summary>战前守方领舰：仅 AI 可从军团仓领取；真人仅个人仓自动穿舰。</summary>
+/// <summary>战前领舰：combatPrep 含真人、随机选仓舰；非战前仅 AI 且取最高估值。</summary>
 // liketocoode34e
 public static class CombatHullPrepService
 // liketocoo3e345
@@ -36,7 +36,7 @@ public static class CombatHullPrepService
         Random? rng = null) =>
         TryEquipFromLegionStock(state, m, ships, rng, combatPrep: false);
 
-    /// <summary>战前/接战：无 equipped 时从军团仓领舰并装备（含真人守方/攻方）。</summary>
+    /// <summary>战前/接战：无 equipped 时从军团仓领舰并装备（含真人；随机选舰）。</summary>
     public static bool TryEquipFromLegionStockForCombat(
         GameState state,
         MemberState m,
@@ -67,21 +67,40 @@ public static class CombatHullPrepService
         }
 
         rng ??= new Random();
-        var best = options
-            .OrderByDescending(o => AssetValuation.HullStarCoinValue(ships.FindHull(o.hullId)))
-            .ThenBy(o => o.hullId, StringComparer.Ordinal)
-            .First();
-        if (!string.IsNullOrWhiteSpace(best.legionId))
+        HullPick picked;
+        if (combatPrep)
         {
-            TransferLegionHullToPersonal(state, m, best.legionId!, best.hullId);
+            // 战前：仓库多艘时按存量加权随机（COMBAT_ROSTER / 用户规则）
+            var pool = new List<HullPick>();
+            foreach (var o in options)
+            {
+                for (var i = 0; i < Math.Max(1, o.legionQty); i++)
+                {
+                    pool.Add(o);
+                }
+            }
+
+            picked = pool[rng.Next(pool.Count)];
+        }
+        else
+        {
+            picked = options
+                .OrderByDescending(o => AssetValuation.HullStarCoinValue(ships.FindHull(o.hullId)))
+                .ThenBy(o => o.hullId, StringComparer.Ordinal)
+                .First();
         }
 
-        if (MemberAssetService.PersonalQty(state, m, best.hullId) <= 0)
+        if (!string.IsNullOrWhiteSpace(picked.legionId))
+        {
+            TransferLegionHullToPersonal(state, m, picked.legionId!, picked.hullId);
+        }
+
+        if (MemberAssetService.PersonalQty(state, m, picked.hullId) <= 0)
         {
             return false;
         }
 
-        var equipped = MemberAutoEquipHullService.EquipFromPersonal(state, m, best.hullId, ships);
+        var equipped = MemberAutoEquipHullService.EquipFromPersonal(state, m, picked.hullId, ships);
         if (equipped && !string.IsNullOrWhiteSpace(m.memberId))
         {
             BanterSignalHub.Publish("equip_from_legion", m.memberId);

@@ -18,12 +18,12 @@ using UnityEngine.UIElements;
  * 权威: docs/TACTICAL_RIGHT_RAIL_SCENE_PROXY.md §2 · docs/TACTICAL_VIEW.md §3
  * 本文件: TacticalRightRail.cs — 右栏双模式切换
  * 【机制要点】
- * · 模式 B（默认）物体总览 `object-overview-scroll`：当前战场单位 + 「其他场景」（units 或 ListOffSceneLinks）
- * · 模式 A `vision-rail-scroll`：ListBattlefieldVisionGroups 战场→团员树
+ * · 模式 B（默认）物体总览 `object-overview-scroll`：当前战场单位 + 「其他场景」（按 AU 距离罗列）
+ * · 模式 A `vision-rail-scroll`：ListBattlefieldVisionGroups（排除有存活敌舰的实时交战场）
  * · 底栏 `btn-rail-mode-toggle` 在两种 ScrollView 间互斥
  * 【实现逻辑】
- * · RefreshBattlefields：按战场组渲染；空战场不显示；点击 ActivateDescentEntry
- * · RefreshObjects：scene proxy 行不写 tacticalCameraUnitId；BuildOffSceneLinkRow 作 fallback
+ * · RefreshBattlefields：按战场组渲染；空/交战场不显示；点击 ActivateDescentEntry（交战场拒绝切入）
+ * · RefreshObjects：scene proxy 行显示 AU；不写 tacticalCameraUnitId
  * · BuildObjectRow：ObjectOverviewCompact 单行 + 虚线行分隔；距离 RefreshObjectDistancesOnly
  * 【关联】TacticalSelectionState · PossessionService · TacticalIconCatalog · VisionLocationService
  * ══
@@ -302,6 +302,23 @@ public sealed class TacticalRightRail
         }
 
         var state = core.State;
+        BattlefieldState? targetBf = null;
+        foreach (var bf in state.battlefields)
+        {
+            if (entry.BattlefieldId.Equals(bf.battlefieldId, StringComparison.Ordinal))
+            {
+                targetBf = bf;
+                break;
+            }
+        }
+
+        if (VisionLocationService.IsHostileRealtimeCombatBattlefield(targetBf)
+            && (state.activeBattlefieldId == null
+                || !entry.BattlefieldId.Equals(state.activeBattlefieldId, StringComparison.Ordinal)))
+        {
+            return;
+        }
+
         PossessionService.SwitchBattlefield(state, entry.BattlefieldId);
         TacticalSelectionState.ClearOnBattlefieldSwitch();
 
@@ -354,7 +371,8 @@ public sealed class TacticalRightRail
 
         var sceneProxies = bf.units
             .Where(u => BattlefieldSceneProxyService.IsSceneProxy(u) && !u.IsDestroyed())
-            .OrderBy(u => u.displayName ?? u.unitId, StringComparer.Ordinal)
+            .OrderBy(u => BattlefieldSceneProxyService.ResolveDistanceAu(state, bf, u))
+            .ThenBy(u => u.displayName ?? u.unitId, StringComparer.Ordinal)
             .ToList();
         var offSceneLinks = sceneProxies.Count == 0
             ? BattlefieldSceneProxyService.ListOffSceneLinks(state, bf)
@@ -364,7 +382,7 @@ public sealed class TacticalRightRail
             _objectContent.Add(MakeGroupHeader("其他场景"));
             foreach (var u in sceneProxies)
             {
-                _objectContent.Add(BuildSceneProxyRow(state, u));
+                _objectContent.Add(BuildSceneProxyRow(state, bf, u));
             }
 
             foreach (var link in offSceneLinks)
@@ -589,19 +607,30 @@ public sealed class TacticalRightRail
                 continue;
             }
 
-            var inTransit = VisionGate.IsWarpInbound(unit, bf.timeSec)
-                || unit.warpPhase == TacticalWarpPhase.InTransit;
             foreach (var label in child.Children())
             {
-                if (label is Label nameLabel && nameLabel.ClassListContains("rtcombat-rail-name"))
+                if (label is not Label nameLabel || !nameLabel.ClassListContains("rtcombat-rail-name"))
                 {
-                    nameLabel.text = DisplayLabels.ObjectOverviewCompact(
-                        state,
-                        unit,
-                        ships,
-                        inTransit ? -1f : ResolveDistanceToFocusM(state, bf, unit),
-                        inTransit);
+                    continue;
                 }
+
+                if (BattlefieldSceneProxyService.IsSceneProxy(unit))
+                {
+                    var au = BattlefieldSceneProxyService.ResolveDistanceAu(state, bf, unit);
+                    nameLabel.text = BattlefieldSceneProxyService.FormatSceneProxyLabel(
+                        unit.displayName ?? unit.unitId ?? "其他场景",
+                        au);
+                    continue;
+                }
+
+                var inTransit = VisionGate.IsWarpInbound(unit, bf.timeSec)
+                    || unit.warpPhase == TacticalWarpPhase.InTransit;
+                nameLabel.text = DisplayLabels.ObjectOverviewCompact(
+                    state,
+                    unit,
+                    ships,
+                    inTransit ? -1f : ResolveDistanceToFocusM(state, bf, unit),
+                    inTransit);
             }
         }
     }
@@ -683,10 +712,11 @@ public sealed class TacticalRightRail
             return TacticalIconCatalog.ResolveEventRegionIcon(EventRegionKinds.JumpBridge);
         }
 
-        return TacticalIconCatalog.ResolveShipIcon(u.tonnageClass);
+        var hull = u.hullId != null ? ShipRegistry.LoadDefault().FindHull(u.hullId) : null;
+        return TacticalIconCatalog.ResolveUnitShipIcon(u, hull);
     }
 
-    private VisualElement BuildSceneProxyRow(GameState state, BattlefieldUnit u)
+    private VisualElement BuildSceneProxyRow(GameState state, BattlefieldState bf, BattlefieldUnit u)
     {
         var row = new VisualElement();
         row.AddToClassList("rtcombat-rail-object-row");
@@ -701,7 +731,10 @@ public sealed class TacticalRightRail
         AddSideBadge(iconHost, UnitSide.FRIENDLY, "⤴");
         row.Add(iconHost);
 
-        var name = new Label(u.displayName ?? u.unitId ?? "其他场景");
+        var au = BattlefieldSceneProxyService.ResolveDistanceAu(state, bf, u);
+        var name = new Label(BattlefieldSceneProxyService.FormatSceneProxyLabel(
+            u.displayName ?? u.unitId ?? "其他场景",
+            au));
         name.pickingMode = PickingMode.Ignore;
         name.AddToClassList("rtcombat-rail-name");
         row.Add(name);
@@ -739,7 +772,7 @@ public sealed class TacticalRightRail
         AddSideBadge(iconHost, UnitSide.FRIENDLY, "⤴");
         row.Add(iconHost);
 
-        var name = new Label(link.DisplayName);
+        var name = new Label(BattlefieldSceneProxyService.FormatSceneProxyLabel(link.DisplayName, link.DistanceAu));
         name.pickingMode = PickingMode.Ignore;
         name.AddToClassList("rtcombat-rail-name");
         row.Add(name);

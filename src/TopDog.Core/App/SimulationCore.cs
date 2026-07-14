@@ -334,7 +334,8 @@ public sealed class SimulationCore
     public string DumpCombatDebug()
     {
         var sb = new StringBuilder();
-        sb.Append(CombatTelemetryLog.DumpRecent(96));
+        sb.Append(CombatTelemetrySessionExport.StatusLine());
+        sb.Append('\n').Append(CombatTelemetryLog.DumpRecent(96));
         foreach (var line in BrickDebugLog.Snapshot())
         {
             if (line.Contains("combat.", StringComparison.Ordinal)

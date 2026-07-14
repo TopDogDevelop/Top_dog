@@ -43,8 +43,10 @@ public static class FieldAuraCollapse
     {
         FieldAuraService.SettleAllProteges(holder, bf, moduleKind, collapse: true);
         holder.fieldAuraEnabledAtSec = 0f;
-        holder.fieldAuraDominant = false;
-        holder.fieldAuraSuppressed = false;
+        holder.fieldAuraShieldDominant = false;
+        holder.fieldAuraArmorDominant = false;
+        holder.fieldAuraShieldSuppressed = false;
+        holder.fieldAuraArmorSuppressed = false;
         holder.fieldAuraCollapseCooldownSec = bf.timeSec + FieldAuraService.FieldCollapseCooldownSec;
         FieldAuraService.RefreshDominantField(bf, modules, moduleKind);
         CombatTelemetryLog.LogFieldCollapse(holder.unitId!, moduleKind);

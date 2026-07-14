@@ -405,9 +405,9 @@ public static class CombatBackgroundCatalog
 
 
 
-        var setDir = Path.Combine(Application.dataPath, "Art", "CombatBackgrounds", pool, setId);
+        var setDir = ClientArtPaths.FindCombatBackgroundSetDir(pool, setId);
 
-        return Directory.Exists(setDir) ? setDir : null;
+        return !string.IsNullOrEmpty(setDir) && Directory.Exists(setDir) ? setDir : null;
 
     }
 

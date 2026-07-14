@@ -9,7 +9,7 @@ using UnityEngine.UIElements;
  * 本文件: CombatViewSettingsBinder.cs — 视角 + 背景分辨率滑条 UI
  * 【机制要点】
  * · 拖动仅更新标签；ApplyPending 写入 ClientGameSettings 并 RefreshViewportNow
- * · 暂停块：MatchPauseOverlay.BuildPauseSettingsBlock
+ * · 暂停块：MatchPauseOverlay 设置子面板（BuildInMatchSettingsOptions）
  * · 主菜单：Settings.uxml 同名控件
  * 【关联】SettingsController · MatchPauseOverlay · CombatRealtimeController
  * ══
@@ -25,24 +25,25 @@ public sealed class CombatViewSettingsBinder
     public const string BgSliderName = "slider-combat-bg-res";
     public const string BgValueLabelName = "lbl-combat-bg-res-value";
     public const string BgSetDropdownName = "dropdown-combat-bg-set";
+    public const string BreathingSliderName = "slider-combat-breathing";
+    public const string BreathingValueLabelName = "lbl-combat-breathing-value";
 
     private Slider? _fovSlider;
     private Label? _fovLabel;
     private Slider? _bgSlider;
     private Label? _bgLabel;
+    private Slider? _breathingSlider;
+    private Label? _breathingLabel;
     private DropdownField? _bgSetDropdown;
     private readonly List<string> _bgSetIds = new();
     private readonly List<string> _bgSetLabels = new();
 
-    public static VisualElement BuildPauseSettingsBlock(CombatViewSettingsBinder binder)
+    public void AppendRowsTo(VisualElement container)
     {
-        var block = new VisualElement();
-        block.AddToClassList("settings-options");
-        block.Add(binder.BuildFovRow());
-        block.Add(binder.BuildBackgroundSetRow());
-        block.Add(binder.BuildBackgroundResRow());
-        binder.Bind(block);
-        return block;
+        container.Add(BuildFovRow());
+        container.Add(BuildBreathingRow());
+        container.Add(BuildBackgroundSetRow());
+        container.Add(BuildBackgroundResRow());
     }
 
     public void Bind(VisualElement container)
@@ -51,11 +52,14 @@ public sealed class CombatViewSettingsBinder
         _fovLabel = container.Q<Label>(FovValueLabelName);
         _bgSlider = container.Q<Slider>(BgSliderName);
         _bgLabel = container.Q<Label>(BgValueLabelName);
+        _breathingSlider = container.Q<Slider>(BreathingSliderName);
+        _breathingLabel = container.Q<Label>(BreathingValueLabelName);
         _bgSetDropdown = container.Q<DropdownField>(BgSetDropdownName);
         EnsureBackgroundSetChoices();
         LoadFromSaved();
         WireSlider(_fovSlider, _fovLabel, FormatFov);
         WireSlider(_bgSlider, _bgLabel, FormatBackgroundRes);
+        WireSlider(_breathingSlider, _breathingLabel, FormatBreathing);
     }
 
     public void LoadFromSaved()
@@ -83,6 +87,15 @@ public sealed class CombatViewSettingsBinder
             var pref = ClientGameSettings.CombatBackgroundSetPreference;
             var idx = _bgSetIds.IndexOf(pref);
             _bgSetDropdown.index = idx >= 0 ? idx : 0;
+        }
+
+        if (_breathingSlider != null)
+        {
+            _breathingSlider.SetValueWithoutNotify(ClientGameSettings.CombatViewBreathingAmplitudePercent);
+            if (_breathingLabel != null)
+            {
+                _breathingLabel.text = FormatBreathing(_breathingSlider.value);
+            }
         }
     }
 
@@ -113,6 +126,11 @@ public sealed class CombatViewSettingsBinder
             }
         }
 
+        if (_breathingSlider != null)
+        {
+            ClientGameSettings.SetCombatViewBreathingAmplitudePercent(Mathf.RoundToInt(_breathingSlider.value));
+        }
+
         RefreshCombatViewport();
     }
 
@@ -129,6 +147,14 @@ public sealed class CombatViewSettingsBinder
         ClientGameSettings.MinCombatVerticalFovDeg,
         ClientGameSettings.MaxCombatVerticalFovDeg,
         ClientGameSettings.DefaultCombatVerticalFovDeg);
+
+    private VisualElement BuildBreathingRow() => BuildRow(
+        "视角呼吸微动",
+        BreathingValueLabelName,
+        BreathingSliderName,
+        ClientGameSettings.MinCombatViewBreathingPercent,
+        ClientGameSettings.MaxCombatViewBreathingPercent,
+        ClientGameSettings.DefaultCombatViewBreathingPercent);
 
     private VisualElement BuildBackgroundSetRow()
     {
@@ -223,6 +249,8 @@ public sealed class CombatViewSettingsBinder
 
     private static string FormatBackgroundRes(float value) =>
         ClientGameSettings.SnapBackgroundResolution(value) + " px";
+
+    private static string FormatBreathing(float value) => Mathf.RoundToInt(value) + "%";
 
     private static void RefreshCombatViewport()
     {

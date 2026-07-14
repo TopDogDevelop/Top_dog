@@ -4,6 +4,7 @@ using TopDog.Sim.Member;
 using TopDog.Sim.Realtime;
 using TopDog.Sim.Skirmish;
 using TopDog.Sim.State;
+using TopDog.Sim.Traits;
 
 /*
  * ══ 设计手册嵌入 ══
@@ -109,6 +110,7 @@ public static class MechanismTestSpawnService
             };
             u.fittedModules = new Dictionary<string, string>(
                 MemberFittingService.Fittings(state, member));
+            TraitGrantedModuleService.ApplyForMember(member, u, modules);
             ModuleRuntime.ApplyToUnit(u, hull, modules);
             ModuleActivationService.EnableFieldModulesByDefault(u, modules);
             LaunchTubeStateService.InitTubeStates(u, modules);

@@ -35,6 +35,9 @@ public sealed class CombatSpaceBackgroundPresenter
     // liketocoode34e
     }
 
+    public void SetFieldAuraPass(FieldAuraVfxCameraHost? fieldAuraPass) =>
+        _cameraHost.SetFieldAuraPass(fieldAuraPass);
+
     public void SetActive(bool active) => _cameraHost.SetActive(active);
 
     public void Refresh(string? setId) => _cameraHost.Refresh(setId);

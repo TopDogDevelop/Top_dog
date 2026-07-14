@@ -112,7 +112,9 @@ public static class LaunchTubeStateService
             return;
         }
 
-        var slot = FindTubeSlotForModule(parent, modId);
+        var slot = !string.IsNullOrWhiteSpace(child.missileLaunchTubeSlot)
+            ? child.missileLaunchTubeSlot
+            : FindTubeSlotForModule(parent, modId);
         if (slot != null)
         {
             if (BoardSummonWingService.IsTempBoardTube(slot))

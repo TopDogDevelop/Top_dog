@@ -31,6 +31,7 @@ public static class ModuleRuntime
         }
 
         // liketocoode3a5
+        // 显示吨位仅来自 hull.tonnageClass；hullShieldFusionEffectiveTonnageClass 仅 FieldAuraService 使用。
         unit.tonnageClass = hull.tonnageClass;
         unit.shieldMax = hull.shieldHp;
         unit.armorMax = hull.armorHp;
@@ -62,6 +63,22 @@ public static class ModuleRuntime
             {
                 range = Math.Max(range, AttackModuleRules.ResolveAttackRangeM(mod));
                 minTracking = Math.Min(minTracking, AttackModuleRules.ResolveTrackingDegPerSec(mod));
+            }
+
+            if (MissileSpawnService.IsMissileModuleId(modId))
+            {
+                var profile = MissileProjectileProfile.FromModule(mod);
+                if (profile.IsBallistic)
+                {
+                    if (mod.attackRangeM > 0.01f)
+                    {
+                        range = Math.Max(range, mod.attackRangeM);
+                    }
+                    else if (profile.FlightSpeedMps > 0.01f && profile.FlightMaxSec > 0.01f)
+                    {
+                        range = Math.Max(range, profile.FlightSpeedMps * profile.FlightMaxSec);
+                    }
+                }
             }
         }
 

@@ -225,7 +225,9 @@ public sealed class CombatAutofitAndRosterTests
     {
         var state = new GameState();
         var aiId = "legion-ai-uuid";
+        var localId = "legion-local";
         state.legions.Add(new LegionState { legionId = aiId, isAiControlled = true, legionStock = { ["hull_bc_spear"] = 5 } });
+        state.legions.Add(new LegionState { legionId = localId, isLocal = true });
         state.buildings.Add(new BuildingState
         {
             buildingId = "b1",
@@ -240,12 +242,18 @@ public sealed class CombatAutofitAndRosterTests
             name = "Defender",
             equippedHullId = "hull_bc_spear",
         });
-        state.members.Clear();
+        LegionPlayerRegistry.AddMemberToLegion(state, localId, new MemberState
+        {
+            memberId = "atk",
+            name = "Attacker",
+            equippedHullId = "hull_bc_spear",
+            currentSolarSystemId = "sys_fort",
+            opsDeploySystemId = "sys_fort",
+        });
 
         var entry = CombatQueueCompiler.BuildBuildingAssault(
             state, state.buildings[0], ShipRegistry.LoadDefault(), ModuleRegistry.LoadDefault(),
-            new Random(1), aiAttacker: false, "legion-local");
-        entry.friendlyMemberIds.Add("atk");
+            new Random(1), aiAttacker: false, localId);
         CombatRosterPrepService.PrepareEntry(
             state, entry, ShipRegistry.LoadDefault(), ModuleRegistry.LoadDefault(), new Random(1));
         var spawned = BattlefieldSpawner.SpawnAll(

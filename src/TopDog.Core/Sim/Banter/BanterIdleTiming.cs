@@ -10,6 +10,8 @@ public static class BanterIdleTiming
     public const float CharDelaySec = 0.2f;
     /// <summary>多开跟读：各号分别输出同一句，号与号之间的间隔。</summary>
     public const float MultiboxEchoGapSec = 0.4f;
+    /// <summary>无合格发言人时仅轮询，不空转开组（避免招新后还要再空等一轮 30s）。</summary>
+    public const float EmptyRosterPollSec = 5f;
 
     public static int CountTextChars(string? catalogText) =>
         BanterInlineMarkupParser.StripMarkupForValidation(catalogText).Length;

@@ -99,4 +99,10 @@ public sealed class ModuleDef
     public float markDurationSec;
     public float incomingDamageMult;
     public float outgoingRepairMult;
+
+    /// <summary>来自词条：开战前不可配装，进局后由词条逻辑写入舰船。</summary>
+    public bool fromTrait;
+
+    /// <summary>玩家可见且可交互（配装/库存挑选）。缺省 true；词条隐藏模块为 false。</summary>
+    public bool playerVisibleInteractable = true;
 }

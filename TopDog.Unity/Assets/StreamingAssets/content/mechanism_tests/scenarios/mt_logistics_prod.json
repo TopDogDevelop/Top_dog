@@ -1,6 +1,7 @@
 {
   "scenarioId": "mt_logistics_prod",
   "displayName": "后勤生产链",
+  "scenarioOrder": 4,
   "seed": 1004,
   "spawnSeparationM": 20000,
   "legions": [

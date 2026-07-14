@@ -7,7 +7,8 @@ using TopDog.Foundation.Io;
  * 权威: docs/MECHANISM_TEST_INDEX.md · docs/MECHANISM_TEST_SCENARIOS.md
  * 本文件: MechanismTestScenarioDef.cs — 机制详测场景 JSON DTO
  * 【机制要点】
- * · scenarioOrder：战役列表 #01–#06 排序（StoryLevelCatalog）
+ * · scenarioOrder：战役列表 #01–#10 排序（StoryLevelCatalog）
+ * · mapMode：nav_rally / intra_scene_warp；缺省单矿带对阵
  * ══
  */
 
@@ -21,6 +22,8 @@ public sealed class MechanismTestScenarioDef
     public int scenarioOrder;
     public int seed;
     public float spawnSeparationM = 20_000f;
+    /// <summary>nav_rally / intra_scene_warp；默认单矿带对阵。</summary>
+    public string? mapMode;
     public List<MechanismTestLegionDef> legions = new();
 }
 

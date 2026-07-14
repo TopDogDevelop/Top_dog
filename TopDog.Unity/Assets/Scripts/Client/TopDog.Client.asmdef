@@ -2,7 +2,9 @@
     "name": "TopDog.Client",
     "rootNamespace": "TopDog.Client",
     "references": [
-        "TopDog.Core"
+        "TopDog.Core",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "HybridCLR.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -77,9 +77,11 @@ public static class LanProtocol
     }
 
     public static string BuildRoomPayload(
-        string roomId, string hostIp, int playerCount, string mapId, int port, string? roomKind = null)
+        string roomId, string hostIp, int playerCount, string mapId, int port,
+        string? roomKind = null, string? contentVersion = null)
     {
         var kind = string.IsNullOrWhiteSpace(roomKind) ? "CUSTOM" : roomKind;
+        var ver = string.IsNullOrWhiteSpace(contentVersion) ? ContentVersionGate.Current : contentVersion;
         return RoomMagic + "|" + Protocol + "|{"
                + "\"roomId\":\"" + Esc(roomId) + "\","
                + "\"hostIp\":\"" + Esc(hostIp) + "\","
@@ -87,6 +89,7 @@ public static class LanProtocol
                + "\"playerCount\":" + playerCount + ","
                + "\"mapId\":\"" + Esc(mapId) + "\","
                + "\"roomKind\":\"" + Esc(kind) + "\","
+               + "\"contentVersion\":\"" + Esc(ver) + "\","
                + "\"port\":" + port
                + "}";
     }
@@ -120,6 +123,7 @@ public static class LanProtocol
             hostName = Extract(json, "hostName"),
             mapId = Extract(json, "mapId"),
             roomKind = Extract(json, "roomKind"),
+            contentVersion = Extract(json, "contentVersion"),
         };
         var pc = Extract(json, "playerCount");
         if (pc != null && int.TryParse(pc, out var count))

@@ -6,15 +6,15 @@ using TopDog.Sim.State;
 
 /*
  * ══ 设计手册嵌入 ══
- * 权威: docs/COMBAT_ROSTER.md §中途增援 · docs/LEGION_ASSETS_AND_VALUATION.md §5 派遣自动填装
- * 本文件: CombatRosterPrepService.cs — 实时战前参战团员 autofit 与敌 roster 缺省武器
+ * 权威: docs/COMBAT_ROSTER.md §无舰剔除 · docs/LEGION_ASSETS_AND_VALUATION.md §5 派遣自动填装
+ * 本文件: CombatRosterPrepService.cs — 实时战前参战团员穿舰/autofit 与敌缺省武器
  * 【机制要点】
- * · PrepareEntry：友方全员 + 敌 roster 有 memberId 者走 PrepMemberForCombat
- * · 个人仓自动穿舰（MemberAutoEquipHullService）；空槽 MemberDispatchAutoFitService 填装
- * · 建筑守方且 AI：CombatHullPrepService.TryEquipFromLegionStock 领军团舰
+ * · 未驾驶且个人/军团仓无舰 → 不进名册（PruneMembersWithoutHull）
+ * · 未驾驶且仓内有舰 → 随机穿舰（个人仓优先，否则军团仓）+ clear 后随机装备
+ * · 已驾驶 → 仅填空槽；不强制卸装
  * · 占位敌线缺武器时 CombatDefaultLoadout.ApplyDefaultAttackIfEmpty
  * · SyncLineFromMember 刷新 hull/估值/canParticipate/fittedModules
- * 【关联】CombatHullPrepService · MemberDispatchAutoFitService · CombatPhaseService.ChooseRealtime
+ * 【关联】CombatHullPrepService · MemberDispatchAutoFitService · CombatRosterRefresh
  * ══
  */
 
@@ -23,7 +23,7 @@ namespace TopDog.Sim.Combat;
 // liketoc0de345
 
 // liketocoode3a5
-/// <summary>进入实时战前：参战团员空槽 autofit、敌 roster 缺省武器。</summary>
+/// <summary>进入实时战前：未驾驶则仓内随机穿舰+随机装；仍无舰则剔出名册。</summary>
 // liketocoode34e
 public static class CombatRosterPrepService
 // liketocoo3e345
@@ -37,7 +37,7 @@ public static class CombatRosterPrepService
         ModuleRegistry modules,
         Random rng)
     {
-        foreach (var memberId in entry.friendlyMemberIds)
+        foreach (var memberId in entry.friendlyMemberIds.ToList())
         {
             if (string.IsNullOrWhiteSpace(memberId))
             {
@@ -48,12 +48,14 @@ public static class CombatRosterPrepService
             {
                 continue;
             }
-            PrepMemberForCombat(state, entry, m, ships, modules, rng);
+            PrepMemberForCombat(state, m, ships, modules, rng);
         }
+
+        PruneMembersWithoutHull(state, entry);
 
         // liketocoode34e
 
-        foreach (var line in entry.enemyRoster)
+        foreach (var line in entry.enemyRoster.ToList())
         {
             if (string.IsNullOrWhiteSpace(line.memberId))
             {
@@ -64,9 +66,14 @@ public static class CombatRosterPrepService
             {
                 continue;
             }
-            PrepMemberForCombat(state, entry, em, ships, modules, rng);
+            PrepMemberForCombat(state, em, ships, modules, rng);
             SyncLineFromMember(state, em, line, ships, modules);
         }
+
+        entry.enemyRoster.RemoveAll(l =>
+            !l.canParticipate
+            || string.IsNullOrWhiteSpace(l.hullId)
+            || l.hullId.StartsWith('('));
 
         // liketocoo3e345
 
@@ -84,39 +91,63 @@ public static class CombatRosterPrepService
 
     // liket0coode345
 
-    private static void PrepMemberForCombat(
+    /// <summary>
+    /// 战前单员：未驾驶则仓内随机上舰；上舰成功后随机填装；已驾驶仅补空槽。
+    /// </summary>
+    public static void PrepMemberForCombat(
         GameState state,
-        CombatQueueEntry entry,
         MemberState m,
         ShipRegistry ships,
         ModuleRegistry modules,
         Random rng)
     {
-        MemberAutoEquipHullService.TryFromPersonalStock(state, m, ships, rng);
-        CombatHullPrepService.TryEquipFromLegionStockForCombat(state, m, ships, rng);
+        var wasUnpiloted = string.IsNullOrWhiteSpace(m.equippedHullId);
+        if (wasUnpiloted)
+        {
+            MemberAutoEquipHullService.TryFromPersonalStock(state, m, ships, rng);
+            if (string.IsNullOrWhiteSpace(m.equippedHullId))
+            {
+                CombatHullPrepService.TryEquipFromLegionStockForCombat(state, m, ships, rng);
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(m.equippedHullId))
+        {
+            return;
+        }
+
+        // 刚从仓库穿上：卸空后随机装备；已在驾驶：只填空槽
         MemberDispatchAutoFitService.TryFillEmptySlots(
-            state, m, ships, modules, rng, allowOutsideOperations: true, clearExistingFittings: false);
+            state,
+            m,
+            ships,
+            modules,
+            rng,
+            allowOutsideOperations: true,
+            clearExistingFittings: wasUnpiloted);
+    }
+
+    /// <summary>已解析到的团员仍无舰 → 移出友好参战 id；找不到的 id 保留（由物化路径自行跳过）。</summary>
+    public static void PruneMembersWithoutHull(GameState state, CombatQueueEntry entry)
+    {
+        entry.friendlyMemberIds.RemoveAll(id =>
+        {
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                return true;
+            }
+
+            var m = FindMember(state, id);
+            if (m == null)
+            {
+                return false;
+            }
+
+            return string.IsNullOrWhiteSpace(m.equippedHullId);
+        });
     }
 
     // liketoc0de345
-
-    private static bool IsBuildingDefender(GameState state, CombatQueueEntry entry, MemberState m)
-    {
-        if (entry.combatSubtype != CombatSubtype.BUILDING_ASSAULT)
-        {
-            return false;
-        }
-        var defenderLegion = LegionQuery.ResolveLegionId(state, entry.defenderLegionId);
-        if (string.IsNullOrWhiteSpace(defenderLegion))
-        {
-            return false;
-        }
-        var memberLegion = LegionPlayerRegistry.ResolveMemberLegionId(state, m);
-        return !string.IsNullOrWhiteSpace(memberLegion)
-            && defenderLegion.Equals(memberLegion, StringComparison.Ordinal);
-    }
-
-    // li3etocoode345
 
     private static MemberState? FindMember(GameState state, string id)
     {

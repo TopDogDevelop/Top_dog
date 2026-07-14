@@ -61,7 +61,13 @@ public static class MissileSpawnService
                 continue;
             }
 
-            if (HasLiveMissileFromTube(bf, launcher.unitId, modId))
+            if (HasLiveMissileFromTube(bf, launcher.unitId, kv.Key))
+            {
+                continue;
+            }
+
+            if (launcher.tubeStates.TryGetValue(kv.Key, out var tubeState)
+                && tubeState != LaunchTubeState.Inactive)
             {
                 continue;
             }
@@ -72,7 +78,7 @@ public static class MissileSpawnService
             }
 
             tubeIndex++;
-            missile = SpawnMissile(launcher, profile, tubeIndex, rng);
+            missile = SpawnMissile(launcher, profile, tubeIndex, kv.Key, rng);
             bf.units.Add(missile);
             CombatTelemetryLog.LogSpawn("missile", missile.unitId!, launcher.unitId);
             LaunchTubeStateService.OnMissileLaunched(launcher, kv.Key);
@@ -82,12 +88,12 @@ public static class MissileSpawnService
         return false;
     }
 
-    private static bool HasLiveMissileFromTube(BattlefieldState bf, string launcherUnitId, string modId)
+    private static bool HasLiveMissileFromTube(BattlefieldState bf, string launcherUnitId, string tubeSlotKey)
     {
         foreach (var u in bf.units)
         {
             if (launcherUnitId.Equals(u.parentUnitId, StringComparison.Ordinal)
-                && modId.Equals(u.missileModuleId, StringComparison.Ordinal)
+                && tubeSlotKey.Equals(u.missileLaunchTubeSlot, StringComparison.Ordinal)
                 && u.alive
                 && !u.IsDestroyed())
             {
@@ -132,7 +138,7 @@ public static class MissileSpawnService
             }
 
             tubeIndex++;
-            bf.units.Add(SpawnMissile(launcher, profile, tubeIndex, rng));
+            bf.units.Add(SpawnMissile(launcher, profile, tubeIndex, kv.Key, rng));
             CombatTelemetryLog.LogSpawn("missile", bf.units[^1].unitId!, launcher.unitId);
         }
     }
@@ -158,6 +164,7 @@ public static class MissileSpawnService
         BattlefieldUnit launcher,
         MissileProjectileProfile profile,
         int tubeIndex,
+        string tubeSlotKey,
         Random rng)
     {
         var label = ModuleCatalog.DisplayNameZh(profile.ModuleId);
@@ -174,6 +181,7 @@ public static class MissileSpawnService
             hullId = profile.ModuleId,
             tonnageClass = "MISSILE",
             missileModuleId = profile.ModuleId,
+            missileLaunchTubeSlot = tubeSlotKey,
             missileProfileSnapshot = profile,
             side = launcher.side,
             memberId = launcher.memberId,

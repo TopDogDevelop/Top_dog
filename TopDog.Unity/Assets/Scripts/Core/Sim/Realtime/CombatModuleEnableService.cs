@@ -117,7 +117,10 @@ public static class CombatModuleEnableService
         }
 
         unit.fieldAuraEnabledAtSec = 0f;
-        unit.fieldAuraDominant = false;
+        unit.fieldAuraShieldDominant = false;
+        unit.fieldAuraArmorDominant = false;
+        unit.fieldAuraShieldSuppressed = false;
+        unit.fieldAuraArmorSuppressed = false;
 
         ApplyPropulsionSpeed(unit, hull, modules);
         SalvoProfileService.ApplyToUnit(unit, hull, modules);

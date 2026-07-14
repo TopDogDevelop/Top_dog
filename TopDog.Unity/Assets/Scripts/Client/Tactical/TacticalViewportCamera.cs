@@ -1,10 +1,12 @@
 using System;
+using TopDog.App;
 using TopDog.Client;
 using TopDog.Sim.Realtime;
+using TopDog.Sim.State;
 using UnityEngine;
 /*
  * ══ 设计手册嵌入 ══
- * 权威: docs/TACTICAL_VIEW.md §5 zoom/orbit 禁 pan
+ * 权威: docs/TACTICAL_VIEW.md §5 zoom/orbit 禁 pan · docs/COMBAT_VIEW_BREATHING.md
  * 本文件: TacticalViewportCamera.cs — 战术透视虚拟相机
  * 【机制要点】
  * · 环绕注视点 orbit；滚轮改 ViewDistance（非缩放图标）
@@ -38,15 +40,64 @@ public sealed class TacticalViewportCamera : MonoBehaviour, IViewportCameraComma
     private const float OrbitPitchSpanRad = 1.35f;
     private const float DepthEpsilon = 0.01f;
 
+    private float _userOrbitYawRad;
+    private float _userOrbitPitchRad = DefaultOrbitPitchRad;
+    private float _breathPhaseRad;
+
     public float ViewDistance { get; private set; } = DefaultViewDistanceM;
-    public float OrbitYawRad { get; private set; }
-    public float OrbitPitchRad { get; private set; } = DefaultOrbitPitchRad;
+    public float OrbitYawRad => _userOrbitYawRad + SampleBreathYawRadLocal();
+    public float OrbitPitchRad => _userOrbitPitchRad + SampleBreathPitchRadLocal();
     public float VerticalFovDeg => ClientGameSettings.CombatVerticalFovDeg;
 
     /// <summary>诊断用：默认距离 / 当前距离（拉近 &gt; 1）。</summary>
     public float ZoomScale => DefaultViewDistanceM / Mathf.Max(ViewDistance, MinViewDistanceM);
 
     public Func<BattlefieldState?>? ActiveBattlefieldProvider { get; set; }
+
+    private void Update()
+    {
+        if (!ShouldRunBreathing())
+        {
+            return;
+        }
+
+        _breathPhaseRad += (Mathf.PI * 2f / ClientGameSettings.CombatViewBreathingPeriodSec) * Time.unscaledDeltaTime;
+        if (_breathPhaseRad >= Mathf.PI * 2f)
+        {
+            _breathPhaseRad -= Mathf.PI * 2f;
+        }
+    }
+
+    private static bool ShouldRunBreathing()
+    {
+        if (ClientGameSettings.CombatViewBreathingAmplitudePercent <= 0)
+        {
+            return false;
+        }
+
+        if (GameAppHost.Instance?.MatchPaused == true)
+        {
+            return false;
+        }
+
+        var core = GameAppHost.Instance?.Core;
+        if (core?.State.combatRealtimeActive != true)
+        {
+            return false;
+        }
+
+        return CombatViewModeState.Mode != CombatViewMode.StarMap;
+    }
+
+    private float SampleBreathYawRadLocal() =>
+        ShouldRunBreathing() ? ClientGameSettings.CombatViewBreathingAmplitudeRad * Mathf.Sin(_breathPhaseRad) : 0f;
+
+    private float SampleBreathPitchRadLocal() =>
+        ShouldRunBreathing()
+            ? ClientGameSettings.CombatViewBreathingAmplitudeRad
+              * ClientGameSettings.CombatViewBreathingPitchFactor
+              * Mathf.Sin(_breathPhaseRad * 2f)
+            : 0f;
 
     public readonly struct ScreenProjection
     {
@@ -172,17 +223,17 @@ public sealed class TacticalViewportCamera : MonoBehaviour, IViewportCameraComma
         }
     }
 
-    public void OrbitLeft() => OrbitYawRad += OrbitStepRad;
-    public void OrbitRight() => OrbitYawRad -= OrbitStepRad;
+    public void OrbitLeft() => _userOrbitYawRad += OrbitStepRad;
+    public void OrbitRight() => _userOrbitYawRad -= OrbitStepRad;
     public void OrbitUp() =>
-        OrbitPitchRad = Mathf.Clamp(
-            OrbitPitchRad + OrbitStepRad,
+        _userOrbitPitchRad = Mathf.Clamp(
+            _userOrbitPitchRad + OrbitStepRad,
             DefaultOrbitPitchRad - OrbitPitchSpanRad,
             DefaultOrbitPitchRad + OrbitPitchSpanRad);
 
     public void OrbitDown() =>
-        OrbitPitchRad = Mathf.Clamp(
-            OrbitPitchRad - OrbitStepRad,
+        _userOrbitPitchRad = Mathf.Clamp(
+            _userOrbitPitchRad - OrbitStepRad,
             DefaultOrbitPitchRad - OrbitPitchSpanRad,
             DefaultOrbitPitchRad + OrbitPitchSpanRad);
     public void PanLeft() { }
@@ -196,15 +247,15 @@ public sealed class TacticalViewportCamera : MonoBehaviour, IViewportCameraComma
     /// <summary>切换战场时保持战术默认视距，避免拉远导致距离环不可见。</summary>
     public void EnterBattlefieldTopDown()
     {
-        OrbitYawRad = 0f;
-        OrbitPitchRad = DefaultOrbitPitchRad;
+        _userOrbitYawRad = 0f;
+        _userOrbitPitchRad = DefaultOrbitPitchRad;
         ViewDistance = DefaultViewDistanceM;
     }
 
     public void ResetToTopDown(BattlefieldState? bf)
     {
-        OrbitYawRad = 0f;
-        OrbitPitchRad = DefaultOrbitPitchRad;
+        _userOrbitYawRad = 0f;
+        _userOrbitPitchRad = DefaultOrbitPitchRad;
         if (bf == null || bf.units.Count == 0)
         {
             ViewDistance = DefaultViewDistanceM;

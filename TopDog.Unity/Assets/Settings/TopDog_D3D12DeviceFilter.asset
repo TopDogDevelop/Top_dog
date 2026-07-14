@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1798438448 &8057108648114842400
+D3D12DeviceFilterLists:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: TopDog_D3D12DeviceFilter
+  serializedVersion: 1
+  m_AllowFilterList:
+  - vendorName: Intel
+    deviceName: 
+    driverVersionComparator: 0
+    driverVersion: 
+    featureLevelComparator: 0
+    featureLevel: 
+    graphicsMemoryComparator: 0
+    graphicsMemory: 
+    processorCountComparator: 0
+    processorCount: 
+    deviceType: 2
+  m_DenyFilterList: []
+  m_GraphicsJobsFilterList: []

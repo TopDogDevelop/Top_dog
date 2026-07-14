@@ -119,37 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!115 &437709356
-MonoScript:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  serializedVersion: 7
-  m_DefaultReferences: {}
-  m_Icon: {fileID: 0}
-  m_Type: 0
-  m_ExecutionOrder: 0
-  m_ClassName: GameAppHost
-  m_Namespace: TopDog.Client
-  m_AssemblyName: TopDog.Client
---- !u!115 &557796807
-MonoScript:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  serializedVersion: 7
-  m_DefaultReferences: {}
-  m_Icon: {fileID: 0}
-  m_Type: 0
-  m_ExecutionOrder: 0
-  m_ClassName: GameSceneRouter
-  m_Namespace: TopDog.Client
-  m_AssemblyName: TopDog.Client
---- !u!115 &565892373
+--- !u!115 &229834766
 MonoScript:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -162,6 +132,21 @@ MonoScript:
   m_Type: 0
   m_ExecutionOrder: 0
   m_ClassName: GameAppBootstrap
+  m_Namespace: TopDog.Client
+  m_AssemblyName: TopDog.Client
+--- !u!115 &279908406
+MonoScript:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  serializedVersion: 7
+  m_DefaultReferences: {}
+  m_Icon: {fileID: 0}
+  m_Type: 0
+  m_ExecutionOrder: 0
+  m_ClassName: GameSceneRouter
   m_Namespace: TopDog.Client
   m_AssemblyName: TopDog.Client
 --- !u!1 &939260076
@@ -281,7 +266,7 @@ Light:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1075748807}
   m_Enabled: 1
-  serializedVersion: 13
+  serializedVersion: 12
   m_Type: 1
   m_Color: {r: 1, g: 0.95686275, b: 0.8392157, a: 1}
   m_Intensity: 1
@@ -333,7 +318,7 @@ Light:
   m_UseBoundingSphereOverride: 0
   m_UseViewFrustumForShadowCasterCull: 1
   m_ForceVisible: 0
-  m_ShapeRadius: 0.025
+  m_ShadowRadius: 0
   m_ShadowAngle: 0
   m_LightUnit: 1
   m_LuxAtDistance: 1
@@ -353,7 +338,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 50, y: -30, z: 0}
---- !u!1 &1748389005
+--- !u!1 &1776735745
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -361,10 +346,10 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1748389009}
-  - component: {fileID: 1748389008}
-  - component: {fileID: 1748389007}
-  - component: {fileID: 1748389006}
+  - component: {fileID: 1776735749}
+  - component: {fileID: 1776735748}
+  - component: {fileID: 1776735747}
+  - component: {fileID: 1776735746}
   m_Layer: 0
   m_Name: TopDogPersistent
   m_TagString: Untagged
@@ -372,49 +357,49 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1748389006
+--- !u!114 &1776735746
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1748389005}
+  m_GameObject: {fileID: 1776735745}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 565892373}
+  m_Script: {fileID: 229834766}
   m_Name: 
   m_EditorClassIdentifier: TopDog.Client::TopDog.Client.GameAppBootstrap
---- !u!114 &1748389007
+--- !u!114 &1776735747
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1748389005}
+  m_GameObject: {fileID: 1776735745}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 557796807}
+  m_Script: {fileID: 279908406}
   m_Name: 
   m_EditorClassIdentifier: TopDog.Client::TopDog.Client.GameSceneRouter
---- !u!114 &1748389008
+--- !u!114 &1776735748
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1748389005}
+  m_GameObject: {fileID: 1776735745}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 437709356}
+  m_Script: {fileID: 2088320224}
   m_Name: 
   m_EditorClassIdentifier: TopDog.Client::TopDog.Client.GameAppHost
---- !u!4 &1748389009
+--- !u!4 &1776735749
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1748389005}
+  m_GameObject: {fileID: 1776735745}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -423,10 +408,25 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!115 &2088320224
+MonoScript:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  serializedVersion: 7
+  m_DefaultReferences: {}
+  m_Icon: {fileID: 0}
+  m_Type: 0
+  m_ExecutionOrder: 0
+  m_ClassName: GameAppHost
+  m_Namespace: TopDog.Client
+  m_AssemblyName: TopDog.Client
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 939260079}
   - {fileID: 1075748809}
-  - {fileID: 1748389009}
+  - {fileID: 1776735749}

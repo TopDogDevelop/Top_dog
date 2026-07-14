@@ -46,9 +46,12 @@ public static class BattlefieldSystem
             return;
         }
 
+        CombatTelemetrySessionExport.EnsureActive(state);
+
         HealMisfinishedShipBattlefields(state);
 
         TacticalWarpService.TickInTransit(state, dtSec);
+        RallyNavigationService.Tick(state, ships, dtSec);
 
         foreach (var bf in state.battlefields)
         {
@@ -101,6 +104,7 @@ public static class BattlefieldSystem
         FieldAuraService.Tick(state, bf, modules, ships, dtSec);
         CombatMarkService.Tick(bf);
         LogisticsProducerService.Tick(bf, modules, dtSec);
+        RemoteRepairAutoTargetingService.TickAll(bf, modules);
         RemoteRepairSalvoService.Tick(state, bf, modules, ships, dtSec);
         TickPassiveShieldRegen(bf, dtSec);
 

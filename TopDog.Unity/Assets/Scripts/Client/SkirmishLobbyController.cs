@@ -28,9 +28,39 @@ public sealed class SkirmishLobbyController : UiScreenController
     protected override bool UseSafeAreaInsets => false;
 
     private SkirmishLobbyState _lobby = new();
-    private readonly ShipRegistry _ships = ShipRegistry.LoadDefault();
-    private readonly ModuleRegistry _modules = ModuleRegistry.LoadDefault();
+    // Lazy: field initializers run on OutOfMatch load; STJ/content failures must not kill boot.
+    private ShipRegistry? _ships;
+    private ModuleRegistry? _modules;
     private readonly List<TemplateCatalogEntry> _templates = new();
+
+    private ShipRegistry Ships => _ships ??= SafeLoadShips();
+    private ModuleRegistry Modules => _modules ??= SafeLoadModules();
+
+    private static ShipRegistry SafeLoadShips()
+    {
+        try
+        {
+            return ShipRegistry.LoadDefault();
+        }
+        catch (Exception e)
+        {
+            Debug.LogException(e);
+            return new ShipRegistry();
+        }
+    }
+
+    private static ModuleRegistry SafeLoadModules()
+    {
+        try
+        {
+            return ModuleRegistry.LoadDefault();
+        }
+        catch (Exception e)
+        {
+            Debug.LogException(e);
+            return new ModuleRegistry();
+        }
+    }
     private readonly List<(Button btn, EventCallback<ClickEvent> handler)> _dynamicHandlers = new();
 
     private SkirmishMatchBroker? _matchBroker;
@@ -114,7 +144,7 @@ public sealed class SkirmishLobbyController : UiScreenController
         _lobby = CreateDefaultLobby();
         _templates.Clear();
         _templates.AddRange(SkirmishLobbyCatalog.MemberTemplates());
-        _prepCore = SkirmishLobbyPrepCore.TryCreate(_lobby, _ships, _modules);
+        _prepCore = SkirmishLobbyPrepCore.TryCreate(_lobby, Ships, Modules);
 
         _modeRow = root.Q<VisualElement>("mode-row");
         BuildModeRow(_modeRow);
@@ -445,7 +475,7 @@ public sealed class SkirmishLobbyController : UiScreenController
         });
         var ai = _lobby.players[^1];
         _lobby.rosterByPlayerId[ai.playerId] = new List<SkirmishRosterSlot>();
-        SkirmishAiRosterGenerator.FillAiRoster(_lobby, _ships, _modules, new System.Random(_lobby.seed));
+        SkirmishAiRosterGenerator.FillAiRoster(_lobby, Ships, Modules, new System.Random(_lobby.seed));
     }
 
     private void ToggleTemplateMemberPicker()
@@ -607,7 +637,7 @@ public sealed class SkirmishLobbyController : UiScreenController
 
     private void EnsurePrepCore()
     {
-        _prepCore ??= SkirmishLobbyPrepCore.TryCreate(_lobby, _ships, _modules);
+        _prepCore ??= SkirmishLobbyPrepCore.TryCreate(_lobby, Ships, Modules);
         _prepCore?.SyncFromLobby(_lobby);
     }
 
@@ -686,9 +716,10 @@ public sealed class SkirmishLobbyController : UiScreenController
         {
             TrimToLocalPlayerOnly();
             EnsureAiOpponent();
-            SkirmishAiRosterGenerator.FillAiRoster(_lobby, _ships, _modules, new System.Random(_lobby.seed));
+            SkirmishAiRosterGenerator.FillAiRoster(_lobby, Ships, Modules, new System.Random(_lobby.seed));
             PullPrepIntoLobby();
-            GameAppHost.Instance?.StartFromSkirmishLobby(_lobby);
+            var host = GameAppHost.EnsureAlive();
+            host.StartFromSkirmishLobby(_lobby);
             GameSceneRouter.Instance?.EnterMatch(TopDogSceneKind.CombatRealtime);
         }
         catch (Exception e)
@@ -713,14 +744,15 @@ public sealed class SkirmishLobbyController : UiScreenController
             EnsurePeerPlayer(snap.PeerIp, snap.IsLocalHost);
             _lobby.seed = SkirmishMatchLogic.StableHash(_matchBroker?.LocalIp + "|" + snap.PeerIp + "|" + _lobby.scale);
             PullPrepIntoLobby();
+            var host = GameAppHost.EnsureAlive();
             if (snap.IsLocalHost)
             {
-                GameAppHost.Instance?.StartFromSkirmishLobby(_lobby);
-                GameAppHost.Instance?.StartLanHost(GameAppHost.DefaultTcpGamePort);
+                host.StartFromSkirmishLobby(_lobby);
+                host.StartLanHost(GameAppHost.DefaultTcpGamePort);
             }
             else
             {
-                GameAppHost.Instance?.ConnectLanGuest(snap.PeerIp, GameAppHost.DefaultTcpGamePort);
+                host.ConnectLanGuest(snap.PeerIp, GameAppHost.DefaultTcpGamePort);
             }
 
             GameSceneRouter.Instance?.EnterMatch(TopDogSceneKind.CombatRealtime);

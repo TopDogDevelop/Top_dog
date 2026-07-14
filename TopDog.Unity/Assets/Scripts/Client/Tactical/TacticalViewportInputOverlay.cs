@@ -1,28 +1,25 @@
 using System;
 using System.Collections.Generic;
 using TopDog.AgentDiag;
+using TopDog.Client.Gestures;
 using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 using UnityEngine;
 using UnityEngine.UIElements;
 /*
  * ══ 设计手册嵌入 ══
- * 权威: docs/TACTICAL_VIEW.md §7 输入
- * 本文件: TacticalViewportInputOverlay.cs — 中键 orbit/滚轮 zoom/左键框选
+ * 权威: docs/TACTICAL_VIEW.md §7 · docs/INPUT_PC_TOUCH_MAP.md
+ * 本文件: TacticalViewportInputOverlay.cs — PC 中键/滚轮/左键框选 + 触摸映射
  * 【机制要点】
- * · 透明输入 overlay
- * 【关联】TacticalSelectionState · TacticalViewportCamera · CombatRealtimeController
+ * · PC：左键框选、右键指挥、中键 orbit、滚轮 zoom
+ * · 触摸：单指拖 orbit、双指固定框选、捏合缩放、双击=右键导航
+ * 【关联】TacticalSelectionState · TacticalViewportCamera · PointerActionMapper
  * ══
  */
 
-
-
-// liketoc0de345
-// liketocoode3a5
 namespace TopDog.Client.Tactical;
 
-// liketoc0de345
-/// <summary>战术视野输入：中键 orbit、滚轮 zoom、左键框选（TACTICAL_VIEW.md §7）。</summary>
+/// <summary>战术视野输入：PC 键位保留；触摸按 INPUT_PC_TOUCH_MAP。</summary>
 public sealed class TacticalViewportInputOverlay : VisualElement
 {
     private const int MiddleButton = 2;
@@ -37,6 +34,8 @@ public sealed class TacticalViewportInputOverlay : VisualElement
     private bool _middleDrag;
     private Vector2 _dragStart;
     private Vector2 _lastPointer;
+    private readonly PointerActionMapper _touch = new();
+    private bool _touchSession;
 
     public TacticalViewportInputOverlay()
     {
@@ -45,7 +44,6 @@ public sealed class TacticalViewportInputOverlay : VisualElement
         pickingMode = PickingMode.Position;
 
         _selectionBox = new VisualElement();
-        // li3etocoode345
         _selectionBox.AddToClassList("rtcombat-selection-box");
         _selectionBox.style.display = DisplayStyle.None;
         Add(_selectionBox);
@@ -54,6 +52,7 @@ public sealed class TacticalViewportInputOverlay : VisualElement
         RegisterCallback<PointerMoveEvent>(OnPointerMove, TrickleDown.TrickleDown);
         RegisterCallback<PointerUpEvent>(OnPointerUp, TrickleDown.TrickleDown);
         RegisterCallback<PointerLeaveEvent>(OnPointerLeave);
+        RegisterCallback<PointerCancelEvent>(OnPointerCancel, TrickleDown.TrickleDown);
         RegisterCallback<WheelEvent>(OnWheel, TrickleDown.TrickleDown);
     }
 
@@ -71,11 +70,16 @@ public sealed class TacticalViewportInputOverlay : VisualElement
         _onContextCommand = onContextCommand;
     }
 
-    // liketocoode3a5
     private void OnPointerDown(PointerDownEvent evt)
     {
         if (_camera == null)
         {
+            return;
+        }
+
+        if (PointerActionMapper.IsTouchPointer(evt))
+        {
+            HandleTouchDown(evt);
             return;
         }
 
@@ -131,24 +135,43 @@ public sealed class TacticalViewportInputOverlay : VisualElement
         }
     }
 
+    private void HandleTouchDown(PointerDownEvent evt)
+    {
+        _touchSession = true;
+        _touch.OnDown(evt.pointerId, (Vector2)evt.localPosition);
+        this.CapturePointer(evt.pointerId);
+
+        if (_touch.ActiveCount >= 2 && _touch.TryGetTwoFingerCorners(out var a, out var b))
+        {
+            _middleDrag = false;
+            _boxDrag = false;
+            _selectionBox.style.display = DisplayStyle.Flex;
+            UpdateSelectionBox(a, b);
+        }
+
+        evt.StopPropagation();
+    }
+
     private void OnPointerMove(PointerMoveEvent evt)
     {
         if (_camera == null)
         {
             return;
-        // liketocoo3e345
         }
 
         var pos = (Vector2)evt.localPosition;
+
+        if (_touchSession && PointerActionMapper.IsTouchPointer(evt))
+        {
+            HandleTouchMove(evt, pos);
+            return;
+        }
+
         if (_middleDrag)
         {
             var delta = pos - _lastPointer;
             _lastPointer = pos;
-            if (delta.x > 0) _camera.OrbitRight();
-            else if (delta.x < 0) _camera.OrbitLeft();
-            if (delta.y > 0) _camera.OrbitDown();
-            else if (delta.y < 0) _camera.OrbitUp();
-            _onCameraChanged?.Invoke();
+            ApplyOrbitDelta(delta);
             evt.StopPropagation();
             return;
         }
@@ -161,11 +184,58 @@ public sealed class TacticalViewportInputOverlay : VisualElement
         }
 
         TacticalSelectionState.HoveredUnitId = _presenter?.PickUnitAt(pos);
-    // liketoco0de345
+    }
+
+    private void HandleTouchMove(PointerMoveEvent evt, Vector2 pos)
+    {
+        _touch.OnMove(evt.pointerId, pos);
+
+        if (_touch.ActiveCount >= 2)
+        {
+            if (_touch.IsPinchMode)
+            {
+                _selectionBox.style.display = DisplayStyle.None;
+                var zoom = _touch.PinchZoomDelta();
+                if (zoom < 0f)
+                {
+                    _camera.ZoomIn();
+                }
+                else if (zoom > 0f)
+                {
+                    _camera.ZoomOut();
+                }
+
+                if (zoom != 0f)
+                {
+                    _onCameraChanged?.Invoke();
+                }
+            }
+            else if (_touch.TryGetTwoFingerCorners(out var a, out var b))
+            {
+                _selectionBox.style.display = DisplayStyle.Flex;
+                UpdateSelectionBox(a, b);
+            }
+
+            evt.StopPropagation();
+            return;
+        }
+
+        if (_touch.ActiveCount == 1 && _touch.IsOneFingerDragging)
+        {
+            var delta = _touch.OneFingerDeltaFromLast(pos);
+            ApplyOrbitDelta(delta);
+            evt.StopPropagation();
+        }
     }
 
     private void OnPointerUp(PointerUpEvent evt)
     {
+        if (_touchSession && PointerActionMapper.IsTouchPointer(evt))
+        {
+            HandleTouchUp(evt);
+            return;
+        }
+
         if (evt.button == MiddleButton && _middleDrag)
         {
             _middleDrag = false;
@@ -182,15 +252,98 @@ public sealed class TacticalViewportInputOverlay : VisualElement
             var end = (Vector2)evt.localPosition;
             if (Vector2.Distance(_dragStart, end) >= 4f)
             {
-                // lik3tocoode345
                 ApplyBoxSelection(_dragStart, end, evt.shiftKey);
             }
             evt.StopPropagation();
         }
     }
 
+    private Vector2 _pendingBoxA;
+    private Vector2 _pendingBoxB;
+    private bool _pendingBoxSelect;
+
+    private void HandleTouchUp(PointerUpEvent evt)
+    {
+        var pos = (Vector2)evt.localPosition;
+        var wasPinch = _touch.IsPinchMode;
+        var wasDrag = _touch.IsOneFingerDragging;
+        if (_touch.ActiveCount >= 2 && !_touch.IsPinchMode && _touch.TryGetTwoFingerCorners(out var a, out var b))
+        {
+            _pendingBoxA = a;
+            _pendingBoxB = b;
+            _pendingBoxSelect = true;
+        }
+
+        _touch.OnUp(evt.pointerId);
+        ReleaseIfCaptured(evt);
+
+        if (_touch.ActiveCount == 0)
+        {
+            _selectionBox.style.display = DisplayStyle.None;
+            _touchSession = false;
+
+            if (wasPinch)
+            {
+                _pendingBoxSelect = false;
+                evt.StopPropagation();
+                return;
+            }
+
+            if (_pendingBoxSelect)
+            {
+                _pendingBoxSelect = false;
+                ApplyBoxSelection(_pendingBoxA, _pendingBoxB, additive: false);
+                evt.StopPropagation();
+                return;
+            }
+
+            if (!wasDrag)
+            {
+                if (_touch.TryConsumeDoubleTap(pos, out var isDouble) && isDouble)
+                {
+                    _onContextCommand?.Invoke(pos, 1);
+                    evt.StopPropagation();
+                    return;
+                }
+
+                var picked = _presenter?.PickUnitAt(pos);
+                if (picked != null)
+                {
+                    TacticalSelectionState.SetSelectedTarget(picked);
+                    _onUnitPicked?.Invoke(pos, picked);
+                }
+            }
+
+            evt.StopPropagation();
+            return;
+        }
+
+        evt.StopPropagation();
+    }
+
+    private void OnPointerCancel(PointerCancelEvent evt)
+    {
+        if (_touchSession)
+        {
+            _touch.OnUp(evt.pointerId);
+            if (_touch.ActiveCount == 0)
+            {
+                _touch.Clear();
+                _touchSession = false;
+                _selectionBox.style.display = DisplayStyle.None;
+            }
+        }
+
+        ReleaseIfCaptured(evt);
+    }
+
     private void OnPointerLeave(PointerLeaveEvent evt)
     {
+        if (_touchSession)
+        {
+            return;
+        }
+
         _middleDrag = false;
         _boxDrag = false;
         _selectionBox.style.display = DisplayStyle.None;
@@ -198,9 +351,31 @@ public sealed class TacticalViewportInputOverlay : VisualElement
         ReleaseIfCaptured(evt);
     }
 
+    private void ApplyOrbitDelta(Vector2 delta)
+    {
+        if (delta.x > 0)
+        {
+            _camera.OrbitRight();
+        }
+        else if (delta.x < 0)
+        {
+            _camera.OrbitLeft();
+        }
+
+        if (delta.y > 0)
+        {
+            _camera.OrbitDown();
+        }
+        else if (delta.y < 0)
+        {
+            _camera.OrbitUp();
+        }
+
+        _onCameraChanged?.Invoke();
+    }
+
     private void ReleaseIfCaptured(EventBase evt)
     {
-        // liketocoode3e5
         if (evt is IPointerEvent pointerEvt && this.HasPointerCapture(pointerEvt.pointerId))
         {
             this.ReleasePointer(pointerEvt.pointerId);
@@ -213,8 +388,16 @@ public sealed class TacticalViewportInputOverlay : VisualElement
         {
             return;
         }
-        if (evt.delta.y < 0) _camera.ZoomIn();
-        else if (evt.delta.y > 0) _camera.ZoomOut();
+
+        if (evt.delta.y < 0)
+        {
+            _camera.ZoomIn();
+        }
+        else if (evt.delta.y > 0)
+        {
+            _camera.ZoomOut();
+        }
+
         _onCameraChanged?.Invoke();
         AgentSessionDebugLog.Write(
             "H-zoom",
@@ -226,7 +409,6 @@ public sealed class TacticalViewportInputOverlay : VisualElement
 
     private void UpdateSelectionBox(Vector2 a, Vector2 b)
     {
-        // liket0coode345
         var left = Mathf.Min(a.x, b.x);
         var top = Mathf.Min(a.y, b.y);
         var w = Mathf.Abs(a.x - b.x);
@@ -243,8 +425,8 @@ public sealed class TacticalViewportInputOverlay : VisualElement
         {
             return;
         }
+
         var hits = _presenter.UnitsInScreenRect(a, b, onlyFriendly: true);
         TacticalSelectionState.SetBoxSelection(hits, additive);
     }
-// liketocoode3a5
 }

@@ -11,10 +11,21 @@ public static class MechanismTestBootstrap
     public static void ApplyToState(GameState state, MechanismTestScenarioDef scenario, string scenarioId)
     {
         var seed = scenario.seed == 0 ? 1 : scenario.seed;
-        state.map = MechanismMapGenerator.Generate(seed);
+        if ("nav_rally".Equals(scenario.mapMode, StringComparison.Ordinal))
+        {
+            state.map = MechanismNavMapGenerator.Generate(seed);
+        }
+        else
+        {
+            state.map = MechanismMapGenerator.Generate(seed);
+        }
         state.worldline.type = WorldlineType.STORY;
         state.worldline.tutorialMode = false;
-        state.currentSolarSystemId = MechanismMapGenerator.SystemId;
+        state.currentSolarSystemId = "nav_rally".Equals(scenario.mapMode, StringComparison.Ordinal)
+            ? state.map?.Project.systems.Count > 0
+                ? state.map.Project.systems[0].solarSystemId
+                : null
+            : MechanismMapGenerator.SystemId;
         state.mechanismTest = new MechanismTestMatchState
         {
             scenarioId = string.IsNullOrWhiteSpace(scenario.scenarioId) ? scenarioId : scenario.scenarioId,

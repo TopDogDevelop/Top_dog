@@ -9,6 +9,7 @@ using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
 using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
+using TopDog.Sim.Traits;
 using TopDog.Sim.Vision;
 
 /*
@@ -164,6 +165,7 @@ public static class SkirmishSpawnService
             };
             ApplyFortressSpawnOffset(u, rng, radius);
             u.fittedModules = new Dictionary<string, string>(MemberFittingService.Fittings(state, member));
+            TraitGrantedModuleService.ApplyForMember(member, u, modules);
             ModuleRuntime.ApplyToUnit(u, hull, modules);
             bf.units.Add(u);
             spawned++;

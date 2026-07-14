@@ -120,9 +120,14 @@ public sealed class BattlefieldUnit
     public float blockLockSec;
     /// <summary>反射弧等模块计时。</summary>
     public float reflexArcTimerSec;
-    /// <summary>场域主导/压制（持有舰）。</summary>
-    public bool fieldAuraDominant;
-    public bool fieldAuraSuppressed;
+    /// <summary>场域主导/压制（持有舰；按 moduleKind 分轨，避免盾/甲刷新互相覆盖）。</summary>
+    public bool fieldAuraShieldDominant;
+    public bool fieldAuraArmorDominant;
+    public bool fieldAuraShieldSuppressed;
+    public bool fieldAuraArmorSuppressed;
+    /// <summary>兼容旧读法：任一场型为主导。</summary>
+    public bool fieldAuraDominant => fieldAuraShieldDominant || fieldAuraArmorDominant;
+    public bool fieldAuraSuppressed => fieldAuraShieldSuppressed || fieldAuraArmorSuppressed;
     public float fieldAuraEnabledAtSec;
     public float fieldAuraCollapseCooldownSec;
     /// <summary>场域代承池（护盾立场）。</summary>
@@ -145,6 +150,8 @@ public sealed class BattlefieldUnit
     public UnitAiOrder aiOrder = UnitAiOrder.IDLE;
     /// <summary>后勤自动瞄准：无玩家指令时接近场域友舰（LogisticsAutoTargetingService）。</summary>
     public bool logisticsAutoAimActive;
+    /// <summary>远程维修自动瞄准：无玩家指令时维修最近场域持有舰（RemoteRepairAutoTargetingService）。</summary>
+    public bool remoteRepairAutoActive;
     public bool inTacticalWarp;
     public string? warpTargetBfId;
     public string? warpFromBfId;
@@ -184,10 +191,25 @@ public sealed class BattlefieldUnit
     /// <summary>弹道导弹：发射管 moduleId；非空时走 <see cref="MissileProjectileService"/>。</summary>
     // liketocoode3e5
     public string? missileModuleId;
+    /// <summary>弹道导弹来源发射管槽位（同模组多管互不阻塞）。</summary>
+    public string? missileLaunchTubeSlot;
     public MissileProjectileProfile? missileProfileSnapshot;
     public float missileAgeSec;
     /// <summary>&lt;0 未接触；≥0 引爆倒计时。</summary>
     public float missileContactHoldTimerSec = -1f;
+
+    /// <summary>跨场景集结链：是否激活。</summary>
+    public bool rallyActive;
+    public string? rallyAnchorKind;
+    public string? rallyAnchorSystemId;
+    public string? rallyAnchorEventRegionId;
+    public string? rallyAnchorBfId;
+    public float rallyAnchorX;
+    public float rallyAnchorY;
+    public float rallyAnchorZ;
+    public float rallyLandingDistM;
+    public List<string> rallyPendingSteps = new();
+    public string? rallyLastSystemId;
 
     public bool IsBallisticMissile() =>
         !string.IsNullOrEmpty(missileModuleId)

@@ -12,7 +12,8 @@ using TopDog.Sim.State;
  * 【机制要点】
  * · 目标舰添加 5× tube_board_temp_* → mod_board_summon_wing，立即展开
  * · 翼 HP 对齐铁棺；摧毁则移除对应发射管
- * 【关联】TraitActiveSkillService · LaunchTubeStateService · StrikeWingSpawnService
+ * · 管理员模块由 TraitGrantedModuleService 进局授予（非开战前配装）
+ * 【关联】TraitActiveSkillService · TraitGrantedModuleService · LaunchTubeStateService
  * ══
  */
 
@@ -48,7 +49,7 @@ public static class BoardSummonWingService
         _ = ships;
         if (!CasterHasAdminAuthority(state, bf, caster, modules))
         {
-            return "缺少董事会管理员模块或董事会召来词条";
+            return "缺少董事会召来权限（词条进局后授予管理员模块）";
         }
 
         var targetUnit = ResolveTargetUnit(state, bf, caster, targetUnitId);
@@ -289,6 +290,11 @@ public static class BoardSummonWingService
 
         foreach (var modId in casterUnit.fittedModules.Values)
         {
+            if (TraitGrantedModuleService.AdminBoardModuleId.Equals(modId, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
             var mod = modules.Resolve(modId);
             if (mod != null
                 && "admin_board_summon".Equals(mod.moduleKind, StringComparison.Ordinal))

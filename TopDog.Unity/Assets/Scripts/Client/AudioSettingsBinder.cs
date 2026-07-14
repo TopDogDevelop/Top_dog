@@ -3,7 +3,7 @@ using UnityEngine.UIElements;
 
 namespace TopDog.Client;
 
-/// <summary>Audio toggles + master volume in Settings / pause overlay. Changes apply immediately.</summary>
+/// <summary>Audio toggles + master volume in Settings screen. Changes apply immediately.</summary>
 public sealed class AudioSettingsBinder
 {
     public const string BgmToggleName = "toggle-bgm";
@@ -15,17 +15,6 @@ public sealed class AudioSettingsBinder
     private Toggle? _uiClickToggle;
     private Slider? _volumeSlider;
     private Label? _volumeLabel;
-
-    public static VisualElement BuildPauseSettingsBlock(AudioSettingsBinder binder)
-    {
-        var block = new VisualElement();
-        block.AddToClassList("settings-options");
-        block.Add(binder.BuildBgmToggleRow());
-        block.Add(binder.BuildUiClickToggleRow());
-        block.Add(binder.BuildVolumeRow());
-        binder.Bind(block);
-        return block;
-    }
 
     public void Bind(VisualElement container)
     {

@@ -79,6 +79,67 @@ public static class AppRoot
 
     public static string MapsDir() => Path.Combine(Find(), "maps");
 
+    private static readonly List<string> ExtraMapsRoots = new();
+
+    /// <summary>Additional folders that contain *.topdog-map packages (e.g. StreamingAssets/maps).</summary>
+    public static void RegisterMapsRoot(string? root)
+    {
+        if (string.IsNullOrWhiteSpace(root))
+        {
+            return;
+        }
+
+        var full = Path.GetFullPath(root);
+        if (!Directory.Exists(full))
+        {
+            return;
+        }
+
+        for (var i = 0; i < ExtraMapsRoots.Count; i++)
+        {
+            if (string.Equals(ExtraMapsRoots[i], full, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+        }
+
+        ExtraMapsRoots.Add(full);
+    }
+
+    public static void ClearExtraMapsRoots() => ExtraMapsRoots.Clear();
+
+    /// <summary>Primary MapsDir plus any registered extras (deduped).</summary>
+    public static IReadOnlyList<string> MapsDirs()
+    {
+        var list = new List<string>();
+        void Add(string? p)
+        {
+            if (string.IsNullOrWhiteSpace(p) || !Directory.Exists(p))
+            {
+                return;
+            }
+
+            var full = Path.GetFullPath(p);
+            for (var i = 0; i < list.Count; i++)
+            {
+                if (string.Equals(list[i], full, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+            }
+
+            list.Add(full);
+        }
+
+        Add(MapsDir());
+        foreach (var e in ExtraMapsRoots)
+        {
+            Add(e);
+        }
+
+        return list;
+    }
+
     private static bool HasContentMap(string root) =>
         Directory.Exists(Path.Combine(root, "content", "map", "systems"));
 }

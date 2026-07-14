@@ -8,6 +8,7 @@ using TopDog.Sim.State;
  * 本文件: RemoteRepairSalvoService.cs — 维修轮次队列执行
  * 【机制要点】
  * · OrderRepairTarget：仅持有 remote_repair 模块的指挥舰 +1 轮 pendingRepairRounds
+ * · 无玩家指令：RemoteRepairAutoTargetingService 自动瞄准最近场域持有舰并维持维修轮次
  * · CountIncomingRepairRounds：被维修方 buff 栏总轮次（多舰叠加）
  * · repairFalloffPctPerKm 距离衰减；与最长远程维修 CD 同步递减 repairRoundCooldownSec
  * 【关联】FleetOrderService.OrderRepairTarget · SalvoProfileService · UnitOrbitHudWidget
@@ -42,6 +43,7 @@ public static class RemoteRepairSalvoService
             }
 
             u.targetUnitId = targetUnitId;
+            u.remoteRepairAutoActive = false;
             if (u.pendingRepairRounds < MaxRepairRounds)
             {
                 u.pendingRepairRounds++;

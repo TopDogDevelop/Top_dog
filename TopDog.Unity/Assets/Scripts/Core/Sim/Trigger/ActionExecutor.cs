@@ -2,6 +2,7 @@ using TopDog.Content.Mechanisms;
 using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
 using TopDog.Sim.Operations;
+using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 
 /*
@@ -91,6 +92,7 @@ public static class ActionExecutor
                 state.combatQueueIndex = 0;
                 state.combatAwaitingContinue = false;
                 state.combatRealtimeActive = false;
+                CombatRealtimeLinkService.Reset(state);
                 state.activeBattlefieldId = null;
                 if (!string.IsNullOrWhiteSpace(action.reason))
                 {

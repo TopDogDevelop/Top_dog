@@ -4,6 +4,8 @@ using System.Linq;
 using TopDog.App;
 using TopDog.Content.Map;
 using TopDog.Sim.Combat;
+using TopDog.Sim.Member;
+using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 using UnityEngine.UIElements;
 /*
@@ -11,11 +13,10 @@ using UnityEngine.UIElements;
  * 权威: docs/MATCH_FLOW.md §交战准备 · docs/OPERATIONS_UI.md
  * 本文件: CombatPrepPanel.cs — 交战准备浮层 UI
  * 【机制要点】
- * · 队列展示/参战成员/自动或实时选择入口
+ * · 队列展示/参战成员；参与战斗 / 实时指挥 / 舰队撤退；可排除上场
  * 【关联】CombatShellController · CombatPhaseService · CampaignShellController
  * ══
  */
-
 
 
 // liketoc0de345
@@ -85,7 +86,7 @@ public static class CombatPrepPanel
         var entry = CombatPhaseService.CurrentEntry(state);
         var total = entry?.queueTotal > 0 ? entry.queueTotal : Math.Max(1, state.combatQueue.Count);
         var ordinal = entry?.queueOrdinal > 0 ? entry.queueOrdinal : state.combatQueueIndex + 1;
-        root.Add(MakeCaption($"自动交战 {ordinal}/{total} · {SubtypeLabel(entry?.combatSubtype)}"));
+        root.Add(MakeCaption($"交战 {ordinal}/{total} · {SubtypeLabel(entry?.combatSubtype)}"));
 
         if (entry == null)
         {
@@ -98,32 +99,16 @@ public static class CombatPrepPanel
         RenderPowerComparison(root, entry);
 
         root.Add(MakeCaption("【我方】"));
-        RenderRoster(root, entry.friendlyRosterLines, true);
+        RenderFriendlyRoster(root, state, entry, core, onMessage, refreshUi, scroll);
         // liketocoode3a5
         root.Add(MakeCaption("【敌方】"));
-        RenderRoster(root, entry.enemyRoster, false);
+        RenderRoster(root, entry.enemyRoster);
 
-        if (state.phase == GamePhase.COMBAT_PREP && state.combatPrepStep == CombatPrepStep.CHOOSE_STANCE)
+        if (state.phase == GamePhase.COMBAT_PREP
+            && (state.combatPrepStep == CombatPrepStep.CHOOSE_STANCE
+                || state.combatPrepStep == CombatPrepStep.CHOOSE_MODE))
         {
-            var fightBtn = new Button { text = "参与战斗" };
-            fightBtn.AddToClassList("ops-combat-fight-btn");
-            fightBtn.clicked += () =>
-            {
-                onMessage(core.CombatChooseParticipate());
-                refreshUi();
-                Populate(scroll, core, onMessage, refreshUi);
-            };
-            root.Add(fightBtn);
-
-            var retreatBtn = new Button { text = "舰队撤退" };
-            retreatBtn.AddToClassList("ops-combat-retreat-btn");
-            retreatBtn.clicked += () =>
-            {
-                onMessage(core.CombatChooseRetreat());
-                refreshUi();
-                Populate(scroll, core, onMessage, refreshUi);
-            };
-            root.Add(retreatBtn);
+            AddEngageButtons(root, core, onMessage, refreshUi, scroll);
         }
     }
 
@@ -162,7 +147,7 @@ public static class CombatPrepPanel
             var e = state.combatQueue[i];
             var ord = e.queueOrdinal > 0 ? e.queueOrdinal : i + 1;
             var tot = e.queueTotal > 0 ? e.queueTotal : state.combatQueue.Count;
-            root.Add(MakeBody($"  {ord}/{tot} · {SubtypeLabel(e.combatSubtype)} · {e.label ?? e.entryId}"));
+            root.Add(MakeBody($"  {ord}/{tot} · {SubtypeLabel(e.combatSubtype)} · {e.label ?? e.entryId} · {BattlefieldLabel(state, e)}"));
         }
         for (var i = 0; i < state.playerPendingAssaults.Count; i++)
         {
@@ -180,12 +165,13 @@ public static class CombatPrepPanel
         Action refreshUi,
         ScrollView scroll)
     {
-        root.Add(MakeBody("逐场处理 · 可选自动交战、参与战斗或舰队撤退"));
+        root.Add(MakeBody("逐场处理 · 可选参与战斗、实时指挥或舰队撤退"));
         if (state.combatQueue.Count == 0)
         {
             root.Add(MakeBody("（交战列表为空）"));
             return;
         }
+        CombatRosterRefresh.RefreshCurrent(state, core.Ships, core.Modules);
         for (var i = 0; i < state.combatQueue.Count; i++)
         {
             var e = state.combatQueue[i];
@@ -193,7 +179,7 @@ public static class CombatPrepPanel
             var ord = e.queueOrdinal > 0 ? e.queueOrdinal : i + 1;
             var tot = e.queueTotal > 0 ? e.queueTotal : state.combatQueue.Count;
             var mark = current ? "▶ " : "  ";
-            var line = $"{mark}{ord}/{tot} · {SubtypeLabel(e.combatSubtype)} · {e.label ?? e.entryId}";
+            var line = $"{mark}{ord}/{tot} · {SubtypeLabel(e.combatSubtype)} · {e.label ?? e.entryId} · {BattlefieldLabel(state, e)}";
             var lbl = MakeBody(line);
             if (current)
             {
@@ -205,16 +191,19 @@ public static class CombatPrepPanel
         if (entry != null)
         {
             root.Add(MakeHint("战场: " + BattlefieldLabel(state, entry)));
+            root.Add(MakeCaption("【我方名单】"));
+            RenderFriendlyRoster(root, state, entry, core, onMessage, refreshUi, scroll);
         }
-        var autoBtn = new Button { text = "自动交战" };
-        autoBtn.clicked += () =>
-        // liketoco0de345
-        {
-            onMessage(core.CombatChooseAuto());
-            refreshUi();
-            Populate(scroll, core, onMessage, refreshUi);
-        };
-        root.Add(autoBtn);
+        AddEngageButtons(root, core, onMessage, refreshUi, scroll);
+    }
+
+    private static void AddEngageButtons(
+        VisualElement root,
+        SimulationCore core,
+        Action<string> onMessage,
+        Action refreshUi,
+        ScrollView scroll)
+    {
         var fightBtn = new Button { text = "参与战斗" };
         fightBtn.AddToClassList("ops-combat-fight-btn");
         fightBtn.clicked += () =>
@@ -233,7 +222,7 @@ public static class CombatPrepPanel
             Populate(scroll, core, onMessage, refreshUi);
         };
         root.Add(retreatBtn);
-        var rtBtn = new Button { text = "实时指挥（R4）" };
+        var rtBtn = new Button { text = "实时指挥" };
         rtBtn.clicked += () =>
         {
             onMessage(core.CombatChooseRealtime());
@@ -243,8 +232,58 @@ public static class CombatPrepPanel
         root.Add(rtBtn);
     }
 
+    private static void RenderFriendlyRoster(
+        VisualElement root,
+        GameState state,
+        CombatQueueEntry entry,
+        SimulationCore core,
+        Action<string> onMessage,
+        Action refreshUi,
+        ScrollView scroll)
+    {
+        if (entry.friendlyRosterLines.Count == 0)
+        {
+            root.Add(MakeBody("  (无)"));
+            return;
+        }
+        foreach (var line in entry.friendlyRosterLines)
+        {
+            var member = FindMember(state, line.memberId);
+            var locSys = member?.opsDeploySystemId ?? member?.currentSolarSystemId;
+            var locName = SystemName(state, locSys);
+            var deployed = member != null
+                && !string.IsNullOrWhiteSpace(entry.battlefieldSystemId)
+                && entry.battlefieldSystemId.Equals(member.opsDeploySystemId, StringComparison.Ordinal);
+            var locNote = deployed ? locName : locName + "（驻地待命）";
+            var jumps = JumpCountLabel(state, locSys, entry.battlefieldSystemId);
+            var hullLabel = HullDisplayName(core, line.hullId);
+            var excluded = IsExcluded(entry, line.memberId);
+            var tag = RosterTag(line, excluded);
+            var arrival = line.arrivalSec >= 0 ? $" T+{line.arrivalSec}s" : "";
+            var text = $"  {line.displayName}{tag}\n"
+                + $"    所在: {locNote} · 距战场 {jumps}\n"
+                + $"    {hullLabel} · {line.tonnageClass} · 估值 {line.combatPower:F0} 星币{arrival}";
+            root.Add(MakeBody(text));
+
+            if (CanPlayerExclude(line))
+            {
+                var mid = line.memberId;
+                var btn = new Button { text = excluded ? "恢复上场" : "排除上场" };
+                btn.clicked += () =>
+                {
+                    ToggleExclude(entry, mid);
+                    CombatRosterRefresh.RefreshFriendly(state, entry, core.Ships, core.Modules);
+                    onMessage(excluded ? "已恢复上场" : "已排除上场");
+                    refreshUi();
+                    Populate(scroll, core, onMessage, refreshUi);
+                };
+                root.Add(btn);
+            }
+        }
+    }
+
     // lik3tocoode345
-    private static void RenderRoster(VisualElement root, List<CombatRosterLine> lines, bool friendly)
+    private static void RenderRoster(VisualElement root, List<CombatRosterLine> lines)
     {
         if (lines.Count == 0)
         {
@@ -253,7 +292,7 @@ public static class CombatPrepPanel
         }
         foreach (var line in lines)
         {
-            var tag = RosterTag(line);
+            var tag = RosterTag(line, false);
             var arrival = line.arrivalSec >= 0 ? $" T+{line.arrivalSec}s" : "";
             var text = $"  {line.displayName}{tag}\n    {line.hullId} · {line.tonnageClass} · 估值 {line.combatPower:F0} 星币{arrival}";
             root.Add(MakeBody(text));
@@ -262,7 +301,9 @@ public static class CombatPrepPanel
 
     private static void RenderPowerComparison(VisualElement root, CombatQueueEntry entry)
     {
-        var friendly = entry.friendlyRosterLines.Sum(l => l.combatPower);
+        var friendly = entry.friendlyRosterLines
+            .Where(l => l.canParticipate && !IsExcluded(entry, l.memberId))
+            .Sum(l => l.combatPower);
         var enemy = entry.enemyRoster.Sum(l => l.combatPower);
         string verdict;
         if (friendly <= 0f && enemy <= 0f)
@@ -291,8 +332,12 @@ public static class CombatPrepPanel
             + $"  {verdict}"));
     }
 
-    private static string RosterTag(CombatRosterLine line)
+    private static string RosterTag(CombatRosterLine line, bool excluded)
     {
+        if (excluded)
+        {
+            return " [已排除]";
+        }
         if (!line.canParticipate)
         {
             return " [到场·无舰无法参战]";
@@ -306,6 +351,73 @@ public static class CombatPrepPanel
             return " [必到]";
         }
         return "";
+    }
+
+    private static bool CanPlayerExclude(CombatRosterLine line) =>
+        !line.capturedTarget && !line.mandatoryAttendee && !string.IsNullOrWhiteSpace(line.memberId);
+
+    private static bool IsExcluded(CombatQueueEntry entry, string? memberId) =>
+        !string.IsNullOrWhiteSpace(memberId)
+        && entry.excludedMemberIds.Contains(memberId);
+
+    private static void ToggleExclude(CombatQueueEntry entry, string? memberId)
+    {
+        if (string.IsNullOrWhiteSpace(memberId))
+        {
+            return;
+        }
+        if (entry.excludedMemberIds.Contains(memberId))
+        {
+            entry.excludedMemberIds.Remove(memberId);
+        }
+        else
+        {
+            entry.excludedMemberIds.Add(memberId);
+        }
+    }
+
+    private static string JumpCountLabel(GameState state, string? fromSys, string? toSys)
+    {
+        if (string.IsNullOrWhiteSpace(fromSys) || string.IsNullOrWhiteSpace(toSys))
+        {
+            return "—";
+        }
+        if (fromSys.Equals(toSys, StringComparison.Ordinal))
+        {
+            return "0 跳";
+        }
+        var path = RallyNavigationPlanner.PlanBridgePath(state, fromSys, toSys);
+        if (path == null || path.Count == 0)
+        {
+            return "—";
+        }
+        return Math.Max(0, path.Count - 1) + " 跳";
+    }
+
+    private static string HullDisplayName(SimulationCore core, string? hullId)
+    {
+        if (string.IsNullOrWhiteSpace(hullId) || hullId == "(无舰)")
+        {
+            return hullId ?? "(无舰)";
+        }
+        var hull = core.Ships?.FindHull(hullId);
+        return !string.IsNullOrWhiteSpace(hull?.displayName) ? hull!.displayName! : hullId;
+    }
+
+    private static MemberState? FindMember(GameState state, string? memberId)
+    {
+        if (string.IsNullOrWhiteSpace(memberId))
+        {
+            return null;
+        }
+        foreach (var m in state.members)
+        {
+            if (memberId.Equals(m.memberId, StringComparison.Ordinal))
+            {
+                return m;
+            }
+        }
+        return null;
     }
 
     private static string SubtypeLabel(CombatSubtype? subtype) => subtype switch

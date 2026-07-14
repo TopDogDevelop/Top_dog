@@ -9,7 +9,9 @@ using TopDog.Sim.State;
  * 本文件: BattlefieldSceneProxyService.cs — 同星系场景外占位（边界投射 + 跃迁目标）
  * 【机制要点】
  * · SeedSceneProxies：加载时一次性写入 proxy，sceneProxiesSealed 后不再增删
- * · ListOffSceneLinks：从 map.eventRegions 导出静态链接（UI fallback）
+ * · ListOffSceneLinks：从 map.eventRegions 导出静态链接（含 DistanceAu；UI fallback）
+ * · BuildPlacements：按相对本场景 AU 距离写入落点；共线 AU 不做 MinAngleSepRad 散开
+ * · ResolveDistanceAu / FormatDistanceAu：场景外占位罗列用
  * · SyncForBattlefield：已密封 → no-op（仅跳桥）；未密封 → Seed
  * 【实现逻辑】
  * · BuildPlacements：当前 bf.eventRegionId 以外、IsIntraSystemWarpTarget 的区域 → AU 球面落点
@@ -528,6 +530,74 @@ public static class BattlefieldSceneProxyService
         return false;
     }
 
+    public static float ResolveDistanceAu(
+        GameState state,
+        BattlefieldState fromBf,
+        string? targetSystemId,
+        string? targetEventRegionId)
+    {
+        if (fromBf.systemId == null
+            || targetSystemId == null
+            || targetEventRegionId == null
+            || !fromBf.systemId.Equals(targetSystemId, StringComparison.Ordinal))
+        {
+            return 0f;
+        }
+
+        EnsureBattlefieldAnchor(state, fromBf);
+        var fromAu = fromBf.anchorAu is { Length: >= 3 } ? fromBf.anchorAu : new[] { 0f, 0f, 0f };
+        var sys = state.map?.Project?.FindSystem(fromBf.systemId);
+        if (sys?.eventRegions == null)
+        {
+            return 0f;
+        }
+
+        foreach (var er in sys.eventRegions)
+        {
+            if (er.eventRegionId == null
+                || !targetEventRegionId.Equals(er.eventRegionId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var toAu = er.anchorAu is { Length: >= 3 } ? er.anchorAu : new[] { 0f, 0f, 0f };
+            var dx = toAu[0] - fromAu[0];
+            var dy = toAu[1] - fromAu[1];
+            var dz = toAu[2] - fromAu[2];
+            return MathF.Sqrt(dx * dx + dy * dy + dz * dz);
+        }
+
+        return 0f;
+    }
+
+    public static float ResolveDistanceAu(GameState state, BattlefieldState fromBf, BattlefieldUnit proxy)
+    {
+        if (!TryGetTargetScene(proxy, out var systemId, out var eventRegionId))
+        {
+            return 0f;
+        }
+
+        return ResolveDistanceAu(state, fromBf, systemId, eventRegionId);
+    }
+
+    public static string FormatDistanceAu(float distanceAu)
+    {
+        if (distanceAu < 0.01f)
+        {
+            return "<0.01 AU";
+        }
+
+        if (distanceAu < 10f)
+        {
+            return $"{distanceAu:0.00} AU";
+        }
+
+        return $"{distanceAu:0.0} AU";
+    }
+
+    public static string FormatSceneProxyLabel(string displayName, float distanceAu) =>
+        $"{displayName} · {FormatDistanceAu(distanceAu)}";
+
     /// <summary>地图拓扑导出的 off-scene 链接（UI fallback，不依赖 units 是否被误删）。</summary>
     public static List<TacticalOffSceneLink> ListOffSceneLinks(GameState state, BattlefieldState bf)
     {
@@ -548,6 +618,7 @@ public static class BattlefieldSceneProxyService
                 EventRegionId = p.EventRegionId,
                 Kind = p.Kind,
                 DisplayName = p.DisplayName,
+                DistanceAu = p.DistanceAu,
                 AzimuthRad = p.AzimuthRad,
                 ElevationRad = p.ElevationRad,
                 X = p.X,
@@ -556,6 +627,7 @@ public static class BattlefieldSceneProxyService
             });
         }
 
+        list.Sort((a, b) => a.DistanceAu.CompareTo(b.DistanceAu));
         return list;
     }
 
@@ -591,6 +663,7 @@ public static class BattlefieldSceneProxyService
         public string EventRegionId;
         public string? Kind;
         public string DisplayName;
+        public float DistanceAu;
         public float AzimuthRad;
         public float ElevationRad;
         public float X;
@@ -601,6 +674,7 @@ public static class BattlefieldSceneProxyService
     private struct RawPlacement
     {
         public EventRegionDef Er;
+        public float DistanceAu;
         public float AzimuthRad;
         public float ElevationRad;
         public float X;
@@ -654,6 +728,7 @@ public static class BattlefieldSceneProxyService
             raw.Add(new RawPlacement
             {
                 Er = er,
+                DistanceAu = distAu,
                 AzimuthRad = az,
                 ElevationRad = el,
                 X = x,
@@ -665,6 +740,7 @@ public static class BattlefieldSceneProxyService
             });
         }
 
+        // 角距分离按方位角邻接；最终列表再按 AU 距离罗列
         raw.Sort((a, b) => a.AzimuthRad.CompareTo(b.AzimuthRad));
         var collinearStacked = 0;
         for (var i = 1; i < raw.Count; i++)
@@ -684,6 +760,7 @@ public static class BattlefieldSceneProxyService
                 raw[i] = new RawPlacement
                 {
                     Er = cur.Er,
+                    DistanceAu = cur.DistanceAu,
                     AzimuthRad = bumpedAz,
                     ElevationRad = cur.ElevationRad,
                     X = bx,
@@ -714,6 +791,7 @@ public static class BattlefieldSceneProxyService
                 EventRegionId = item.Er.eventRegionId!,
                 Kind = item.Er.kind,
                 DisplayName = FormatLabel(state, sys, item.Er),
+                DistanceAu = item.DistanceAu,
                 AzimuthRad = item.AzimuthRad,
                 ElevationRad = item.ElevationRad,
                 X = item.X,
@@ -722,6 +800,7 @@ public static class BattlefieldSceneProxyService
             });
         }
 
+        list.Sort((a, b) => a.DistanceAu.CompareTo(b.DistanceAu));
         return list;
     }
 
@@ -855,6 +934,8 @@ public sealed class TacticalOffSceneLink
     public string EventRegionId { get; init; } = "";
     public string? Kind { get; init; }
     public string DisplayName { get; init; } = "";
+    /// <summary>目标场景相对本场景的 AU 距离（map anchor）。</summary>
+    public float DistanceAu { get; init; }
     public float AzimuthRad { get; init; }
     public float ElevationRad { get; init; }
     public float X { get; init; }

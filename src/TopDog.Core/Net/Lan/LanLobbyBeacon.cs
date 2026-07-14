@@ -263,6 +263,7 @@ public sealed class LanLobbyBeacon : IDisposable
             _localIp,
             humans,
             mapId,
-            _lobby.lanPort);
+            _lobby.lanPort,
+            contentVersion: ContentVersionGate.Current);
     }
 }

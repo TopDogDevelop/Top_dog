@@ -320,6 +320,9 @@ public static class MemberAssetService
         {
             return;
         }
+        // 换舰/卸舰前先卸回全部已装模块；否则旧船装备残留在 memberFittedModules，
+        // 新船槽位显示「无法安装」且舰队保护立场计数会卡住（约战换舰常见）。
+        MemberFittingService.ClearAllFittingsToPersonal(state, m, ModuleRegistry.LoadDefault());
         PersonalStock(state, m).AddQty(m.equippedHullId, 1);
         m.equippedHullId = null;
     }

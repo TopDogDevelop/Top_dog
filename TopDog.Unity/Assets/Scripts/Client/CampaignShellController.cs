@@ -692,9 +692,24 @@ public sealed class CampaignShellController : UiScreenController
             SelectedKey = _selectedMemberId,
             FormationPickedKeys = _formationSelection,
             OnRowActivated = OnMemberListRowActivated,
+            OnFormationTwoFingerRange = OnFormationTwoFingerRange,
             ScrollHost = _memberScroll,
             LocalLegionId = LegionRegistry.Local(s)?.legionId,
         });
+    }
+
+    private void OnFormationTwoFingerRange(string keyA, string keyB)
+    {
+        if (!_formationEditMode || GameAppHost.Instance?.Core == null)
+        {
+            return;
+        }
+
+        var orderedKeys = OrderedMemberKeys(GameAppHost.Instance.Core.State);
+        SelectFormationRange(keyA, keyB, orderedKeys);
+        _formationRangeAnchorKey = keyB;
+        PushEvent($"已选 {_formationSelection.Count} 人");
+        RefreshMemberList(GameAppHost.Instance.Core.State);
     }
 
     private string BuildMemberListSignature(GameState s)
@@ -975,7 +990,7 @@ public sealed class CampaignShellController : UiScreenController
     }
 
     private static string CombatPrepLabel(GameState s) =>
-        s.phase == GamePhase.COMBAT ? "继续" : "自动交战";
+        s.phase == GamePhase.COMBAT ? "继续" : "交战";
 
     private void RefreshFormationUi()
     {
@@ -996,7 +1011,7 @@ public sealed class CampaignShellController : UiScreenController
             if (_formationEditMode)
             {
                 _formationHintLabel.style.display = DisplayStyle.Flex;
-                _formationHintLabel.text = "编队模式：点选团员 · Shift+点第二个首尾连选 · 确认编队";
+                _formationHintLabel.text = "编队模式：点选 · Shift/双指首尾连选 · 确认编队";
             }
             else
             {

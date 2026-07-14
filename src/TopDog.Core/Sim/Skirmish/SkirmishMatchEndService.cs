@@ -1,5 +1,6 @@
 using TopDog.Content.Balance;
 using TopDog.Sim.Building;
+using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 
 namespace TopDog.Sim.Skirmish;
@@ -114,5 +115,6 @@ public static class SkirmishMatchEndService
                 : CampaignOutcomeService.Defeated;
         }
         state.combatRealtimeActive = false;
+        CombatRealtimeLinkService.Reset(state);
     }
 }

@@ -1,6 +1,7 @@
 {
   "scenarioId": "mt_remote_repair",
   "displayName": "远程维修后勤",
+  "scenarioOrder": 6,
   "seed": 1006,
   "spawnSeparationM": 20000,
   "legions": [

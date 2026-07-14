@@ -13,6 +13,7 @@ public static class NavigationService
     public static void AssignNavigate(BattlefieldUnit u, float x, float y, float z)
     {
         LogisticsAutoTargetingService.SuppressForPlayerOrder(u);
+        RemoteRepairAutoTargetingService.SuppressForPlayerOrder(u);
         u.aiOrder = UnitAiOrder.NAVIGATE;
         u.navigateX = x;
         u.navigateY = y;

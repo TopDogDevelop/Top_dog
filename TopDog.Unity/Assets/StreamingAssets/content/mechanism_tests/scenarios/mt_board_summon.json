@@ -1,6 +1,7 @@
 {
   "scenarioId": "mt_board_summon",
   "displayName": "董事会召来",
+  "scenarioOrder": 1,
   "seed": 1001,
   "spawnSeparationM": 20000,
   "legions": [

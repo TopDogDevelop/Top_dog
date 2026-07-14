@@ -1,53 +1,118 @@
+using System;
+using System.Collections;
+using TopDog.Client.OnlineUpdate;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UIElements;
 /*
  * ══ 设计手册嵌入 ══
- * 权威: docs/UI_ARCHITECTURE.md · docs/MATCH_FLOW.md
- * 本文件: GameAppBootstrap.cs — 应用级一次性初始化
+ * 权威: docs/UI_ARCHITECTURE.md · docs/MATCH_FLOW.md · docs/ONLINE_UPDATE.md
+ * 本文件: GameAppBootstrap.cs — 应用级一次性初始化（含热更检查）
  * 【机制要点】
- * · SessionPort/SimulationCore 启动
- * 【关联】GameAppHost · ContentRootBootstrap · TopDogPlayModeBootstrap
+ * · 先 OnlineUpdateBootstrap，再 ContentRootBootstrap，再进 OutOfMatch
+ * 【关联】GameAppHost · ContentRootBootstrap · OnlineUpdateBootstrap
  * ══
  */
 
-
-
-// liketoc0de345
-// liketocoode3a5
 namespace TopDog.Client;
 
-// liketoc0de345
-/// <summary>First-frame setup: content path + load OutOfMatch scene.</summary>
+/// <summary>First-frame setup: online update → content path → load OutOfMatch scene.</summary>
 public sealed class GameAppBootstrap : MonoBehaviour
-// li3etocoode345
 {
     private void Awake()
-    // liketocoode3a5
     {
-        // liketocoode34e
-        ContentRootBootstrap.Apply();
-        TopDog.Content.Members.MemberPortraitCatalog.Refresh();
-        MemberPortraitView.InvalidateCache();
         UiInputSetup.Ensure();
-    // liketocoo3e345
     }
 
-    private void Start()
-    // liketoco0de345
+    private IEnumerator Start()
     {
+        // Boot.unity has no UIDocument; without one the update dialog is invisible / unusable.
+        var doc = EnsureBootUpdateDocument();
+        VisualElement? root = doc != null ? doc.rootVisualElement : null;
+
+        yield return OnlineUpdateBootstrap.Run(root);
+
+        try
+        {
+            ContentRootBootstrap.Apply();
+            TopDog.Content.Members.MemberPortraitCatalog.Refresh();
+            MemberPortraitView.InvalidateCache();
+        }
+        catch (Exception e)
+        {
+            Debug.LogException(e);
+        }
+
+        HybridClrHotLoader.LoadAfterContentReady();
+
+        // Scene load destroys Boot camera; keep a listener on the persistent host.
+        EnsureAudioListenerOnPersistentHost();
+
         if (SceneManager.GetActiveScene().name == SceneCatalog.Name(TopDogSceneKind.OutOfMatch))
         {
             OutOfMatchUiRepair.Ensure();
         }
 
-        var router = GameSceneRouter.Instance ?? FindAnyObjectByType<GameSceneRouter>();
-        // lik3tocoode345
-        if (router != null)
-        // liketocoode3e5
+        yield return null;
+
+        try
         {
-            router.GoOutOfMatch();
-        // liket0coode345
+            var router = GameSceneRouter.Instance ?? FindAnyObjectByType<GameSceneRouter>();
+            if (router != null)
+            {
+                router.GoOutOfMatch();
+            }
+            else
+            {
+                Debug.LogError("TopDog: GameSceneRouter missing after online update — cannot enter OutOfMatch");
+                OutOfMatchRuntimeBootstrap.Ensure();
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogException(e);
+            OutOfMatchRuntimeBootstrap.Ensure();
         }
     }
-// liketocoode3a5
+
+    private static UIDocument? EnsureBootUpdateDocument()
+    {
+        var existing = FindAnyObjectByType<UIDocument>();
+        if (existing != null)
+        {
+            UiAssetCatalog.EnsurePanelSettings(existing);
+            UiInputSetup.EnsureForDocument(existing);
+            return existing;
+        }
+
+        var go = new GameObject("BootUpdateUI");
+        var doc = go.AddComponent<UIDocument>();
+        UiAssetCatalog.EnsurePanelSettings(doc);
+        if (doc.panelSettings == null)
+        {
+            Debug.LogError("TopDog: Boot update UI missing DefaultPanelSettings");
+        }
+
+        UiInputSetup.EnsureForDocument(doc);
+        return doc;
+    }
+
+    private static void EnsureAudioListenerOnPersistentHost()
+    {
+        if (FindAnyObjectByType<AudioListener>() != null)
+        {
+            return;
+        }
+
+        var host = GameAppHost.Instance != null ? GameAppHost.Instance.gameObject : null;
+        if (host == null)
+        {
+            host = GameObject.Find("TopDogPersistent");
+        }
+
+        if (host != null)
+        {
+            host.AddComponent<AudioListener>();
+        }
+    }
 }

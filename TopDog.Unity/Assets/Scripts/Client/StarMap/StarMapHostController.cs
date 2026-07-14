@@ -13,7 +13,7 @@ using UnityEngine.UIElements;
  * 本文件: StarMapHostController.cs — 战略星图 3D 轨道相机 + UI marker 层
  * 【机制要点】
  * · 战略/星系内景双模式；marker 投影 worldBound → ClampMarkerToViewport 屏外钳制
- * · StarMapMath.SystemFillColor + security 外环；派遣/选中高亮
+ * · 战略节点 PNG + tint；星系内景 eventRegion/建筑亦用 TacticalIconCatalog PNG（§4.1）
  * · 合并 GameState.buildings 为内景 marker；活跃战场 systemId 联动
  * 【关联】StarMapMath · StarMapBadgeSync · TacticalIconCatalog · GameSceneRouter
  * ══
@@ -83,6 +83,7 @@ public sealed class StarMapHostController : MonoBehaviour, IViewportCameraComman
 
     public bool IsSystemInterior => _viewMode == ViewMode.SystemInterior;
     public string? InteriorSystemId => _interiorSystemId;
+    public string? SelectedEventRegionId => _selectedEventRegionId;
 
     // liketoc0de345
 
@@ -451,10 +452,15 @@ public sealed class StarMapHostController : MonoBehaviour, IViewportCameraComman
 
     private void RebuildInteriorMarkers()
     {
-        if (_interiorSystemId == null || _map == null)
+        if (_interiorSystemId == null || _map == null || _markerLayer == null)
         {
             return;
         }
+
+        ClearMarkerHandlers();
+        _markerLayer.Clear();
+        _markers.Clear();
+
         var sys = _map.Project.FindSystem(_interiorSystemId);
         if (sys?.eventRegions == null)
         {
@@ -475,8 +481,8 @@ public sealed class StarMapHostController : MonoBehaviour, IViewportCameraComman
                 kindLabel += " · " + presence;
             }
             var title = !string.IsNullOrEmpty(er.name) ? er.name : er.eventRegionId;
-            var selected = er.eventRegionId == _selectedEventRegionId;
-            AddInteriorMarker(er.eventRegionId, world, title, kindLabel, er.kind, selected);
+            var selected = IsInteriorMarkerSelected(er.eventRegionId);
+            AddInteriorMarker(er.eventRegionId, world, title, kindLabel, er.kind, buildingType: null, selected);
         }
 
         if (_syncState?.buildings != null)
@@ -495,9 +501,15 @@ public sealed class StarMapHostController : MonoBehaviour, IViewportCameraComman
                 var title = !string.IsNullOrEmpty(building.displayName) ? building.displayName : building.buildingId;
                 var kindLabel = BuildingKindLabel(building);
                 var markerId = "bld:" + building.buildingId;
-                var selected = markerId == _selectedEventRegionId
-                    || building.eventRegionId == _selectedEventRegionId;
-                AddInteriorMarker(markerId, world, title, kindLabel, regionKind: null, selected);
+                var selected = IsInteriorMarkerSelected(markerId);
+                AddInteriorMarker(
+                    markerId,
+                    world,
+                    title,
+                    kindLabel,
+                    regionKind: null,
+                    buildingType: building.buildingType,
+                    selected);
             }
         }
     }
@@ -527,9 +539,7 @@ public sealed class StarMapHostController : MonoBehaviour, IViewportCameraComman
         var icon = new VisualElement();
         icon.AddToClassList("ops-star-system-icon");
         icon.pickingMode = PickingMode.Ignore;
-        var color = StarMapMath.SystemFillColor(sys, badge, _dispatchTargetId, _highlightedId);
-        icon.style.backgroundColor = color;
-        ApplySecurityRing(icon, sys);
+        ApplyStrategicMarkerStyle(icon, sys, badge);
         if (sys.solarSystemId == _dispatchTargetId)
         {
             icon.AddToClassList("ops-star-system-dispatch");
@@ -568,12 +578,17 @@ public sealed class StarMapHostController : MonoBehaviour, IViewportCameraComman
         _markers[id] = (btn, icon, label);
     }
 
+    private bool IsInteriorMarkerSelected(string markerId) =>
+        !string.IsNullOrEmpty(_selectedEventRegionId)
+        && _selectedEventRegionId.Equals(markerId, StringComparison.Ordinal);
+
     private void AddInteriorMarker(
         string regionId,
         Vector3 world,
         string title,
         string kindLabel,
         string? regionKind,
+        string? buildingType,
         bool selected)
     {
         if (_markerLayer == null)
@@ -581,7 +596,7 @@ public sealed class StarMapHostController : MonoBehaviour, IViewportCameraComman
             return;
         }
 
-        var isStar = EventRegionKinds.IsStar(regionKind);
+        var isStar = EventRegionKinds.IsStar(TacticalIconCatalog.NormalizeEventRegionKind(regionKind) ?? regionKind);
         var btn = new Button();
         btn.AddToClassList("ops-star-system-btn");
         btn.userData = world;
@@ -604,23 +619,10 @@ public sealed class StarMapHostController : MonoBehaviour, IViewportCameraComman
             icon.AddToClassList("ops-interior-star-icon");
         }
         icon.pickingMode = PickingMode.Ignore;
-        var regionTex = TacticalIconCatalog.ResolveEventRegionIcon(regionKind);
-        if (regionTex != null)
-        {
-            icon.style.backgroundImage = new StyleBackground(regionTex);
-            icon.style.backgroundColor = new Color(0f, 0f, 0f, 0f);
-            icon.style.unityBackgroundImageTintColor = new StyleColor(Color.white);
-        }
-        else
-        {
-            icon.style.backgroundImage = StyleKeyword.Null;
-            icon.style.backgroundColor = isStar
-                ? new Color(1f, 0.85f, 0.35f, 1f)
-                : new Color(0.45f, 0.75f, 1f, 1f);
-        }
+        ApplyInteriorMarkerStyle(icon, regionKind, buildingType, isStar);
         if (selected)
         {
-            icon.AddToClassList("ops-star-system-dispatch");
+            icon.AddToClassList("ops-interior-marker-selected");
         }
         wrap.Add(icon);
 
@@ -643,8 +645,8 @@ public sealed class StarMapHostController : MonoBehaviour, IViewportCameraComman
             if (regionId.StartsWith("bld:", StringComparison.Ordinal))
             {
                 _dispatchTargetId = _interiorSystemId;
-                UpdateMarkerLabels();
             }
+
             _onEventRegionPicked?.Invoke(regionId);
         };
         btn.clicked += handler;
@@ -652,6 +654,31 @@ public sealed class StarMapHostController : MonoBehaviour, IViewportCameraComman
 
         _markerLayer.Add(btn);
         _markers[regionId] = (btn, icon, label);
+    }
+
+    private static void ApplyInteriorMarkerStyle(
+        VisualElement icon,
+        string? regionKind,
+        string? buildingType,
+        bool isStar)
+    {
+        var tex = !string.IsNullOrWhiteSpace(buildingType)
+            ? TacticalIconCatalog.ResolveInteriorBuildingIcon(buildingType)
+            : TacticalIconCatalog.ResolveEventRegionIcon(regionKind);
+        if (tex != null)
+        {
+            icon.style.backgroundImage = new StyleBackground(tex);
+            icon.style.backgroundColor = new Color(0f, 0f, 0f, 0f);
+            icon.style.unityBackgroundImageTintColor = new StyleColor(Color.white);
+            icon.style.unityBackgroundScaleMode = new StyleEnum<ScaleMode>(ScaleMode.ScaleToFit);
+            return;
+        }
+
+        icon.style.backgroundImage = StyleKeyword.Null;
+        icon.style.backgroundColor = isStar
+            ? new Color(1f, 0.85f, 0.35f, 1f)
+            : new Color(0.45f, 0.75f, 1f, 1f);
+        icon.style.unityBackgroundImageTintColor = new StyleColor(Color.white);
     }
 
     private void UpdateMarkerPositions()
@@ -705,7 +732,22 @@ public sealed class StarMapHostController : MonoBehaviour, IViewportCameraComman
 
     private void ApplyStrategicMarkerStyle(VisualElement icon, SolarSystemDef sys, StarMapSystemBadge? badge)
     {
-        icon.style.backgroundColor = StarMapMath.SystemFillColor(sys, badge, _dispatchTargetId, _highlightedId);
+        var fill = StarMapMath.SystemFillColor(sys, badge, _dispatchTargetId, _highlightedId);
+        var tex = TacticalIconCatalog.ResolveStrategicSystemIcon(badge);
+        if (tex != null)
+        {
+            icon.style.backgroundImage = new StyleBackground(tex);
+            icon.style.backgroundColor = new Color(0f, 0f, 0f, 0f);
+            icon.style.unityBackgroundImageTintColor = new StyleColor(fill);
+            icon.style.unityBackgroundScaleMode = new StyleEnum<ScaleMode>(ScaleMode.ScaleToFit);
+        }
+        else
+        {
+            icon.style.backgroundImage = StyleKeyword.Null;
+            icon.style.backgroundColor = fill;
+            icon.style.unityBackgroundImageTintColor = new StyleColor(Color.white);
+        }
+
         ApplySecurityRing(icon, sys);
     }
 
@@ -980,7 +1022,8 @@ public sealed class StarMapHostController : MonoBehaviour, IViewportCameraComman
         return true;
     }
 
-    private static string EventRegionKindLabel(string? kind) => kind switch
+    private static string EventRegionKindLabel(string? kind) =>
+        (TacticalIconCatalog.NormalizeEventRegionKind(kind) ?? kind) switch
     {
         EventRegionKinds.Star => "恒星",
         EventRegionKinds.Planet => "行星",
@@ -996,6 +1039,14 @@ public sealed class StarMapHostController : MonoBehaviour, IViewportCameraComman
     {
         if (_orbit == null || _host?.panel == null)
         {
+            return;
+        }
+
+        // Touch is handled by StarMapViewportInputOverlay; avoid fighting Input.GetMouseButton.
+        if (Input.touchCount > 0)
+        {
+            _mousePanActive = false;
+            _mouseOrbitActive = false;
             return;
         }
 

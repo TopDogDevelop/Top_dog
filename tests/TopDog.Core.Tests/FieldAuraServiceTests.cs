@@ -105,7 +105,7 @@ public sealed class FieldAuraServiceTests
             armorMax = greyHull.armorHp,
             fittedModules = { ["fn_1"] = "mod_armor_link_s" },
             fieldAuraEnabledAtSec = 1f,
-            fieldAuraDominant = true,
+            fieldAuraArmorDominant = true,
         };
         bf.units.Add(holder);
 
@@ -145,6 +145,63 @@ public sealed class FieldAuraServiceTests
     }
 
     [Test]
+    public void Whitewolf_ShieldFusionRadius_IsHalf()
+    {
+        var ships = ShipRegistry.LoadDefault();
+        var modules = ModuleRegistry.LoadDefault();
+        var hull = ships.FindHull("hull_cruiser_whitewolf_guard");
+        var mod = modules.Resolve("mod_shield_fusion_l");
+        Assert.That(hull, Is.Not.Null);
+        Assert.That(mod, Is.Not.Null);
+
+        var holder = new BattlefieldUnit { hullId = hull!.hullId };
+        var radiusM = FieldAuraService.ResolveFieldRadiusM(holder, mod!, hull);
+        Assert.That(radiusM, Is.EqualTo(7500f));
+    }
+
+    [Test]
+    public void LargeTonnageProtege_BindOnlyPolicy()
+    {
+        var ships = ShipRegistry.LoadDefault();
+        var holder = new BattlefieldUnit
+        {
+            unitId = "cruiser",
+            hullId = "hull_frigate_pineapple",
+            tonnageClass = "CRUISER",
+            side = UnitSide.FRIENDLY,
+            alive = true,
+        };
+        var dread = new BattlefieldUnit
+        {
+            unitId = "dread",
+            hullId = "hull_dread_ironcoffin",
+            tonnageClass = "DREADNOUGHT",
+            side = UnitSide.FRIENDLY,
+            alive = true,
+        };
+        var holderHull = ships.FindHull(holder.hullId);
+        Assert.That(
+            FieldAuraService.EligibleForBinding(dread, holder, holderHull, "shield_fusion_field"),
+            Is.True);
+        Assert.That(
+            FieldAuraService.EligibleForShieldFusion(dread, holder, holderHull),
+            Is.False);
+
+        var wolfHull = ships.FindHull("hull_cruiser_whitewolf_guard");
+        var wolf = new BattlefieldUnit
+        {
+            unitId = "wolf",
+            hullId = "hull_cruiser_whitewolf_guard",
+            tonnageClass = "CRUISER",
+            side = UnitSide.FRIENDLY,
+            alive = true,
+        };
+        Assert.That(
+            FieldAuraService.EligibleForShieldFusion(dread, wolf, wolfHull),
+            Is.False);
+    }
+
+    [Test]
     public void ArmorFieldLeave_RestoresProtegeArmor()
     {
         var modules = ModuleRegistry.LoadDefault();
@@ -160,7 +217,7 @@ public sealed class FieldAuraServiceTests
             armorMax = 5000f,
             fittedModules = { ["fn_1"] = "mod_armor_link_s" },
             fieldAuraEnabledAtSec = 1f,
-            fieldAuraDominant = true,
+            fieldAuraArmorDominant = true,
             x = 0f,
         };
         var protege = new BattlefieldUnit

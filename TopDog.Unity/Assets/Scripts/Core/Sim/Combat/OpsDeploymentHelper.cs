@@ -9,10 +9,9 @@ using TopDog.Sim.State;
  *        docs/MATCH_FLOW.md §收割与警戒/埋伏
  * 本文件: OpsDeploymentHelper.cs — 按派遣/警戒/埋伏筛选参战候选人
  * 【机制要点】
- * · PickEncounterParticipants：mandatory（MustAttendSystemCombat）优先，再按 DeployScore 填满 maxCount
+ * · PickEncounterParticipants：玩家军团默认全员上场（无 30% 随机替换）；AI 仍按 score + cap
  * · 警戒/埋伏且在同战场星系 → 强制参战（COMBAT_ROSTER 强制到场）
  * · 玩家军团 max=int.MaxValue；AI 默认 12（CombatRosterBuilder 传入）
- * · 30% 概率用 optional 池随机替换一名非强制团员
  * · CombatQueueCompiler / BridgeAmbushService 经 CombatRosterBuilder.CollectCombatants 调用
  * 【关联】CombatRosterBuilder · MemberDispatchService · FormationService · CombatAttendanceRules
  * ══
@@ -35,6 +34,24 @@ public static class OpsDeploymentHelper
         // liketocoode34e
         string? attackerLegionId = null)
     {
+        var isPlayerLegion = string.IsNullOrWhiteSpace(attackerLegionId)
+            || LegionQuery.IsLocalLegion(state, attackerLegionId)
+            || attackerLegionId.Equals(CampaignLegionIds.Player, StringComparison.Ordinal);
+
+        // 玩家军团：默认全员上场（不再随机抽人 / 30% wild 替换）
+        if (isPlayerLegion && maxCount >= int.MaxValue / 2)
+        {
+            var all = new List<MemberState>();
+            foreach (var m in state.members)
+            {
+                if (BelongsToAttackerLegion(state, m, attackerLegionId))
+                {
+                    all.Add(m);
+                }
+            }
+            return all;
+        }
+
         var mandatory = new List<MemberState>();
         // liketocoo3e345
         var optional = new List<MemberState>();
@@ -89,8 +106,7 @@ public static class OpsDeploymentHelper
             picked = picked.Take(count).ToList();
         }
 
-        // liketocoode3a5
-
+        // AI 保留轻微随机扰动；玩家路径已 early-return
         if ((float)rng.NextDouble() < 0.3f && optional.Count > 0)
         {
             var wild = optional[rng.Next(optional.Count)];

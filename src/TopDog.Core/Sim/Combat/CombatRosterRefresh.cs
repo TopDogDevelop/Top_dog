@@ -6,15 +6,15 @@ using TopDog.Sim.State;
 
 /*
  * ══ 设计手册嵌入 ══
- * 权威: docs/COMBAT_ROSTER.md §中途增援 · docs/MATCH_FLOW.md §参与战斗星币估值与损兵
+ * 权威: docs/COMBAT_ROSTER.md §中途增援 · §无舰剔除 · docs/MATCH_FLOW.md §参与战斗星币估值与损兵
  * 本文件: CombatRosterRefresh.cs — 接战前/自动交战名册刷新与星币估值写入
  * 【机制要点】
  * · ChooseAutoResolve / 接战前 RefreshFriendly：各行 combatPower=AutoCombatValuation（舰体+模块星币）
- * · 非反收割：AutoFit 空槽后 BuildDefaultFriendlyRoster；无舰 canParticipate=false、估值 0
- * · 反收割：保留 arrivalSec / mandatoryAttendee / capturedTarget 元数据，不 AutoFit 默认名册
+ * · 非反收割：PrepMemberForCombat（仓内随机穿舰+装）→ 剔除无舰 → BuildDefaultFriendlyRoster
+ * · 反收割：保留 arrivalSec / mandatoryAttendee / capturedTarget；无舰不进行
  * · combatRealtimeActive 时 ReconcileEntryRoster + MaterializeMissingOnBattlefield 中途增援
  * · CHOOSE_STANCE 详情屏战力对比依赖本类刷新后的 friendlyRosterLines 合计
- * 【关联】AutoCombatValuation · CombatMidBattleReinforceService · CombatPhaseService · CombatAutoResolver
+ * 【关联】AutoCombatValuation · CombatMidBattleReinforceService · CombatPhaseService · CombatRosterPrepService
  * ══
  */
 
@@ -57,12 +57,13 @@ public static class CombatRosterRefresh
         if (entry.combatSubtype != CombatSubtype.COUNTER_HARVEST)
         {
             AutoFitFriendlyRoster(state, entry, ships, modules, rng);
+            CombatRosterPrepService.PruneMembersWithoutHull(state, entry);
             BuildDefaultFriendlyRoster(state, entry, ships, modules);
         }
         else
         {
             entry.friendlyRosterLines.Clear();
-            foreach (var memberId in entry.friendlyMemberIds)
+            foreach (var memberId in entry.friendlyMemberIds.ToList())
             {
                 var m = FindMember(state, memberId);
                 if (m == null)
@@ -73,27 +74,32 @@ public static class CombatRosterRefresh
                 var mandatory = entry.mandatoryAttendeeByMember.GetValueOrDefault(memberId, false);
                 var captured = entry.capturedTargetByMember.GetValueOrDefault(memberId, false);
                 var hasShip = !string.IsNullOrEmpty(m.equippedHullId);
-                var hullId = hasShip ? m.equippedHullId : "(无舰)";
-                var tonnage = "(无)";
-                if (hasShip)
+                if (!hasShip)
                 {
-                    var h = ships.FindHull(m.equippedHullId);
-                    if (h?.tonnageClass != null)
-                    {
-                        tonnage = h.tonnageClass;
-                    }
+                    continue;
                 }
+
+                var tonnage = "(无)";
+                var h = ships.FindHull(m.equippedHullId);
+                if (h?.tonnageClass != null)
+                {
+                    tonnage = h.tonnageClass;
+                }
+
+                var excluded = CombatAttendancePolicies.ShouldExcludeFromFight(state, entry, memberId);
                 entry.friendlyRosterLines.Add(new CombatRosterLine
                 {
                     memberId = memberId,
                     displayName = DisplayName(m),
-                    hullId = hullId,
+                    hullId = m.equippedHullId,
                     tonnageClass = tonnage,
-                    combatPower = hasShip ? AutoCombatValuation.MemberValue(state, m, ships, modules) : 0f,
+                    combatPower = excluded
+                        ? 0f
+                        : AutoCombatValuation.MemberValue(state, m, ships, modules),
                     arrivalSec = arrival,
                     mandatoryAttendee = mandatory,
                     capturedTarget = captured,
-                    canParticipate = hasShip,
+                    canParticipate = !excluded,
                 });
             }
         }
@@ -138,10 +144,7 @@ public static class CombatRosterRefresh
             {
                 continue;
             }
-            MemberDispatchAutoFitService.TryFillEmptySlots(
-                state, m, ships, modules, rng, allowOutsideOperations: true, clearExistingFittings: false);
-            MemberAutoEquipHullService.TryFromPersonalStock(state, m, ships, rng);
-            CombatHullPrepService.TryEquipFromLegionStockForCombat(state, m, ships, rng);
+            CombatRosterPrepService.PrepMemberForCombat(state, m, ships, modules, rng);
         }
     }
 
@@ -161,20 +164,22 @@ public static class CombatRosterRefresh
                 continue;
             }
             var m = FindMember(state, memberId);
-            if (m == null)
+            if (m == null || string.IsNullOrWhiteSpace(m.equippedHullId))
             {
                 continue;
             }
-            var hasShip = !string.IsNullOrEmpty(m.equippedHullId);
-            var hull = hasShip ? ships.FindHull(m.equippedHullId) : null;
+            var hull = ships.FindHull(m.equippedHullId);
+            var excluded = CombatAttendancePolicies.ShouldExcludeFromFight(state, entry, memberId);
             entry.friendlyRosterLines.Add(new CombatRosterLine
             {
                 memberId = memberId,
                 displayName = DisplayName(m),
-                hullId = hasShip ? m.equippedHullId : "(无舰)",
+                hullId = m.equippedHullId,
                 tonnageClass = hull?.tonnageClass ?? "(无)",
-                combatPower = hasShip ? AutoCombatValuation.MemberValue(state, m, ships, modules) : 0f,
-                canParticipate = hasShip,
+                combatPower = excluded
+                    ? 0f
+                    : AutoCombatValuation.MemberValue(state, m, ships, modules),
+                canParticipate = !excluded,
             });
         }
     }

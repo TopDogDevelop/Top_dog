@@ -14,6 +14,7 @@ using TopDog.Sim.Vision;
  * · OrderOrbit：OrbitEntryResolver 几何切入点 + 圆轨道
  * · OrderEnterBuilding：跨星系跳桥无延迟到对端
  * · 集体跃迁 OrderWarp：同星系 AU 伪跃迁；跨星系仅跳桥（OrderEnterBuilding）
+ * · OrderWarpToSceneTarget：同场景单位目标须友好声望（UnitSide.FRIENDLY）才走 OrderIntraSceneWarp
  * 【实现逻辑】
  * · EnsureCommandSceneReady：仅 SeedSceneProxies（本场景 + proxy 目标场景懒加载）；禁止 Sync/remove proxy
  * 【关联】TacticalWarpService · BattlefieldSystem · ShipMotionIntegrator · FleetCommandBar
@@ -421,43 +422,73 @@ public static class FleetOrderService
         BattlefieldState bf,
         IReadOnlyCollection<string>? selectedFriendlyUnitIds = null)
     {
-        var anchorX = 0f;
-        var anchorY = 0f;
-        var anchorZ = 0f;
-        var possessor = BattlefieldSystem.FindPossessedUnit(state, bf);
-        if (possessor != null)
-        {
-            anchorX = possessor.x;
-            anchorY = possessor.y;
-            anchorZ = possessor.z;
-        }
-        else
-        {
-            var focus = VisionAnchorService.ResolveDefaultFocus(state, bf);
-            if (focus != null)
-            {
-                anchorX = focus.x;
-                anchorY = focus.y;
-                anchorZ = focus.z;
-            }
-        }
+        var anchor = RallyNavigationPlanner.ResolveShipPositionAnchor(state, bf);
+        return RallyToAnchor(state, bf, anchor, selectedFriendlyUnitIds);
+    }
 
-        var count = 0;
+    public static string RallyToAnchor(
+        GameState state,
+        BattlefieldState bf,
+        RallyAnchor anchor,
+        IReadOnlyCollection<string>? selectedFriendlyUnitIds = null,
+        ShipRegistry? ships = null)
+    {
+        ships ??= ShipRegistry.LoadDefault();
+        var navigateCount = 0;
+        var crossCount = 0;
+
         foreach (var battlefield in state.battlefields)
         {
             foreach (var u in ResolveCommandTargets(state, battlefield, selectedFriendlyUnitIds))
             {
-                NavigationService.AssignNavigate(u, anchorX, anchorY, anchorZ);
-                count++;
+                var unitBf = RallyNavigationPlanner.FindBattlefieldForUnit(state, u) ?? battlefield;
+                var steps = RallyNavigationPlanner.PlanRoute(state, u, anchor);
+                if (steps.Count == 0)
+                {
+                    continue;
+                }
+
+                RallyNavigationService.AssignChain(state, u, anchor, steps);
+                if (RallyNavigationPlanner.ApplyFirstStep(state, u, unitBf, steps, ships))
+                {
+                    if (steps.Count == 1
+                        && steps[0].StartsWith(RallyStepCodec.PrefixNavigate, StringComparison.Ordinal))
+                    {
+                        navigateCount++;
+                    }
+                    else
+                    {
+                        crossCount++;
+                    }
+                }
             }
         }
 
-        state.tacticalNavX = anchorX;
-        state.tacticalNavY = anchorY;
-        state.tacticalNavZ = anchorZ;
-        state.tacticalNavVisible = count > 0;
-        CombatTelemetryLog.Log("nav.order", $"rally all bf count={count}");
-        return count > 0 ? "已向全战场集合 " + count + " 艘" : "无可集合舰";
+        var anchorX = anchor.X;
+        var anchorY = anchor.Y;
+        var anchorZ = anchor.Z;
+        if (anchor.Kind == RallyAnchorKind.ShipPosition)
+        {
+            state.tacticalNavX = anchorX;
+            state.tacticalNavY = anchorY;
+            state.tacticalNavZ = anchorZ;
+            state.tacticalNavVisible = navigateCount + crossCount > 0;
+        }
+        else
+        {
+            HideTacticalNavMarker(state);
+        }
+
+        var total = navigateCount + crossCount;
+        CombatTelemetryLog.Log("nav.order", $"rally anchor={anchor.Kind} count={total} cross={crossCount}");
+        if (total <= 0)
+        {
+            return "无可集合舰";
+        }
+
+        return crossCount > 0
+            ? "已向全战场集合 " + total + " 艘（跨场景 " + crossCount + " 艘将自动跃迁/过门）"
+            : "已向全战场集合 " + total + " 艘";
     }
 
     public static string OrderNavigateToPoint(
@@ -515,6 +546,7 @@ public static class FleetOrderService
                 continue;
             }
             LogisticsAutoTargetingService.SuppressForPlayerOrder(u);
+            RemoteRepairAutoTargetingService.SuppressForPlayerOrder(u);
             u.aiOrder = UnitAiOrder.FOLLOW;
             count++;
         }
@@ -537,6 +569,7 @@ public static class FleetOrderService
             foreach (var u in targets)
             {
                 LogisticsAutoTargetingService.SuppressForPlayerOrder(u);
+                RemoteRepairAutoTargetingService.SuppressForPlayerOrder(u);
                 u.aiOrder = UnitAiOrder.FOCUS;
                 u.targetUnitId = focusId;
                 u.explicitFocus = true;
@@ -577,6 +610,7 @@ public static class FleetOrderService
                 continue;
             }
             LogisticsAutoTargetingService.SuppressForPlayerOrder(u);
+            RemoteRepairAutoTargetingService.SuppressForPlayerOrder(u);
             u.aiOrder = UnitAiOrder.STOP;
             u.approachTargetUnitId = null;
             u.orbitTargetUnitId = null;
@@ -591,6 +625,7 @@ public static class FleetOrderService
             u.vx = 0f;
             u.vy = 0f;
             u.vz = 0f;
+            RallyNavigationService.ClearChain(u);
             count++;
         }
 
@@ -624,6 +659,7 @@ public static class FleetOrderService
         foreach (var u in targets)
         {
             LogisticsAutoTargetingService.SuppressForPlayerOrder(u);
+            RemoteRepairAutoTargetingService.SuppressForPlayerOrder(u);
             u.aiOrder = UnitAiOrder.ORBIT;
             u.orbitTargetUnitId = targetUnitId;
             u.approachTargetUnitId = null;
@@ -672,6 +708,7 @@ public static class FleetOrderService
         foreach (var u in targets)
         {
             LogisticsAutoTargetingService.SuppressForPlayerOrder(u);
+            RemoteRepairAutoTargetingService.SuppressForPlayerOrder(u);
             u.aiOrder = UnitAiOrder.APPROACH;
             u.approachTargetUnitId = targetUnitId;
             u.approachHeadingTimerSec = 0f;
@@ -721,6 +758,7 @@ public static class FleetOrderService
         foreach (var u in targets)
         {
             LogisticsAutoTargetingService.SuppressForPlayerOrder(u);
+            RemoteRepairAutoTargetingService.SuppressForPlayerOrder(u);
             u.aiOrder = UnitAiOrder.AWAY;
             u.approachTargetUnitId = targetUnitId;
             u.approachHeadingTimerSec = 0f;
@@ -789,6 +827,7 @@ public static class FleetOrderService
             }
 
             LogisticsAutoTargetingService.SuppressForPlayerOrder(u);
+            RemoteRepairAutoTargetingService.SuppressForPlayerOrder(u);
             u.aiOrder = UnitAiOrder.FOLLOW_ATTACK;
             u.targetUnitId = focusId;
             u.explicitFocus = true;
@@ -819,6 +858,7 @@ public static class FleetOrderService
                 continue;
             }
             LogisticsAutoTargetingService.SuppressForPlayerOrder(u);
+            RemoteRepairAutoTargetingService.SuppressForPlayerOrder(u);
             u.aiOrder = UnitAiOrder.SCATTER;
             u.facingRad = (float)(rng.NextDouble() * Math.PI * 2);
             u.pitchRad = (float)(rng.NextDouble() * 0.4 - 0.2);
@@ -910,6 +950,12 @@ public static class FleetOrderService
             && !BattlefieldSceneProxyService.IsSceneProxy(sameBfUnit)
             && !sameBfUnit.isBuilding)
         {
+            // 同场景跃迁目标须为友好声望（当前实现：UnitSide.FRIENDLY；敌对不可作目标）
+            if (sameBfUnit.side != UnitSide.FRIENDLY || sameBfUnit.IsDestroyed())
+            {
+                return "同场景跃迁仅允许友好声望目标";
+            }
+
             var intraSource = ResolveWarpSourceBattlefield(state, bf);
             return OrderIntraSceneWarp(
                 state,
@@ -1134,6 +1180,7 @@ public static class FleetOrderService
             }
 
             LogisticsAutoTargetingService.SuppressForPlayerOrder(u);
+            RemoteRepairAutoTargetingService.SuppressForPlayerOrder(u);
             FieldAuraWarpGate.PrepareHolderForWarp(bf, u);
 
             var unitLanding = landingKm.HasValue

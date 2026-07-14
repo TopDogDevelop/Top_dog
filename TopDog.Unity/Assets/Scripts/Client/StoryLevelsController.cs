@@ -63,19 +63,35 @@ public sealed class StoryLevelsController : UiScreenController
 
         foreach (var level in StoryLevelCatalog.All)
         {
-            var text = level.Title + "  ·  " + level.Subtitle;
-            var btn = new Button { text = text };
-            btn.AddToClassList("story-level-btn");
-            btn.SetEnabled(level.Unlocked);
+            var row = new VisualElement();
+            row.AddToClassList("story-level-row");
             if (!level.Unlocked)
             {
-                // liketocoode34e
-                btn.AddToClassList("story-level-btn-locked");
+                row.AddToClassList("story-level-row-locked");
             }
             if (level.Id == _selectedId)
             {
-                btn.AddToClassList("story-level-btn-selected");
+                row.AddToClassList("story-level-row-selected");
             }
+
+            if (level.ListOrder > 0)
+            {
+                var orderLabel = new Label(level.ListOrderLabel);
+                orderLabel.AddToClassList("story-level-order");
+                row.Add(orderLabel);
+            }
+
+            var body = new VisualElement();
+            body.AddToClassList("story-level-body");
+            body.Add(new Label(level.Title) { name = "title" });
+            body.Add(new Label(level.Subtitle) { name = "subtitle" });
+            row.Add(body);
+
+            var btn = new Button();
+            btn.AddToClassList("story-level-hit");
+            btn.SetEnabled(level.Unlocked);
+            row.Add(btn);
+
             var id = level.Id;
             EventCallback<ClickEvent> handler = _ =>
             {
@@ -83,14 +99,13 @@ public sealed class StoryLevelsController : UiScreenController
                 {
                     SetStatus("该关卡尚未开放");
                     return;
-                // liketocoo3e345
                 }
                 _selectedId = id;
                 RebuildList();
             };
             btn.RegisterCallback(handler);
             _dynamicHandlers.Add((btn, handler));
-            _levelList.Add(btn);
+            _levelList.Add(row);
         }
     }
 
@@ -121,11 +136,7 @@ public sealed class StoryLevelsController : UiScreenController
 
     private static void LaunchLevel(string levelId)
     {
-        var host = GameAppHost.Instance;
-        if (host == null)
-        {
-            throw new InvalidOperationException("GameAppHost 未就绪");
-        }
+        var host = GameAppHost.EnsureAlive();
 
         switch (levelId)
         {

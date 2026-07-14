@@ -1,0 +1,22 @@
+{
+  "scenarioId": "mt_nav_rally",
+  "displayName": "导航·自动集结",
+  "scenarioOrder": 9,
+  "seed": 1009,
+  "mapMode": "nav_rally",
+  "spawnSeparationM": 20000,
+  "legions": [
+    {
+      "legionId": "mt_player",
+      "displayName": "羊村",
+      "isPlayer": true,
+      "isAiControlled": false,
+      "expandTemplate": {
+        "templateId": "template_vip_invest",
+        "identityCode": "10001005",
+        "defaultHullId": "hull_frigate_pineapple",
+        "defaultFitted": {}
+      }
+    }
+  ]
+}

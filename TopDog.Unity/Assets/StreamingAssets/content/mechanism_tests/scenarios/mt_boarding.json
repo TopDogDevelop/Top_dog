@@ -1,6 +1,7 @@
 {
   "scenarioId": "mt_boarding",
   "displayName": "登录模块",
+  "scenarioOrder": 2,
   "seed": 1002,
   "spawnSeparationM": 20000,
   "legions": [

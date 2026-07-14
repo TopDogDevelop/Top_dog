@@ -1,0 +1,33 @@
+{
+  "scenarioId": "mt_intra_scene_warp",
+  "displayName": "同场景跃迁测试",
+  "scenarioOrder": 10,
+  "seed": 1010,
+  "mapMode": "intra_scene_warp",
+  "spawnSeparationM": 500000,
+  "legions": [
+    {
+      "legionId": "mt_player",
+      "displayName": "羊村",
+      "isPlayer": true,
+      "isAiControlled": false,
+      "expandTemplate": {
+        "templateId": "template_vip_invest",
+        "identityCode": "10001005",
+        "defaultHullId": "hull_frigate_pineapple",
+        "defaultFitted": {}
+      }
+    },
+    {
+      "legionId": "mt_enemy",
+      "displayName": "敌方羊村",
+      "isAiControlled": true,
+      "expandTemplate": {
+        "templateId": "template_vip_invest",
+        "identityCode": "10001005",
+        "defaultHullId": "hull_frigate_pineapple",
+        "defaultFitted": {}
+      }
+    }
+  ]
+}

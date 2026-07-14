@@ -298,7 +298,7 @@ public sealed class UnitOrbitHudWidget
             _buffRail.Add(MakeFieldBuffIcon(shieldField: false));
         }
 
-        if (u.fieldAuraEnabledAtSec > 0f && u.fieldAuraCollapseCooldownSec <= bf.timeSec && u.fieldAuraDominant)
+        if (u.fieldAuraEnabledAtSec > 0f && u.fieldAuraCollapseCooldownSec <= bf.timeSec)
         {
             if (FieldAuraService.FindFieldModule(u, modules, "shield_fusion_field") != null)
             {

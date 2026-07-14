@@ -1,0 +1,106 @@
+{
+  "generated_at": "2026-06-28T22:44:45.415337+10:00",
+  "source": "e:\\sg\\decrypted\\第二银河图片",
+  "layout": "cubemap_6face_equirect",
+  "note": "SG uses Unity Cubemap Skybox (6 faces). TopDog UI uses equirect derived from same faces.",
+  "main_sets": [
+    {
+      "id": "U_Skybox_01",
+      "faces": [
+        "U_Skybox_01+X.png",
+        "U_Skybox_01+Y.png",
+        "U_Skybox_01+Z.png",
+        "U_Skybox_01-X.png",
+        "U_Skybox_01-Y.png",
+        "U_Skybox_01-Z.png"
+      ],
+      "equirect": "equirect.png"
+    },
+    {
+      "id": "O_Skybox_01",
+      "faces": [
+        "O_Skybox_01+X.png",
+        "O_Skybox_01+Y.png",
+        "O_Skybox_01+Z.png",
+        "O_Skybox_01-X.png",
+        "O_Skybox_01-Y.png",
+        "O_Skybox_01-Z.png"
+      ],
+      "equirect": "equirect.png"
+    },
+    {
+      "id": "R_Skybox_01",
+      "faces": [
+        "R_Skybox_01+X.png",
+        "R_Skybox_01+Y.png",
+        "R_Skybox_01+Z.png",
+        "R_Skybox_01-X.png",
+        "R_Skybox_01-Y.png",
+        "R_Skybox_01-Z.png"
+      ],
+      "equirect": "equirect.png"
+    },
+    {
+      "id": "S_Skybox_01",
+      "faces": [
+        "S_Skybox_01+X.png",
+        "S_Skybox_01+Y.png",
+        "S_Skybox_01+Z.png",
+        "S_Skybox_01-X.png",
+        "S_Skybox_01-Y.png",
+        "S_Skybox_01-Z.png"
+      ],
+      "equirect": "equirect.png"
+    },
+    {
+      "id": "N_Skybox_Arothe01",
+      "faces": [
+        "SpaceBoxPRO_Arothe01+X.png",
+        "SpaceBoxPRO_Arothe01+Y.png",
+        "SpaceBoxPRO_Arothe01+Z.png",
+        "SpaceBoxPRO_Arothe01-X.png",
+        "SpaceBoxPRO_Arothe01-Y.png",
+        "SpaceBoxPRO_Arothe01-Z.png"
+      ],
+      "equirect": "equirect.png"
+    }
+  ],
+  "reserve_sets": [
+    {
+      "id": "Wormhole_Perel",
+      "faces": [
+        "SpaceBoxPRO_Perel+X.png",
+        "SpaceBoxPRO_Perel+Y.png",
+        "SpaceBoxPRO_Perel+Z.png",
+        "SpaceBoxPRO_Perel-X.png",
+        "SpaceBoxPRO_Perel-Y.png",
+        "SpaceBoxPRO_Perel-Z.png"
+      ],
+      "equirect": "equirect.png"
+    },
+    {
+      "id": "ProjectXSkyBox",
+      "faces": [
+        "ProjectXSkyBox_Right.png",
+        "ProjectXSkyBox_Front.png",
+        "ProjectXSkyBox_Left.png",
+        "ProjectXSkyBox_Back.png",
+        "ProjectXSkyBox_UP.png",
+        "ProjectXSkyBox_Down.png"
+      ],
+      "equirect": "equirect.png"
+    },
+    {
+      "id": "Nebula_NuminousGlow",
+      "faces": [
+        "Nebula_NuminousGlow_2_Left+X.png",
+        "Nebula_NuminousGlow_0_Front+Z.png",
+        "Nebula_NuminousGlow_3_Right-X.png",
+        "Nebula_NuminousGlow_1_Back-Z.png",
+        "Nebula_NuminousGlow_4_Up+Y.png",
+        "Nebula_NuminousGlow_5_Down-Y.png"
+      ],
+      "equirect": "equirect.png"
+    }
+  ]
+}

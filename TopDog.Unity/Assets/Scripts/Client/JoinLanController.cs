@@ -137,15 +137,22 @@ public sealed class JoinLanController : UiScreenController
         }
 
         foreach (var room in _rooms)
-        // lik3tocoode345
         {
             var hostIp = room.hostIp ?? "?";
             var mapLabel = string.IsNullOrWhiteSpace(room.mapId) ? "未知地图" : room.mapId;
             var kind = string.IsNullOrWhiteSpace(room.roomKind) ? "CUSTOM" : room.roomKind;
+            var ver = string.IsNullOrWhiteSpace(room.contentVersion) ? "?" : room.contentVersion;
+            var versionOk = ContentVersionGate.Matches(room.contentVersion);
             var text = (room.hostName ?? hostIp) + "  ·  " + hostIp + "  ·  "
-                       + room.playerCount + " 人  ·  " + kind + "  ·  " + mapLabel;
+                       + room.playerCount + " 人  ·  " + kind + "  ·  " + mapLabel
+                       + "  ·  " + ver
+                       + (versionOk ? "" : "  ·  版号不合");
             var btn = new Button { text = text };
             btn.AddToClassList("join-lan-room-btn");
+            if (!versionOk)
+            {
+                btn.SetEnabled(false);
+            }
             if (hostIp == _selectedHostIp)
             {
                 btn.AddToClassList("join-lan-room-btn-selected");
@@ -153,8 +160,15 @@ public sealed class JoinLanController : UiScreenController
             var ip = hostIp;
             var mapId = room.mapId;
             var roomKind = room.roomKind;
+            var roomVer = room.contentVersion;
             EventCallback<ClickEvent> handler = _ =>
             {
+                if (!ContentVersionGate.Matches(roomVer))
+                {
+                    SetStatus("主机版本 " + (roomVer ?? "?") + " / 本机 " + ContentVersionGate.Current + "，需一致才能联机");
+                    return;
+                }
+
                 _selectedHostIp = ip;
                 _selectedMapId = mapId;
                 _selectedRoomKind = roomKind;
@@ -173,6 +187,24 @@ public sealed class JoinLanController : UiScreenController
             SetStatus("请先选择一个房间");
             return;
         }
+
+        PeerAnnouncement? selected = null;
+        foreach (var room in _rooms)
+        {
+            if (room.hostIp == _selectedHostIp)
+            {
+                selected = room;
+                break;
+            }
+        }
+
+        if (selected != null && !ContentVersionGate.Matches(selected.contentVersion))
+        {
+            SetStatus("主机版本 " + (selected.contentVersion ?? "?")
+                      + " / 本机 " + ContentVersionGate.Current + "，需一致才能联机");
+            return;
+        }
+
         GetComponent<UiNavigator>()?.ShowCustomLobbyJoin(_selectedHostIp, _selectedMapId);
     }
 

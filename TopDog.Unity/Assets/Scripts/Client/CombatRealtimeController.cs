@@ -1,3 +1,4 @@
+using System;
 using TopDog.App;
 using TopDog.App.Brick;
 using TopDog.Client.StarMap;
@@ -62,6 +63,10 @@ public sealed class CombatRealtimeController : UiScreenController
     private readonly ITacticalInputSource _inputSource = new KeyboardTacticalInputSource();
     private PossessionInputBridge _inputBridge;
     private CombatFloatingTextPresenter _floatingText;
+    private VisualElement _fieldAuraHost;
+    private FieldAuraVfxCameraHost _fieldAuraCamera;
+    private FieldAuraVfxPresenter _fieldAuraVfx;
+    private Transform? _fieldAuraWorldRoot;
     private BattleReportWindow _battleReportWindow;
     private CombatSpaceBackgroundPresenter? _spaceBackground;
     private bool _openSystemInteriorOnStarMap;
@@ -69,6 +74,8 @@ public sealed class CombatRealtimeController : UiScreenController
     private Label _combatDebugLabel;
     private float _nextRefresh;
     private string? _lastFollowedBattlefieldId;
+    private string? _starMapDispatchSystemId;
+    private string? _starMapSelectedRegionId;
     private EventCallback<KeyDownEvent>? _keyHandler;
 
     protected override void Bind(VisualElement root)
@@ -92,6 +99,15 @@ public sealed class CombatRealtimeController : UiScreenController
         {
             markersHost.pickingMode = PickingMode.Ignore;
         }
+
+        _fieldAuraHost = new VisualElement { name = "field-aura-overlay" };
+        _fieldAuraHost.AddToClassList("rtcombat-field-aura-overlay");
+        _fieldAuraHost.pickingMode = PickingMode.Ignore;
+        _fieldAuraCamera = GetComponent<FieldAuraVfxCameraHost>()
+                           ?? gameObject.AddComponent<FieldAuraVfxCameraHost>();
+        var fieldWorldGo = new GameObject("FieldAuraWorld");
+        fieldWorldGo.transform.SetParent(transform, false);
+        _fieldAuraWorldRoot = fieldWorldGo.transform;
 
         var artBg = root.Q<VisualElement>("art-viewport-bg");
         if (artBg != null && _viewportHost != null)
@@ -167,14 +183,36 @@ public sealed class CombatRealtimeController : UiScreenController
             edgeMarkersHost?.BringToFront();
             _inputOverlay.BringToFront();
             root.Q<VisualElement>("viewport-controls")?.BringToFront();
+            if (_viewportHost != null && markersHost != null)
+            {
+                var fieldAuraInsertIdx = _viewportHost.IndexOf(markersHost);
+                if (fieldAuraInsertIdx >= 0)
+                {
+                    _viewportHost.Insert(Mathf.Max(0, fieldAuraInsertIdx), _fieldAuraHost);
+                }
+                else
+                {
+                    _viewportHost.Add(_fieldAuraHost);
+                }
+
+                _fieldAuraCamera.Bind(_viewportHost, _fieldAuraHost, _viewportCamera, _fieldAuraWorldRoot);
+                _fieldAuraCamera.SetRenderMode(FieldAuraVfxCameraHost.FieldAuraRenderMode.CompositeOnSkybox);
+                _spaceBackground?.SetFieldAuraPass(_fieldAuraCamera);
+            }
+
+            ArrangeCombatViewportLayers();
         }
 
         UiViewportControlBar.BindWithin(_viewportHost ?? root, root, _viewportCamera, RefreshAll);
         if (_starMapHost != null)
         {
             _starMap = GetComponent<StarMapHostController>() ?? gameObject.AddComponent<StarMapHostController>();
-            _starMap.Attach(_starMapHost, OnCombatStarMapSystemPicked);
+            _starMap.Attach(_starMapHost, OnCombatStarMapSystemPicked, OnCombatStarMapRegionPicked);
             UiViewportControlBar.BindWithin(_starMapHost, root, _starMap, RefreshAll);
+            OnClick(root, "btn-enter-system", EnterStarMapSystemInterior);
+            OnClick(root, "btn-exit-system", ExitStarMapSystemInterior);
+            OnClick(root, "btn-rally-starmap", RallyAtStarMapSelection);
+            OnClick(root, "btn-topbar-enter-system", EnterStarMapSystemInterior);
         }
         if (grid != null)
         {
@@ -271,8 +309,14 @@ public sealed class CombatRealtimeController : UiScreenController
     private void OnCombatStarMapSystemPicked(string systemId)
     {
         // liketoc0de345
+        _starMapDispatchSystemId = systemId;
         var core = GameAppHost.Instance?.Core;
         if (core == null)
+        {
+            return;
+        }
+
+        if (_starMap != null && _starMap.IsSystemInterior)
         {
             return;
         }
@@ -309,6 +353,83 @@ public sealed class CombatRealtimeController : UiScreenController
         BrickDebugLog.Log("combat.starmap", "pick system=" + systemId + " → " + pick.battlefieldId);
         SetStatus(msg);
         CombatViewModeState.Set(CombatViewMode.Tactical);
+    }
+
+    private void OnCombatStarMapRegionPicked(string regionId)
+    {
+        _starMapSelectedRegionId = regionId;
+    }
+
+    private void EnterStarMapSystemInterior()
+    {
+        var bf = ActiveBf(GameAppHost.Instance?.Core?.State);
+        var systemId = _starMapDispatchSystemId ?? bf?.systemId;
+        if (string.IsNullOrEmpty(systemId))
+        {
+            SetStatus("请先点击星图选择星系");
+            return;
+        }
+
+        var highlightRegion = _starMapSelectedRegionId ?? bf?.eventRegionId;
+        _openSystemInteriorOnStarMap = true;
+        if (CombatViewModeState.Mode != CombatViewMode.StarMap)
+        {
+            CombatViewModeState.Set(CombatViewMode.StarMap);
+        }
+        else
+        {
+            _starMap?.EnterSystemInterior(systemId, highlightRegion);
+            SetStatus("星系内景 · " + systemId);
+        }
+    }
+
+    private void ExitStarMapSystemInterior()
+    {
+        _starMap?.ExitSystemInterior();
+        SetStatus("返回战略星图");
+    }
+
+    private void RallyAtStarMapSelection()
+    {
+        var core = GameAppHost.Instance?.Core;
+        var state = core?.State;
+        var bf = state != null ? ActiveBf(state) : null;
+        if (core == null || state == null || bf == null)
+        {
+            SetStatus("无活动战场");
+            return;
+        }
+
+        RallyAnchor anchor;
+        if (_starMap != null && _starMap.IsSystemInterior && _starMap.InteriorSystemId != null)
+        {
+            var regionId = _starMap.SelectedEventRegionId ?? bf.eventRegionId;
+            if (string.IsNullOrEmpty(regionId))
+            {
+                SetStatus("请先选择星系内场景");
+                return;
+            }
+
+            var landingM = TacticalWarpLandingService.ResolveLandingDistM(state);
+            anchor = RallyNavigationPlanner.ResolveSceneAnchor(
+                state,
+                _starMap.InteriorSystemId,
+                regionId,
+                landingM);
+        }
+        else if (!string.IsNullOrEmpty(_starMapDispatchSystemId))
+        {
+            anchor = RallyNavigationPlanner.ResolveSystemAnchor(_starMapDispatchSystemId);
+        }
+        else
+        {
+            SetStatus("请先点击星图选择集结目标");
+            return;
+        }
+
+        var msg = FleetOrderService.RallyToAnchor(state, bf, anchor);
+        SetStatus(msg);
+        OnCommandIssued(msg, msg.StartsWith("已", System.StringComparison.Ordinal));
     }
 
     private void OpenActiveSystemInteriorMap()
@@ -353,7 +474,15 @@ public sealed class CombatRealtimeController : UiScreenController
             var bf = ActiveBf(s);
             if (bf?.systemId != null)
             {
-                _starMap.EnterSystemInterior(bf.systemId, bf.eventRegionId);
+                if (_starMap.IsSystemInterior
+                    && string.Equals(_starMap.InteriorSystemId, bf.systemId, StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                _starMap.EnterSystemInterior(
+                    bf.systemId,
+                    _starMapSelectedRegionId ?? bf.eventRegionId);
             }
         }
         else
@@ -361,6 +490,43 @@ public sealed class CombatRealtimeController : UiScreenController
             _starMap.ExitSystemInterior();
             HighlightActiveBattlefieldSystem(s);
             _starMap.FrameAll();
+        }
+    }
+
+    private void ArrangeCombatViewportLayers()
+    {
+        if (_viewportHost == null)
+        {
+            return;
+        }
+
+        var artBg = _viewportHost.Q<VisualElement>("art-viewport-bg");
+        var grid = _viewportHost.Q<VisualElement>("tactical-grid");
+        var markers = _viewportHost.Q<VisualElement>("tactical-markers");
+        var edge = _viewportHost.Q<VisualElement>("tactical-edge-markers");
+        var joystick = _viewportHost.Q<VisualElement>("virtual-joystick-host");
+        var controls = _viewportHost.Q<VisualElement>("viewport-controls");
+
+        VisualElement?[] backToFront =
+        {
+            artBg,
+            grid,
+            _planeOverlay,
+            _navMarker,
+            _fieldAuraHost,
+            markers,
+            edge,
+            _unitHover,
+            _inputOverlay,
+            joystick,
+            controls,
+        };
+        foreach (var layer in backToFront)
+        {
+            if (layer?.hierarchy.parent == _viewportHost)
+            {
+                layer.BringToFront();
+            }
         }
     }
 
@@ -392,11 +558,27 @@ public sealed class CombatRealtimeController : UiScreenController
             {
                 ApplyStarMapSubview(core);
             }
+
+            var modeBar = _uiRoot?.Q<VisualElement>("star-map-mode-bar");
+            modeBar?.BringToFront();
+            var topEnter = _uiRoot?.Q<Button>("btn-topbar-enter-system");
+            if (topEnter != null)
+            {
+                topEnter.style.display = _openSystemInteriorOnStarMap ? DisplayStyle.None : DisplayStyle.Flex;
+            }
+
+            _fieldAuraCamera?.SetActive(true);
         }
         else
         {
             _openSystemInteriorOnStarMap = false;
             _spaceBackground?.SetActive(true);
+            _fieldAuraCamera?.SetActive(false);
+            var topEnter = _uiRoot?.Q<Button>("btn-topbar-enter-system");
+            if (topEnter != null)
+            {
+                topEnter.style.display = DisplayStyle.None;
+            }
         }
     }
 
@@ -487,6 +669,20 @@ public sealed class CombatRealtimeController : UiScreenController
         ClientGameSettings.CombatViewFovChanged -= OnCombatViewSettingsChanged;
         ClientGameSettings.CombatBackgroundResolutionChanged -= OnCombatViewSettingsChanged;
         ClientGameSettings.CombatBackgroundSetChanged -= OnCombatBackgroundSetChanged;
+        // UI 重建/切屏会 OnDisable，不能结束会话，否则整场齐射/场域日志丢失
+        if (CombatTelemetrySessionExport.IsActive)
+        {
+            CombatTelemetrySessionExport.Flush();
+            var stillFighting = GameAppHost.Instance?.Core?.State.combatRealtimeActive == true;
+            if (!stillFighting)
+            {
+                var path = CombatTelemetrySessionExport.End("ui.disable");
+                if (!string.IsNullOrEmpty(path))
+                {
+                    Debug.Log("TopDog combat export → " + path);
+                }
+            }
+        }
         base.OnDisable();
     }
 
@@ -582,6 +778,13 @@ public sealed class CombatRealtimeController : UiScreenController
         _unitHover?.Refresh(s, bf);
         _viewportPresenter?.Refresh(s, bf);
         _floatingText?.Refresh(s, bf);
+        if (_fieldAuraVfx == null && core != null && _fieldAuraWorldRoot != null)
+        {
+            _fieldAuraVfx = new FieldAuraVfxPresenter(_fieldAuraWorldRoot, core.Ships, core.Modules);
+        }
+        _fieldAuraCamera?.PrepareWorldRootForFrame();
+        _fieldAuraVfx?.Refresh(s, bf, _fieldAuraCamera?.CurrentFocusWorld ?? Vector3.zero);
+        _fieldAuraCamera?.SetActive(CombatViewModeState.Mode != CombatViewMode.StarMap && bf != null);
         _fleetBar?.RefreshGate(s);
         if (CombatViewModeState.Mode == CombatViewMode.StarMap && _starMap != null)
         {
@@ -604,7 +807,10 @@ public sealed class CombatRealtimeController : UiScreenController
             var dist = _viewportCamera != null ? $" dist={_viewportCamera.ViewDistance:0}m" : "";
             var guest = GameAppHost.Instance?.NetworkGuest == true ? "联机客 · " : "";
             var warpHint = FormatWarpEtaHint(s, bf);
-            _timerLabel.text = guest + modeLabel + " · " + vision + " " + t + dist + warpHint;
+            var linkHint = CombatRealtimeLinkService.IsHandshakeFrozen(s)
+                ? " · 建立战场连接…"
+                : "";
+            _timerLabel.text = guest + modeLabel + " · " + vision + " " + t + dist + warpHint + linkHint;
         }
         if (_possessionLabel != null)
         {

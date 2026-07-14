@@ -44,7 +44,7 @@ public static class FieldAuraDamageRouter
         var remaining = dmg;
         var attackerInsideShield = false;
 
-        if (attacker != null && target.shieldFieldHostUnitId != null)
+        if (target.shieldFieldHostUnitId != null)
         {
             var shieldHost = BattlefieldSystem.FindUnit(bf, target.shieldFieldHostUnitId);
             var shieldMod = shieldHost != null
@@ -53,12 +53,12 @@ public static class FieldAuraDamageRouter
             if (shieldHost != null && shieldMod != null)
             {
                 var radius = FieldAuraService.ResolveFieldRadiusM(shieldHost, shieldMod, null);
-                attackerInsideShield = FieldAuraService.DistanceM(attacker, shieldHost) <= radius;
-                if (!attackerInsideShield && shieldHost.shieldHp > 0f)
+                attackerInsideShield = attacker != null
+                    && FieldAuraService.DistanceM(attacker, shieldHost) <= radius;
+                if ((attacker == null || !attackerInsideShield) && shieldHost.shieldHp > 0f)
                 {
-                    var toShield = Math.Min(remaining, shieldHost.shieldHp);
-                    ctx.shieldDamage += toShield;
-                    remaining -= toShield;
+                    ctx.shieldDamage += remaining;
+                    remaining = 0f;
                 }
             }
         }
@@ -118,7 +118,7 @@ public static class FieldAuraDamageRouter
         var shieldOnTarget = 0f;
         var armorOnTarget = 0f;
 
-        if (ctx.attacker != null && target.shieldFieldHostUnitId != null)
+        if (target.shieldFieldHostUnitId != null)
         {
             var shieldHost = BattlefieldSystem.FindUnit(bf, target.shieldFieldHostUnitId);
             var shieldMod = shieldHost != null
@@ -127,10 +127,22 @@ public static class FieldAuraDamageRouter
             if (shieldHost != null && shieldMod != null)
             {
                 var radius = FieldAuraService.ResolveFieldRadiusM(shieldHost, shieldMod, null);
-                var inside = FieldAuraService.DistanceM(ctx.attacker, shieldHost) <= radius;
-                if (!inside)
+                var inside = ctx.attacker != null
+                    && FieldAuraService.DistanceM(ctx.attacker, shieldHost) <= radius;
+                if (ctx.attacker == null || !inside)
                 {
                     var hostShield = Math.Min(ctx.shieldDamage, shieldHost.shieldHp);
+                    if (hostShield > 0f && target.unitId != null && shieldHost.unitId != null)
+                    {
+                        var bindOnly = shieldHost.shieldMax <= 0f
+                            || !FieldAuraService.EligibleForShieldFusion(target, shieldHost, null);
+                        CombatTelemetryLog.LogFieldRoute(
+                            target.unitId,
+                            shieldHost.unitId,
+                            "shield",
+                            hostShield,
+                            bindOnly);
+                    }
                     shieldHost.shieldHp -= hostShield;
                     ctx.shieldDamage -= hostShield;
                 }
@@ -150,6 +162,15 @@ public static class FieldAuraDamageRouter
             if (armorHost != null && armorHost.armorHp > 0f)
             {
                 var hostArmor = Math.Min(ctx.armorDamage, armorHost.armorHp);
+                if (hostArmor > 0f && target.unitId != null && armorHost.unitId != null)
+                {
+                    CombatTelemetryLog.LogFieldRoute(
+                        target.unitId,
+                        armorHost.unitId,
+                        "armor",
+                        hostArmor,
+                        bindOnly: false);
+                }
                 armorHost.armorHp -= hostArmor;
                 ctx.armorDamage -= hostArmor;
                 FieldAuraCollapse.CheckAfterDamage(bf, armorHost, modules);

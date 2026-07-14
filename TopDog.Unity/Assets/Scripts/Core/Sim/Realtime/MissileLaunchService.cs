@@ -54,7 +54,8 @@ public static class MissileLaunchService
         var dy = target.y - launcher.y;
         var dz = target.z - launcher.z;
         var dist = MathF.Sqrt(dx * dx + dy * dy + dz * dz);
-        if (dist > launcher.attackRangeM)
+        var engageRangeM = ResolveEngageRangeM(launcher, modules);
+        if (dist > engageRangeM)
         {
             return;
         }
@@ -76,6 +77,42 @@ public static class MissileLaunchService
             : SalvoProfileService.DefaultFireCycleSec;
         launcher.missileFireCooldownSec = cycle;
         CombatTelemetryLog.Log("missile-launch", $"{launcher.unitId}→{target.unitId} dist={dist:0}");
+    }
+
+    /// <summary>
+    /// 弹道导弹交战距离：显式 attackRangeM，否则用飞行包络 speed×maxSec；
+    /// 不再误用仅 ATTACK 槽算出的默认 6 km（会导致远距离「发不出去」）。
+    /// </summary>
+    public static float ResolveEngageRangeM(BattlefieldUnit launcher, ModuleRegistry modules)
+    {
+        var max = launcher.attackRangeM;
+        foreach (var modId in launcher.fittedModules.Values)
+        {
+            if (!MissileSpawnService.IsMissileModuleId(modId))
+            {
+                continue;
+            }
+
+            var mod = modules.Resolve(modId);
+            var profile = MissileProjectileProfile.FromModule(mod);
+            if (!profile.IsBallistic)
+            {
+                continue;
+            }
+
+            if (mod != null && mod.attackRangeM > 0.01f)
+            {
+                max = MathF.Max(max, mod.attackRangeM);
+                continue;
+            }
+
+            if (profile.FlightSpeedMps > 0.01f && profile.FlightMaxSec > 0.01f)
+            {
+                max = MathF.Max(max, profile.FlightSpeedMps * profile.FlightMaxSec);
+            }
+        }
+
+        return max;
     }
 
     private static BattlefieldUnit? ResolveLaunchTarget(BattlefieldState bf, BattlefieldUnit launcher)

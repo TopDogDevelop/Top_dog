@@ -7,6 +7,7 @@
  * · field.enter / field.leave：场域进出（FieldAuraService）
  * · MaybeLogPositions：1Hz 坐标 + 盾/甲/结构快照
  * · DumpRecent：Client 调试面板导出；MaxEntries=256 环形缓冲
+ * · 全量会话：CombatTelemetrySessionExport（Begin 起落盘 e:\\debug-combat-session.log）
  * 【关联】CombatHpDeltaQueue · CombatDamageDiagnostics · CombatRealtimeController
  * ══
  */
@@ -37,6 +38,17 @@ public static class CombatTelemetryLog
             {
                 Entries.RemoveAt(0);
             }
+        }
+
+        CombatTelemetrySessionExport.Append(line);
+    }
+
+    /// <summary>当前环形缓冲全量快照（供会话导出捕获 Begin 前的 combat.fit）。</summary>
+    public static IReadOnlyList<string> SnapshotAll()
+    {
+        lock (Gate)
+        {
+            return Entries.ToArray();
         }
     }
 
@@ -146,6 +158,14 @@ public static class CombatTelemetryLog
 
     public static void LogFieldCollapse(string holderId, string kind) =>
         Log("field.collapse", $"{holderId} kind={kind}");
+
+    public static void LogFieldRoute(
+        string targetId,
+        string hostId,
+        string layer,
+        float amount,
+        bool bindOnly) =>
+        Log("field.route", $"{targetId}→{hostId} {layer}={amount:F0} bindOnly={bindOnly}");
 
     public static void LogRepairRound(string healerId, string targetId, float amount, int roundsLeft) =>
         Log("repair.round", $"{healerId}→{targetId} +{amount:F0} left={roundsLeft}");

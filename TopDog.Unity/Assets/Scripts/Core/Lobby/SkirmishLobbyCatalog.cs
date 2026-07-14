@@ -53,6 +53,12 @@ public static class SkirmishLobbyCatalog
         var ids = new HashSet<string>(StringComparer.Ordinal);
         foreach (var kv in modules.All())
         {
+            var mod = kv.Value;
+            if (mod != null && !mod.playerVisibleInteractable)
+            {
+                continue;
+            }
+
             ids.Add(kv.Key);
         }
 

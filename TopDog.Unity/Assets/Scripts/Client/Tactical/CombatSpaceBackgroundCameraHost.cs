@@ -46,6 +46,7 @@ public sealed class CombatSpaceBackgroundCameraHost : MonoBehaviour
     private VisualElement? _viewportHost;
     private VisualElement? _artSlot;
     private TacticalViewportCamera? _orbitSource;
+    private FieldAuraVfxCameraHost? _fieldAuraPass;
     private SkyRenderMode _skyRenderMode;
     private bool _active;
     private bool _cameraReady;
@@ -68,6 +69,8 @@ public sealed class CombatSpaceBackgroundCameraHost : MonoBehaviour
         _artSlot.style.overflow = Overflow.Hidden;
         _artSlot.SendToBack();
     }
+
+    public void SetFieldAuraPass(FieldAuraVfxCameraHost? fieldAuraPass) => _fieldAuraPass = fieldAuraPass;
 
     public void SetActive(bool active)
     {
@@ -111,7 +114,10 @@ public sealed class CombatSpaceBackgroundCameraHost : MonoBehaviour
             _cameraReady = ApplySkyMaterial(cubemap);
             if (!_cameraReady)
             {
-                Debug.LogWarning("TopDog: combat skybox material unavailable for " + setId);
+                Debug.LogWarning(
+                    "TopDog: combat skybox material unavailable for "
+                    + setId
+                    + " (Shader.Find TopDog/CombatSkyboxInterior / Skybox/Cubemap null — check Always Included Shaders)");
                 _appliedSetId = null;
                 ClearArtSlot();
                 return;
@@ -194,6 +200,8 @@ public sealed class CombatSpaceBackgroundCameraHost : MonoBehaviour
                 _camera.Render();
             }
         }
+
+        _fieldAuraPass?.RenderCompositeOntoSkybox(_renderTexture);
 
         _rtHasRenderedFrame = true;
         if (_rtImage != null)

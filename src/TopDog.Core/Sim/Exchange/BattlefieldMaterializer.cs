@@ -80,6 +80,7 @@ public static class BattlefieldMaterializer
 
         state.phase = GamePhase.COMBAT;
 
+        var wasActive = state.combatRealtimeActive;
         state.combatRealtimeActive = true;
 
         state.combatAwaitingContinue = false;
@@ -91,6 +92,11 @@ public static class BattlefieldMaterializer
         state.pendingResolveMode = CombatResolveMode.REALTIME;
 
         entry.resolveMode = CombatResolveMode.REALTIME;
+
+        if (!wasActive)
+        {
+            CombatRealtimeLinkService.Begin(state);
+        }
 
         // liketoco0de345
         return true;

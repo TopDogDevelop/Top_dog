@@ -85,6 +85,26 @@ public sealed class MemberBanterService
             return;
         }
 
+        var eligibleCount = BanterEligibleSpeakers.List(state).Count;
+        // 空团不空转开组：否则 RoundGap 被「空轮」占掉，招新入队后还要再空等一轮才出左栏伴聊。
+        if (eligibleCount == 0)
+        {
+            rt.idleLastEligibleSpeakerCount = 0;
+            if (simTimeSec >= rt.idleNextEmitSec)
+            {
+                rt.idleNextEmitSec = simTimeSec + BanterIdleTiming.EmptyRosterPollSec;
+            }
+
+            return;
+        }
+
+        if (rt.idleLastEligibleSpeakerCount == 0)
+        {
+            rt.idleNextEmitSec = Math.Min(rt.idleNextEmitSec, simTimeSec);
+        }
+
+        rt.idleLastEligibleSpeakerCount = eligibleCount;
+
         if (simTimeSec < rt.idleNextEmitSec)
         {
             return;

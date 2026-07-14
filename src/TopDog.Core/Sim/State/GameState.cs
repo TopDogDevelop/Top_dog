@@ -101,6 +101,10 @@ public sealed class GameState
     public string? tacticalCameraUnitId;
     public CombatResolveMode? pendingResolveMode;
     public bool combatRealtimeActive;
+    /// <summary>实时战场连接握手中（画面可见、模拟冻结）。</summary>
+    public bool combatRealtimeLinkHandshakeActive;
+    /// <summary>握手剩余秒；-1 表示未在握手。</summary>
+    public float combatRealtimeLinkDelaySec = -1f;
     public bool autoFireEnabled;
     /// <summary>战术跃迁默认落点距中心（米，1–1000 km）；单舰 warpLandingDistM 可覆盖。</summary>
     public float tacticalWarpLandingDistM = TacticalWarpLandingService.DefaultLandingDistM;

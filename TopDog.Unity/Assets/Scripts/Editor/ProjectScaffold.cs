@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
 using TopDog.Client;
 using TopDog.Client.StarMap;
 using UnityEditor;
@@ -7,6 +10,17 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/SCENE_ARCHITECTURE.md · docs/UI_ARCHITECTURE.md
+ * 本文件: ProjectScaffold.cs — 场景脚手架 / RepairAllScenes
+ * 【机制要点】
+ * · Repair：Boot 挂持久化；其它场景仅主相机（Player 防 levelN corrupted）
+ * · UI 运行时由 *UiRepair / OutOfMatchRuntimeBootstrap 创建
+ * · SyncRuntimeUiResources → Assets/Resources（PanelSettings / UXML）
+ * 【关联】BatchBuild · GameSceneRouter · OutOfMatchRuntimeBootstrap
+ * ══
+ */
 
 namespace TopDog.Client.Editor;
 
@@ -38,6 +52,7 @@ public static class ProjectScaffold
         Directory.CreateDirectory(Path.Combine(Application.dataPath, "Settings"));
 
         var panelSettings = EnsurePanelSettings();
+        SyncRuntimeUiResources(panelSettings);
         var uxml = LoadUxmlAssets();
 
         CreateBootScene();
@@ -61,6 +76,92 @@ public static class ProjectScaffold
         Debug.Log("TopDog: all scenes scaffolded. Open Boot.unity and press Play.");
     }
 
+    [MenuItem("TopDog/Sync Runtime UI Resources")]
+    public static void SyncRuntimeUiResourcesMenu()
+    {
+        var panelSettings = EnsurePanelSettings();
+        SyncRuntimeUiResources(panelSettings);
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+        Debug.Log("TopDog: synced PanelSettings/UXML/USS into Assets/Resources for player builds.");
+    }
+
+    /// <summary>
+    /// Player builds cannot use AssetDatabase paths. UiAssetCatalog loads
+    /// Resources/DefaultPanelSettings and Resources/UI/*.
+    /// </summary>
+    public static void SyncRuntimeUiResources(PanelSettings panelSettings)
+    {
+        Directory.CreateDirectory(Path.Combine(Application.dataPath, "Resources"));
+        Directory.CreateDirectory(Path.Combine(Application.dataPath, "Resources", "UI"));
+
+        const string resourcesPanel = "Assets/Resources/DefaultPanelSettings.asset";
+        if (AssetDatabase.LoadAssetAtPath<PanelSettings>(resourcesPanel) == null)
+        {
+            if (!AssetDatabase.CopyAsset(PanelSettingsPath, resourcesPanel))
+            {
+                Debug.LogError("TopDog: failed to copy DefaultPanelSettings into Resources/");
+            }
+        }
+        else
+        {
+            // Keep theme / resolution in sync with Settings copy.
+            var dest = AssetDatabase.LoadAssetAtPath<PanelSettings>(resourcesPanel);
+            if (dest != null && panelSettings != null)
+            {
+                dest.themeStyleSheet = panelSettings.themeStyleSheet;
+                UiViewportConfig.ApplyToPanel(dest);
+                EditorUtility.SetDirty(dest);
+            }
+        }
+
+        const string themeSrc = "Assets/Settings/UnityDefaultRuntimeTheme.tss";
+        const string themeDst = "Assets/Resources/UnityDefaultRuntimeTheme.tss";
+        if (AssetDatabase.LoadAssetAtPath<ThemeStyleSheet>(themeSrc) != null
+            && AssetDatabase.LoadAssetAtPath<ThemeStyleSheet>(themeDst) == null)
+        {
+            AssetDatabase.CopyAsset(themeSrc, themeDst);
+        }
+
+        string[] uiFiles =
+        {
+            "MainMenu.uxml", "MainMenu.uss",
+            "Worldline.uxml",
+            "Settings.uxml",
+            "JoinLan.uxml", "JoinLan.uss",
+            "CustomLobby.uxml", "CustomLobby.uss",
+            "StoryLevels.uxml", "StoryLevels.uss",
+            "SkirmishPrep.uxml",
+            "CampaignShell.uxml", "CampaignShell.uss",
+            "CombatShell.uxml", "CombatShell.uss",
+            "CombatRealtime.uxml", "CombatRealtime.uss",
+            "CombatShipDetailHud.template.uxml",
+            "AppStyles.uss",
+        };
+        foreach (var file in uiFiles)
+        {
+            var src = "Assets/UI/" + file;
+            var dst = "Assets/Resources/UI/" + file;
+            if (AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(src) == null)
+            {
+                continue;
+            }
+
+            if (AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(dst) == null)
+            {
+                AssetDatabase.CopyAsset(src, dst);
+            }
+            else
+            {
+                File.Copy(
+                    Path.Combine(Application.dataPath, "UI", file),
+                    Path.Combine(Application.dataPath, "Resources", "UI", file),
+                    overwrite: true);
+                AssetDatabase.ImportAsset(dst);
+            }
+        }
+    }
+
     public static void RepairAllScenes()
     {
         if (EditorApplication.isCompiling)
@@ -70,17 +171,192 @@ public static class ProjectScaffold
         }
 
         var panelSettings = EnsurePanelSettings();
+        SyncRuntimeUiResources(panelSettings);
+        AssetDatabase.Refresh();
+        // Refresh invalidates previous asset references in batchmode — reload before CreateUiRoot.
+        panelSettings = EnsurePanelSettings();
+        if (panelSettings == null)
+        {
+            throw new InvalidOperationException("TopDog: DefaultPanelSettings.asset missing after Refresh");
+        }
+
         var uxml = LoadUxmlAssets();
+        AssertOutOfMatchUxml(uxml);
 
         RepairBootScene();
-        RepairOutOfMatchScene(panelSettings, uxml);
-        RepairOperationsScene(panelSettings, uxml);
-        RepairCombatScene(panelSettings, uxml);
-        RepairCombatRealtimeScene(panelSettings, uxml);
+        RepairOutOfMatchScene(uxml);
+        RepairOperationsScene(uxml);
+        RepairCombatScene(uxml);
+        RepairCombatRealtimeScene(uxml);
 
         AssetDatabase.SaveAssets();
-        EditorSceneManager.OpenScene(Path.Combine(ScenesDir, "Boot.unity"), OpenSceneMode.Single);
         Debug.Log("TopDog: repaired script references on all scenes.");
+    }
+
+    private static void AssertScenesHaveClassicMonoScriptGuids()
+    {
+        var scenes = new[]
+        {
+            "Boot.unity",
+            "OutOfMatch.unity",
+            "Operations.unity",
+            "Combat.unity",
+            "CombatRealtime.unity",
+        };
+        foreach (var name in scenes)
+        {
+            var path = Path.Combine(ScenesDir, name);
+            var text = File.ReadAllText(path);
+            var noGuid = Regex.Matches(
+                text,
+                @"m_Script: \{fileID: (?!11500000)\d+\}").Count;
+            // Allow UnityEngine UIDocument etc. with built-in guids (type: 0).
+            if (Regex.IsMatch(text, @"m_EditorClassIdentifier: TopDog\.[^\r\n]+::TopDog\.") &&
+                Regex.IsMatch(text, @"m_Script: \{fileID: (?!11500000)\d+\}"))
+            {
+                throw new InvalidOperationException(
+                    "TopDog: " + path + " still has type-id-only TopDog MonoScript refs after GUID rewrite");
+            }
+
+            Debug.Log("TopDog: AssertScenesHaveClassicMonoScriptGuids OK " + name + " bareFileIds=" + noGuid);
+        }
+    }
+
+    /// <summary>
+    /// Unity 6000 batchmode may save MonoBehaviours as type-id-only <c>m_Script: {fileID: N}</c>.
+    /// Player BuildPlayer then reports missing scripts and writes corrupt levelN (Position out of bounds).
+    /// Rewrite to classic <c>fileID: 11500000, guid, type: 3</c> using MonoScript assets.
+    /// </summary>
+    public static void RewriteAllSceneMonoScriptsToClassicGuids()
+    {
+        var scenes = new[]
+        {
+            "Boot.unity",
+            "OutOfMatch.unity",
+            "Operations.unity",
+            "Combat.unity",
+            "CombatRealtime.unity",
+        };
+        var guidByType = BuildMonoScriptGuidIndex();
+        foreach (var name in scenes)
+        {
+            RewriteSceneMonoScriptsToClassicGuids(Path.Combine(ScenesDir, name), guidByType);
+        }
+
+        AssetDatabase.Refresh();
+    }
+
+    private static Dictionary<string, string> BuildMonoScriptGuidIndex()
+    {
+        var map = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var guid in AssetDatabase.FindAssets("t:MonoScript", new[] { "Assets/Scripts" }))
+        {
+            var path = AssetDatabase.GUIDToAssetPath(guid);
+            var script = AssetDatabase.LoadAssetAtPath<MonoScript>(path);
+            var type = script != null ? script.GetClass() : null;
+            if (type == null || !typeof(MonoBehaviour).IsAssignableFrom(type))
+            {
+                // Fallback: file name without extension matches short type name (batchmode GetClass can be null).
+                var shortName = Path.GetFileNameWithoutExtension(path);
+                if (!string.IsNullOrEmpty(shortName) && path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+                {
+                    map["TopDog.Client." + shortName] = guid;
+                    map[shortName] = guid;
+                }
+
+                continue;
+            }
+
+            map[type.FullName ?? type.Name] = guid;
+            map[type.Name] = guid;
+        }
+
+        return map;
+    }
+
+    private static void RewriteSceneMonoScriptsToClassicGuids(string scenePath, Dictionary<string, string> guidByType)
+    {
+        if (!File.Exists(scenePath))
+        {
+            return;
+        }
+
+        var text = File.ReadAllText(scenePath);
+        var rx = new Regex(
+            @"m_Script: \{fileID: (?!11500000)\d+\}\r?\n  m_Name: \r?\n  m_EditorClassIdentifier: (?<asm>[^\r\n:]+)::(?<type>[^\r\n]+)",
+            RegexOptions.Multiline);
+        var replaced = 0;
+        var missing = new List<string>();
+        text = rx.Replace(text, match =>
+        {
+            var typeName = match.Groups["type"].Value.Trim();
+            if (!guidByType.TryGetValue(typeName, out var guid))
+            {
+                var shortName = typeName;
+                var dot = typeName.LastIndexOf('.');
+                if (dot >= 0 && dot < typeName.Length - 1)
+                {
+                    shortName = typeName.Substring(dot + 1);
+                }
+
+                if (!guidByType.TryGetValue(shortName, out guid))
+                {
+                    missing.Add(typeName);
+                    return match.Value;
+                }
+            }
+
+            replaced++;
+            return "m_Script: {fileID: 11500000, guid: " + guid + ", type: 3}\n  m_Name: \n  m_EditorClassIdentifier: "
+                   + match.Groups["asm"].Value + "::" + typeName;
+        });
+
+        if (missing.Count > 0)
+        {
+            throw new InvalidOperationException(
+                "TopDog: no MonoScript GUID for: " + string.Join(", ", missing.Distinct()));
+        }
+
+        if (replaced > 0)
+        {
+            File.WriteAllText(scenePath, text);
+            Debug.Log("TopDog: rewrote " + replaced + " MonoScript GUID refs in " + scenePath);
+        }
+    }
+
+    /// <summary>
+    /// Player build aborts with "levelN is corrupted" when scenes serialize stripped/missing MonoScripts.
+    /// Call after RepairAllScenes and before BuildPipeline.BuildPlayer.
+    /// </summary>
+    public static void ValidateScenesHaveNoMissingScripts()
+    {
+        var scenes = new[]
+        {
+            "Boot.unity",
+            "OutOfMatch.unity",
+            "Operations.unity",
+            "Combat.unity",
+            "CombatRealtime.unity",
+        };
+        var failures = 0;
+        foreach (var name in scenes)
+        {
+            var path = Path.Combine(ScenesDir, name);
+            var scene = EditorSceneManager.OpenScene(path, OpenSceneMode.Single);
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                failures += CountMissingScriptsRecursive(root);
+            }
+        }
+
+        if (failures > 0)
+        {
+            throw new InvalidOperationException(
+                "TopDog: " + failures +
+                " missing MonoBehaviour(s) in Scenes — fix RepairAllScenes before BuildPlayer (avoids levelN corrupted).");
+        }
+
+        Debug.Log("TopDog: ValidateScenesHaveNoMissingScripts OK");
     }
 
     private static void RepairBootScene()
@@ -97,74 +373,121 @@ public static class ProjectScaffold
         persistent.AddComponent<GameAppHost>();
         persistent.AddComponent<GameSceneRouter>();
         persistent.AddComponent<GameAppBootstrap>();
+        RebindMonoScriptsInScene();
         PurgeMissingScriptsInScene();
         StyleMainCamera();
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
     }
 
-    private static void RepairOutOfMatchScene(PanelSettings panelSettings, UxmlAssets uxml)
+    private static void RepairOutOfMatchScene(UxmlAssets uxml)
     {
+        // Camera-only scene: Unity 6000 batchmode + HybridCLR was serializing TopDogUI
+        // MonoBehaviours into corrupt player level1 (Position out of bounds). UI spawns at runtime.
+        _ = uxml;
         var scene = EditorSceneManager.OpenScene(Path.Combine(ScenesDir, "OutOfMatch.unity"), OpenSceneMode.Single);
         PurgeMissingScriptsInScene();
-        var old = GameObject.Find("TopDogUI");
-        if (old != null)
+        foreach (var root in scene.GetRootGameObjects())
         {
-            UnityEngine.Object.DestroyImmediate(old);
+            if (root.name == "TopDogUI" || root.GetComponent<UIDocument>() != null)
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
         }
-        BuildOutOfMatchUi(panelSettings, uxml);
-        PurgeMissingScriptsInScene();
+
         StyleMainCamera();
         EditorSceneManager.MarkSceneDirty(scene);
-        EditorSceneManager.SaveScene(scene);
+        if (!EditorSceneManager.SaveScene(scene))
+        {
+            throw new InvalidOperationException("TopDog: failed to save OutOfMatch.unity");
+        }
+
+        Debug.Log("TopDog: OutOfMatch.unity is camera-only — UI via OutOfMatchRuntimeBootstrap");
     }
 
-    private static void RepairOperationsScene(PanelSettings panelSettings, UxmlAssets uxml)
+    private static void RepairOperationsScene(UxmlAssets uxml)
     {
+        _ = uxml;
         var scene = EditorSceneManager.OpenScene(Path.Combine(ScenesDir, "Operations.unity"), OpenSceneMode.Single);
         PurgeMissingScriptsInScene();
-        var old = GameObject.Find("TopDogUI");
-        if (old != null)
+        foreach (var root in scene.GetRootGameObjects())
         {
-            UnityEngine.Object.DestroyImmediate(old);
+            if (root.name == "TopDogUI" || root.GetComponent<UIDocument>() != null)
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
         }
-        BuildOperationsUi(panelSettings, uxml);
-        PurgeMissingScriptsInScene();
+
         StyleMainCamera();
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
+        Debug.Log("TopDog: Operations.unity is camera-only — UI via OperationsUiRepair");
     }
 
-    private static void RepairCombatScene(PanelSettings panelSettings, UxmlAssets uxml)
+    private static void RepairCombatScene(UxmlAssets uxml)
     {
+        _ = uxml;
         var scene = EditorSceneManager.OpenScene(Path.Combine(ScenesDir, "Combat.unity"), OpenSceneMode.Single);
         PurgeMissingScriptsInScene();
-        var old = GameObject.Find("TopDogUI");
-        if (old != null)
+        foreach (var root in scene.GetRootGameObjects())
         {
-            UnityEngine.Object.DestroyImmediate(old);
+            if (root.name == "TopDogUI" || root.GetComponent<UIDocument>() != null)
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
         }
-        BuildCombatUi(panelSettings, uxml);
-        PurgeMissingScriptsInScene();
+
         StyleMainCamera();
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
+        Debug.Log("TopDog: Combat.unity is camera-only — UI via CombatUiRepair");
     }
 
-    private static void RepairCombatRealtimeScene(PanelSettings panelSettings, UxmlAssets uxml)
+    private static void RepairCombatRealtimeScene(UxmlAssets uxml)
     {
+        _ = uxml;
         var scene = EditorSceneManager.OpenScene(Path.Combine(ScenesDir, "CombatRealtime.unity"), OpenSceneMode.Single);
         PurgeMissingScriptsInScene();
-        var old = GameObject.Find("TopDogUI");
-        if (old != null)
+        foreach (var root in scene.GetRootGameObjects())
         {
-            UnityEngine.Object.DestroyImmediate(old);
+            if (root.name == "TopDogUI" || root.GetComponent<UIDocument>() != null)
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
         }
-        BuildCombatRealtimeUi(panelSettings, uxml);
-        PurgeMissingScriptsInScene();
+
         StyleMainCamera();
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
+        Debug.Log("TopDog: CombatRealtime.unity is camera-only — UI via CombatUiRepair");
+    }
+
+    private static PanelSettings RequirePanelSettings()
+    {
+        // Prefer Resources copy — Settings asset uses a scaffold placeholder GUID that can
+        // break player scene loads (Position out of bounds / levelN corrupted).
+        var panel = AssetDatabase.LoadAssetAtPath<PanelSettings>("Assets/Resources/DefaultPanelSettings.asset");
+        if (!panel)
+        {
+            panel = EnsurePanelSettings();
+            SyncRuntimeUiResources(panel);
+            AssetDatabase.Refresh();
+            panel = AssetDatabase.LoadAssetAtPath<PanelSettings>("Assets/Resources/DefaultPanelSettings.asset");
+        }
+
+        if (!panel)
+        {
+            throw new InvalidOperationException("TopDog: Resources/DefaultPanelSettings.asset missing");
+        }
+
+        return panel;
+    }
+
+    private static UxmlAssets RequireUxmlAssets()
+    {
+        var uxml = LoadUxmlAssets();
+        AssertOutOfMatchUxml(uxml);
+        return uxml;
     }
 
     private static void CreateBootScene()
@@ -295,13 +618,26 @@ public static class ProjectScaffold
 
     private static GameObject CreateUiRoot(PanelSettings panelSettings, VisualTreeAsset initialUxml)
     {
+        // Use Unity fake-null checks — C# == null can miss destroyed ScriptableObject refs after Refresh.
+        if (!panelSettings)
+        {
+            throw new InvalidOperationException("TopDog: PanelSettings required for UIDocument");
+        }
+
+        if (!initialUxml)
+        {
+            throw new InvalidOperationException("TopDog: initial UXML required for UIDocument");
+        }
+
         var uiGo = new GameObject("TopDogUI");
         var doc = uiGo.AddComponent<UIDocument>();
-        var docSo = new SerializedObject(doc);
-        docSo.FindProperty("m_PanelSettings").objectReferenceValue = panelSettings;
-        docSo.FindProperty("sourceAsset").objectReferenceValue = initialUxml;
-        docSo.ApplyModifiedPropertiesWithoutUndo();
+        // Prefer public API — SerializedObject “sourceAsset”/“m_PanelSettings” was saving as {fileID: 0}
+        // in Unity 6000 batchmode, which produced corrupt player levelN files.
+        doc.panelSettings = panelSettings;
+        doc.visualTreeAsset = initialUxml;
         uiGo.AddComponent<UiViewportDriver>();
+        EditorUtility.SetDirty(doc);
+        EditorUtility.SetDirty(uiGo);
         return uiGo;
     }
 
@@ -331,53 +667,161 @@ public static class ProjectScaffold
         }
     }
 
+    /// <summary>
+    /// Re-assign MonoScript assets after AddComponent so player builds keep resolvable refs
+    /// (avoids Unity 6 batchmode "missing script" → corrupt levelN).
+    /// </summary>
+    private static void RebindMonoScriptsInScene()
+    {
+        foreach (var root in SceneManager.GetActiveScene().GetRootGameObjects())
+        {
+            RebindMonoScriptsRecursive(root);
+        }
+    }
+
+    private static void RebindMonoScriptsRecursive(GameObject go)
+    {
+        foreach (var mb in go.GetComponents<MonoBehaviour>())
+        {
+            if (mb == null)
+            {
+                continue;
+            }
+
+            var script = MonoScript.FromMonoBehaviour(mb);
+            if (script == null)
+            {
+                Debug.LogError(
+                    "TopDog: MonoScript.FromMonoBehaviour failed for " + mb.GetType().FullName +
+                    " on " + go.name);
+                continue;
+            }
+
+            var so = new SerializedObject(mb);
+            var prop = so.FindProperty("m_Script");
+            if (prop != null)
+            {
+                prop.objectReferenceValue = script;
+                so.ApplyModifiedPropertiesWithoutUndo();
+            }
+        }
+
+        foreach (Transform child in go.transform)
+        {
+            RebindMonoScriptsRecursive(child.gameObject);
+        }
+    }
+
+    private static int CountMissingScriptsRecursive(GameObject go)
+    {
+        var count = GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(go);
+        foreach (Transform child in go.transform)
+        {
+            count += CountMissingScriptsRecursive(child.gameObject);
+        }
+
+        return count;
+    }
+
+    private static void AssertOutOfMatchUxml(UxmlAssets uxml)
+    {
+        if (uxml.MainMenu == null || uxml.Worldline == null || uxml.Settings == null ||
+            uxml.JoinLan == null || uxml.CustomLobby == null || uxml.StoryLevels == null)
+        {
+            throw new InvalidOperationException(
+                "TopDog: Assets/UI/*.uxml missing after SyncRuntimeUiResources — cannot repair OutOfMatch.");
+        }
+    }
+
+    private static void ValidateActiveUiDocumentWired(string sceneLabel)
+    {
+        var doc = UnityEngine.Object.FindAnyObjectByType<UIDocument>();
+        if (doc == null)
+        {
+            throw new InvalidOperationException("TopDog: no UIDocument in " + sceneLabel);
+        }
+
+        if (doc.panelSettings == null)
+        {
+            throw new InvalidOperationException("TopDog: UIDocument.panelSettings null in " + sceneLabel);
+        }
+
+        if (doc.visualTreeAsset == null)
+        {
+            throw new InvalidOperationException("TopDog: UIDocument.visualTreeAsset null in " + sceneLabel);
+        }
+
+        Debug.Log("TopDog: UIDocument wired OK in " + sceneLabel + " → " + doc.visualTreeAsset.name);
+    }
+
     private static void WireUiNavigator(UiNavigator nav, UIDocument doc, UxmlAssets uxml)
     {
-        var so = new SerializedObject(nav);
-        so.FindProperty("uiDocument").objectReferenceValue = doc;
-        so.FindProperty("mainMenuUxml").objectReferenceValue = uxml.MainMenu;
-        so.FindProperty("worldlineUxml").objectReferenceValue = uxml.Worldline;
-        so.FindProperty("settingsUxml").objectReferenceValue = uxml.Settings;
-        so.FindProperty("joinLanUxml").objectReferenceValue = uxml.JoinLan;
-        so.FindProperty("customLobbyUxml").objectReferenceValue = uxml.CustomLobby;
-        so.FindProperty("storyLevelsUxml").objectReferenceValue = uxml.StoryLevels;
-        so.ApplyModifiedPropertiesWithoutUndo();
+        nav.Configure(
+            doc,
+            uxml.MainMenu,
+            uxml.Worldline,
+            uxml.Settings,
+            uxml.JoinLan,
+            uxml.CustomLobby,
+            uxml.StoryLevels,
+            null);
+        EditorUtility.SetDirty(nav);
     }
 
     private static void WireOutOfMatchHost(OutOfMatchSceneHost host, UIDocument doc, UxmlAssets uxml)
     {
         var so = new SerializedObject(host);
-        so.FindProperty("uiDocument").objectReferenceValue = doc;
-        so.FindProperty("mainMenuUxml").objectReferenceValue = uxml.MainMenu;
-        so.FindProperty("worldlineUxml").objectReferenceValue = uxml.Worldline;
-        so.FindProperty("settingsUxml").objectReferenceValue = uxml.Settings;
-        so.FindProperty("joinLanUxml").objectReferenceValue = uxml.JoinLan;
-        so.FindProperty("customLobbyUxml").objectReferenceValue = uxml.CustomLobby;
+        AssignRefOrThrow(so, "uiDocument", doc);
+        AssignRefOrThrow(so, "mainMenuUxml", uxml.MainMenu);
+        AssignRefOrThrow(so, "worldlineUxml", uxml.Worldline);
+        AssignRefOrThrow(so, "settingsUxml", uxml.Settings);
+        AssignRefOrThrow(so, "joinLanUxml", uxml.JoinLan);
+        AssignRefOrThrow(so, "customLobbyUxml", uxml.CustomLobby);
         so.ApplyModifiedPropertiesWithoutUndo();
+        EditorUtility.SetDirty(host);
+    }
+
+    private static void AssignRefOrThrow(SerializedObject so, string property, UnityEngine.Object value)
+    {
+        var prop = so.FindProperty(property);
+        if (prop == null)
+        {
+            throw new InvalidOperationException("TopDog: missing serialized property " + property + " on " + so.targetObject);
+        }
+
+        if (value == null)
+        {
+            throw new InvalidOperationException("TopDog: null asset for property " + property);
+        }
+
+        prop.objectReferenceValue = value;
     }
 
     private static void WireOperationsHost(OperationsSceneHost host, UIDocument doc, UxmlAssets uxml)
     {
         var so = new SerializedObject(host);
-        so.FindProperty("uiDocument").objectReferenceValue = doc;
-        so.FindProperty("campaignShellUxml").objectReferenceValue = uxml.CampaignShell;
+        AssignRefOrThrow(so, "uiDocument", doc);
+        AssignRefOrThrow(so, "campaignShellUxml", uxml.CampaignShell);
         so.ApplyModifiedPropertiesWithoutUndo();
+        EditorUtility.SetDirty(host);
     }
 
     private static void WireCombatHost(CombatSceneHost host, UIDocument doc, UxmlAssets uxml)
     {
         var so = new SerializedObject(host);
-        so.FindProperty("uiDocument").objectReferenceValue = doc;
-        so.FindProperty("combatShellUxml").objectReferenceValue = uxml.CombatShell;
+        AssignRefOrThrow(so, "uiDocument", doc);
+        AssignRefOrThrow(so, "combatShellUxml", uxml.CombatShell);
         so.ApplyModifiedPropertiesWithoutUndo();
+        EditorUtility.SetDirty(host);
     }
 
     private static void WireCombatRealtimeHost(CombatRealtimeSceneHost host, UIDocument doc, UxmlAssets uxml)
     {
         var so = new SerializedObject(host);
-        so.FindProperty("uiDocument").objectReferenceValue = doc;
-        so.FindProperty("combatRealtimeUxml").objectReferenceValue = uxml.CombatRealtime;
+        AssignRefOrThrow(so, "uiDocument", doc);
+        AssignRefOrThrow(so, "combatRealtimeUxml", uxml.CombatRealtime);
         so.ApplyModifiedPropertiesWithoutUndo();
+        EditorUtility.SetDirty(host);
     }
 
     private static void StyleMainCamera()

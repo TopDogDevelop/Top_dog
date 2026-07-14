@@ -35,6 +35,18 @@ public static class FittingValidator
             // l1ketocoode345
             return ModuleSize.Medium;
         }
+        if (hull.slotLayout != null)
+        {
+            foreach (var entry in hull.slotLayout)
+            {
+                if (entry.slotId != null
+                    && entry.slotId.Equals(slotKey, StringComparison.Ordinal)
+                    && !string.IsNullOrWhiteSpace(entry.slotSize))
+                {
+                    return entry.slotSize!;
+                }
+            }
+        }
         if (slotKey.StartsWith("atk_", StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(hull.attackSlotSize))
         // liketocoode3e5
         {

@@ -1,0 +1,76 @@
+{
+  "scenarioId": "mt_shield_fusion",
+  "displayName": "护盾融合·白狼",
+  "scenarioOrder": 7,
+  "seed": 1007,
+  "spawnSeparationM": 20000,
+  "legions": [
+    {
+      "legionId": "mt_player",
+      "displayName": "羊村",
+      "isPlayer": true,
+      "isAiControlled": false,
+      "expandTemplate": {
+        "templateId": "template_vip_invest",
+        "identityCode": "10001005",
+        "defaultHullId": "hull_frigate_shortlegwolf",
+        "defaultFitted": {},
+        "overrides": [
+          {
+            "displayName": "羊村铁菊",
+            "hullId": "hull_cruiser_whitewolf_guard",
+            "fitted": { "fn_4": "mod_shield_fusion_l" }
+          },
+          {
+            "displayName": "羊村星星",
+            "hullId": "hull_dread_ironcoffin",
+            "fitted": {}
+          },
+          {
+            "displayName": "羊村星猫",
+            "hullId": "hull_dread_ironcoffin",
+            "fitted": {}
+          },
+          {
+            "displayName": "羊村元芳",
+            "hullId": "hull_dread_ironcoffin",
+            "fitted": {}
+          },
+          {
+            "displayName": "羊村醉鬼",
+            "hullId": "hull_dread_ironcoffin",
+            "fitted": {}
+          }
+        ]
+      }
+    },
+    {
+      "legionId": "mt_enemy",
+      "displayName": "敌方",
+      "isAiControlled": true,
+      "members": [
+        {
+          "memberTemplateId": "template_vip_invest",
+          "memberTemplateRowId": "template_vip_invest:10001001:01",
+          "memberId": "mt_sf_e1",
+          "displayName": "铁棺炮舰",
+          "hullId": "hull_dread_ironcoffin",
+          "fitted": { "atk_1": "mod_hybrid_gun_xl", "atk_2": "mod_hybrid_gun_xl" }
+        },
+        {
+          "memberTemplateId": "template_vip_invest",
+          "memberTemplateRowId": "template_vip_invest:10001001:05",
+          "memberId": "mt_sf_e2",
+          "displayName": "脆鸡打击群",
+          "hullId": "hull_carrier_crispy",
+          "fitted": {
+            "tube_1": "mod_strike_wing_a_l",
+            "tube_2": "mod_strike_wing_a_l",
+            "tube_3": "mod_strike_wing_a_l",
+            "tube_4": "mod_strike_wing_a_l"
+          }
+        }
+      ]
+    }
+  ]
+}

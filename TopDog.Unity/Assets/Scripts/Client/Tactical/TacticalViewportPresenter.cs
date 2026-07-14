@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using TopDog.Client;
+using TopDog.Content.Ships;
 using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 using TopDog.Sim.Vision;
@@ -12,12 +13,14 @@ using UnityEngine.UIElements;
  * 本文件: TacticalViewportPresenter.cs — 主视野 marker + 环绕 HUD + 屏外 bracket
  * 【机制要点】
  * · glyph 单位绘制；scene proxy 用 azimuth/elevation 投到视口边缘
+ * · 舰标朝向：纯屏幕两点差（ShipHeadingResolver）；不读 facingRad
  * · 视野门控：ResolveViewportFocus → VisionAnchorService（不因选中 proxy 改相机）
  * 【实现逻辑】
  * · Refresh：先绘 bf.units；再 ListOffSceneLinks 补未在 units 中的 off-scene marker
- * · UpdateOffSceneLinkMarkerVisual：与 scene proxy 同图标/⤴ 角标
+ * · UpdateOffSceneLinkMarkerVisual：与 scene proxy 同图标/⤴ 角标；标签含 AU 距离
+ * · 场景外占位：未选中无蓝框；仅选中时高亮
  * · 禁止 ResolveViewportFocus 将选中 proxy 作为相机注视点
- * 【关联】TacticalIconCatalog · UnitSelectionHud · BattlefieldSceneProxyService
+ * 【关联】TacticalIconCatalog · ShipHeadingResolver · UnitSelectionHud · BattlefieldSceneProxyService
  * ══
  */
 
@@ -40,13 +43,24 @@ public sealed class TacticalViewportPresenter
     private readonly Dictionary<string, MarkerBundle> _markers = new();
     private readonly Dictionary<string, VisualElement> _edgeMarkers = new();
     private readonly Dictionary<string, (float left, float top)> _screenPositions = new();
+    /// <summary>跨 Refresh 保留的屏幕航迹样本（勿在 Refresh 开头 Clear）。</summary>
+    private readonly Dictionary<string, IconTrailSample> _iconTrails = new();
     private readonly Dictionary<string, bool> _boardingFlashActive = new();
+    private static ShipRegistry? _shipIcons;
     private GameState _lastState;
     private BattlefieldState _lastBf;
     private float _hostW = 400f;
     private float _hostH = 300f;
 
     public (float left, float top)? SelectedMarkerScreenPos { get; private set; }
+
+    private struct IconTrailSample
+    {
+        public float CenterX;
+        public float CenterY;
+        public float Deg;
+        public bool HasPrev;
+    }
 
     private sealed class MarkerBundle
     {
@@ -112,7 +126,7 @@ public sealed class TacticalViewportPresenter
             }
 
             var isSceneProxy = BattlefieldSceneProxyService.IsSceneProxy(u);
-            UpdateMarkerVisual(bundle, u, state, bf);
+            UpdateMarkerVisual(bundle, u, state, bf, placement.CenterX, placement.CenterY);
             ApplyPlacement(bundle, placement, u.unitId, isSceneProxy);
             _screenPositions[u.unitId] = (placement.CenterX, placement.CenterY);
 
@@ -153,6 +167,7 @@ public sealed class TacticalViewportPresenter
         {
             _host.Remove(_markers[id].Container);
             _markers.Remove(id);
+            _iconTrails.Remove(id);
             HideEdgeMarker(id);
         }
     }
@@ -245,6 +260,7 @@ public sealed class TacticalViewportPresenter
         {
             iconHost.style.backgroundImage = srcIcon.style.backgroundImage;
             iconHost.style.unityBackgroundImageTintColor = srcIcon.style.unityBackgroundImageTintColor;
+            iconHost.style.rotate = srcIcon.style.rotate;
         }
         var angle = Mathf.Atan2(placement.DirY, placement.DirX) * Mathf.Rad2Deg;
         var chev = edge.Q<Label>(className: "rtcombat-marker-chevron");
@@ -635,20 +651,23 @@ public sealed class TacticalViewportPresenter
             }
         }
 
-        bundle.Container.tooltip = link.DisplayName;
-        EnsureSceneProxyLabel(bundle, link.DisplayName);
+        bundle.Container.tooltip = BattlefieldSceneProxyService.FormatSceneProxyLabel(
+            link.DisplayName,
+            link.DistanceAu);
+        EnsureSceneProxyLabel(
+            bundle,
+            BattlefieldSceneProxyService.FormatSceneProxyLabel(link.DisplayName, link.DistanceAu));
         var selected = link.UnitId.Equals(TacticalSelectionState.SelectedTargetUnitId, System.StringComparison.Ordinal);
-        if (selected)
-        {
-            marker.AddToClassList("rtcombat-marker-selected");
-        }
-        else
-        {
-            marker.RemoveFromClassList("rtcombat-marker-selected");
-        }
+        ApplySceneProxySelection(bundle, selected);
     }
 
-    private void UpdateMarkerVisual(MarkerBundle bundle, BattlefieldUnit u, GameState state, BattlefieldState bf)
+    private void UpdateMarkerVisual(
+        MarkerBundle bundle,
+        BattlefieldUnit u,
+        GameState state,
+        BattlefieldState bf,
+        float centerX,
+        float centerY)
     {
         var marker = bundle.IconHost;
         var icon = marker.Q(className: "rtcombat-marker-icon");
@@ -681,18 +700,15 @@ public sealed class TacticalViewportPresenter
                     fallback.style.display = DisplayStyle.Flex;
                 }
             }
-            bundle.Container.tooltip = u.displayName ?? "其他场景";
-            EnsureSceneProxyLabel(bundle, u.displayName ?? "场景");
+            var au = BattlefieldSceneProxyService.ResolveDistanceAu(state, bf, u);
+            var label = BattlefieldSceneProxyService.FormatSceneProxyLabel(
+                u.displayName ?? "其他场景",
+                au);
+            bundle.Container.tooltip = label;
+            EnsureSceneProxyLabel(bundle, label);
             var proxySelected = u.unitId != null
                 && u.unitId.Equals(TacticalSelectionState.SelectedTargetUnitId, System.StringComparison.Ordinal);
-            if (proxySelected)
-            {
-                marker.AddToClassList("rtcombat-marker-selected");
-            }
-            else
-            {
-                marker.RemoveFromClassList("rtcombat-marker-selected");
-            }
+            ApplySceneProxySelection(bundle, proxySelected);
             return;
         }
 
@@ -707,7 +723,10 @@ public sealed class TacticalViewportPresenter
         }
         if (icon != null)
         {
-            var tex = TacticalIconCatalog.ResolveShipIcon(u.tonnageClass);
+            _shipIcons ??= ShipRegistry.LoadDefault();
+            var hull = u.hullId != null ? _shipIcons.FindHull(u.hullId) : null;
+            var tex = TacticalIconCatalog.ResolveUnitShipIcon(u, hull);
+            HideEffectiveTonnageOverlay(marker);
             // liketocoode3e5
             if (tex != null)
             {
@@ -730,11 +749,12 @@ public sealed class TacticalViewportPresenter
                     fallback.style.display = DisplayStyle.Flex;
                 }
             }
-            if (!u.isBuilding)
+            if (!u.isBuilding && u.unitId != null)
             {
-                icon.style.rotate = _camera != null
-                    ? ShipHeadingResolver.ScreenFacingRotate(u.facingRad, _camera.OrbitYawRad)
-                    : new Rotate(new Angle(u.facingRad * Mathf.Rad2Deg, AngleUnit.Degree));
+                if (ResolveAndAdvanceIconTrail(u.unitId, centerX, centerY, out var trailDeg))
+                {
+                    icon.style.rotate = ShipHeadingResolver.ToRotate(trailDeg);
+                }
             }
             else
             {
@@ -795,6 +815,15 @@ public sealed class TacticalViewportPresenter
         ApplyBoardingMarkerFlash(bundle, u, bf);
     }
 
+    private static void HideEffectiveTonnageOverlay(VisualElement marker)
+    {
+        var overlay = marker.Q(name: "marker-effective-tonnage-badge");
+        if (overlay != null)
+        {
+            overlay.style.display = DisplayStyle.None;
+        }
+    }
+
     private void ApplyBoardingMarkerFlash(MarkerBundle bundle, BattlefieldUnit u, BattlefieldState bf)
     {
         if (u.unitId == null)
@@ -830,6 +859,20 @@ public sealed class TacticalViewportPresenter
         _boardingFlashActive[u.unitId] = active;
     }
 
+    private static void ApplySceneProxySelection(MarkerBundle bundle, bool selected)
+    {
+        if (selected)
+        {
+            bundle.Container.AddToClassList("rtcombat-marker-selected");
+            bundle.IconHost.AddToClassList("rtcombat-marker-selected");
+        }
+        else
+        {
+            bundle.Container.RemoveFromClassList("rtcombat-marker-selected");
+            bundle.IconHost.RemoveFromClassList("rtcombat-marker-selected");
+        }
+    }
+
     private static void EnsureSceneProxyLabel(MarkerBundle bundle, string text)
     {
         var label = bundle.Container.Q<Label>("scene-proxy-label");
@@ -844,12 +887,46 @@ public sealed class TacticalViewportPresenter
         label.style.display = DisplayStyle.Flex;
     }
 
+    /// <summary>
+    /// 纯屏幕航迹。始终推进位置样本；仅当角应更新时返回 true（减少无效旋转写入）。
+    /// </summary>
+    private bool ResolveAndAdvanceIconTrail(string unitId, float centerX, float centerY, out float deg)
+    {
+        _iconTrails.TryGetValue(unitId, out var sample);
+        deg = sample.Deg;
+        var shouldWrite = !sample.HasPrev;
+        if (sample.HasPrev)
+        {
+            shouldWrite = ShipHeadingResolver.TryResolveTrailDeg(
+                sample.CenterX,
+                sample.CenterY,
+                centerX,
+                centerY,
+                sample.Deg,
+                out deg);
+            if (!shouldWrite)
+            {
+                deg = sample.Deg;
+            }
+        }
+
+        _iconTrails[unitId] = new IconTrailSample
+        {
+            CenterX = centerX,
+            CenterY = centerY,
+            Deg = deg,
+            HasPrev = true,
+        };
+        return shouldWrite;
+    }
+
     private void ClearMarkers()
     {
         _host?.Clear();
         _edgeHost?.Clear();
         _markers.Clear();
         _edgeMarkers.Clear();
+        _iconTrails.Clear();
     }
 // liketocoode3a5
 }

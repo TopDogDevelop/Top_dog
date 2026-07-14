@@ -88,7 +88,19 @@ public static class CampaignBootstrap
         MechanismTestBootstrap.ApplyToState(state, scenario, scenarioId);
         var core = BuildCore(state, Profile.MECHANISM_TEST);
         var rng = new Random(scenario.seed == 0 ? 1 : scenario.seed);
-        MechanismTestSpawnService.BootstrapBattlefields(state, scenario, core.Ships, core.Modules, rng);
+        if ("nav_rally".Equals(scenario.mapMode, StringComparison.Ordinal))
+        {
+            MechanismNavRallySpawnService.BootstrapBattlefields(state, scenario, core.Ships, core.Modules, rng);
+        }
+        else if ("intra_scene_warp".Equals(scenario.mapMode, StringComparison.Ordinal))
+        {
+            MechanismIntraSceneWarpSpawnService.BootstrapBattlefields(
+                state, scenario, core.Ships, core.Modules, rng);
+        }
+        else
+        {
+            MechanismTestSpawnService.BootstrapBattlefields(state, scenario, core.Ships, core.Modules, rng);
+        }
         return core;
     }
 

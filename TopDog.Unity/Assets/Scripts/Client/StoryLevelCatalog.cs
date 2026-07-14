@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using TopDog.Sim.MechanismTest;
 /*
@@ -16,6 +17,8 @@ public static class StoryLevelCatalog
         public string Id = "";
         public string Title = "";
         public string Subtitle = "";
+        public int ListOrder;
+        public string ListOrderLabel = "";
         public bool Unlocked;
         public bool IsMechanismTest;
     }
@@ -52,14 +55,17 @@ public static class StoryLevelCatalog
             var list = new List<Entry>(StoryLevels);
             foreach (var scenario in MechanismTestCatalog.ListAll())
             {
-                var orderLabel = scenario.scenarioOrder > 0
-                    ? $"#{scenario.scenarioOrder:D2} · "
-                    : "";
                 list.Add(new Entry
                 {
                     Id = scenario.scenarioId,
-                    Title = "机制详测 " + orderLabel + scenario.displayName,
-                    Subtitle = "单矿带 20km · 直进实时战",
+                    Title = "机制详测 · " + scenario.displayName,
+                    Subtitle = "nav_rally".Equals(scenario.mapMode, StringComparison.Ordinal)
+                        ? "10 星座星图 · 导航集结验收"
+                        : "单矿带 20km · 直进实时战",
+                    ListOrder = scenario.scenarioOrder,
+                    ListOrderLabel = scenario.scenarioOrder > 0
+                        ? $"#{scenario.scenarioOrder:D2}"
+                        : "",
                     Unlocked = true,
                     IsMechanismTest = true,
                 });

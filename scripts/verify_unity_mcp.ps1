@@ -1,7 +1,11 @@
 $ErrorActionPreference = "Continue"
 $project = "e:\game_dev\top_dog_unity\TopDog.Unity"
 $mcpJson = Join-Path $env:USERPROFILE ".cursor\mcp.json"
-$editor = "C:\Program Files\Unity\Hub\Editor\6000.5.0f1\Editor\Unity.exe"
+$editorCandidates = @(
+    "C:\Program Files\Unity\Hub\Editor\6000.3.19f1\Editor\Unity.exe",
+    "C:\Program Files\Unity\Hub\Editor\6000.5.0f1\Editor\Unity.exe"
+)
+$editor = $editorCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 $endpoint = "http://localhost:8080/"
 
 Write-Host "=== Unity Community MCP preflight ===" -ForegroundColor Cyan
@@ -26,8 +30,8 @@ if ((Test-Path $mcpJson) -and ((Get-Content $mcpJson -Raw) -match "unity-communi
 }
 else { Write-Host "[!!] Check $mcpJson for unity-community url entry" -ForegroundColor Yellow }
 
-if (Test-Path $editor) { Write-Host "[OK] Unity 6000.5.0f1 installed" -ForegroundColor Green }
-else { Write-Host "[!!] Unity 6000.5.0f1 not found" -ForegroundColor Yellow }
+if ($editor -and (Test-Path $editor)) { Write-Host "[OK] Unity Editor: $editor" -ForegroundColor Green }
+else { Write-Host "[!!] Unity 6000.3.x / 6000.5 Editor not found" -ForegroundColor Yellow }
 
 try {
     $init = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"verify","version":"1.0"}}}'

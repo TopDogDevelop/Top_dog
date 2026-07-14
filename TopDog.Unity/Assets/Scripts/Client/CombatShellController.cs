@@ -1,3 +1,4 @@
+using System;
 using TopDog.App;
 using TopDog.Sim.Combat;
 using TopDog.Sim.Skirmish;
@@ -10,10 +11,10 @@ using UnityEngine.UIElements;
  * 权威: docs/MATCH_FLOW.md §交战准备 UI · §继续/战果确认 · §观战模式
  * 本文件: CombatShellController.cs — COMBAT_PREP / 战果确认场景 UI
  * 【机制要点】
- * · CHOOSE_MODE：自动交战 / 实时指挥 / 接战 / 撤退
+ * · CHOOSE_MODE：实时指挥 / 接战 / 撤退
  * · 实时指挥 → CombatChooseRealtime + GameSceneRouter.CombatRealtime
  * · combatAwaitingContinue → 继续按钮 → CombatContinue / 回运营
- * · spectatorMode 自动推进 ChooseAuto / ChooseParticipate / Continue
+ * · spectatorMode 自动推进 ChooseParticipate / Continue
  * 【关联】CombatPhaseService · GameSceneRouter · MatchPauseOverlay
  * ══
  */
@@ -35,13 +36,15 @@ public sealed class CombatShellController : UiScreenController
     private Label _queueLabel;
     private Label _bodyLabel;
     private Label _statusLabel;
-    private Button _autoBtn;
+    private ScrollView _prepScroll;
+    private VisualElement _actionsRow;
     private Button _realtimeBtn;
     private Button _engageBtn;
     private Button _retreatBtn;
     private Button _continueBtn;
     private float _nextRefresh;
     private float _spectatorCombatTick;
+    private int _prepPopulateSig = int.MinValue;
     private EventCallback<KeyDownEvent>? _keyHandler;
 
     // liketoc0de345
@@ -69,20 +72,14 @@ public sealed class CombatShellController : UiScreenController
         _queueLabel = root.Q<Label>("lbl-queue");
         _bodyLabel = root.Q<Label>("lbl-body");
         _statusLabel = root.Q<Label>("lbl-status");
-        _autoBtn = root.Q<Button>("btn-auto");
+        _prepScroll = root.Q<ScrollView>("prep-scroll");
+        _actionsRow = root.Q<VisualElement>("combat-actions");
         _realtimeBtn = root.Q<Button>("btn-realtime");
         _engageBtn = root.Q<Button>("btn-engage");
         _retreatBtn = root.Q<Button>("btn-retreat");
         _continueBtn = root.Q<Button>("btn-continue");
+        _prepPopulateSig = int.MinValue;
 
-        OnClick(root, "btn-auto", () =>
-        {
-            var core = GameAppHost.Instance?.Core;
-            if (core != null)
-            {
-                SetStatus(core.CombatChooseAuto());
-            }
-        });
         OnClick(root, "btn-realtime", () =>
         {
             var core = GameAppHost.Instance?.Core;
@@ -196,7 +193,7 @@ public sealed class CombatShellController : UiScreenController
         }
         if (s.combatPrepStep == CombatPrepStep.CHOOSE_MODE)
         {
-            SetStatus(core.CombatChooseAuto());
+            SetStatus(core.CombatChooseParticipate());
         }
         else if (s.combatPrepStep == CombatPrepStep.CHOOSE_STANCE)
         {
@@ -231,7 +228,7 @@ public sealed class CombatShellController : UiScreenController
         var entry = CombatPhaseService.CurrentEntry(s);
         if (_phaseLabel != null)
         {
-            _phaseLabel.text = awaiting ? "战果确认" : prep ? "交战准备" : "自动交战";
+            _phaseLabel.text = awaiting ? "战果确认" : prep ? "交战准备" : "交战";
         }
         if (_queueLabel != null)
         {
@@ -245,37 +242,68 @@ public sealed class CombatShellController : UiScreenController
             _bodyLabel.text = entry?.label ?? (awaiting || showResult
                 ? s.lastCombatSummary ?? "交战已结束 · 点继续进入下一项"
                 : prep
-                    ? chooseMode
-                        ? "请选择自动交战、参与战斗或舰队撤退。"
-                        : chooseStance
-                            ? "已选自动交战 · 请选择接战或撤退。"
-                            : "交战处理中…"
-                    : s.lastCombatSummary ?? "自动结算执行中。");
+                    ? chooseMode || chooseStance
+                        ? "请选择参与战斗、实时指挥或舰队撤退。"
+                        : "交战处理中…"
+                    : s.lastCombatSummary ?? "结算执行中。");
         }
         var prepUi = prep && !s.spectatorMode;
         if (s.spectatorMode && _bodyLabel != null && !awaiting)
         {
             _bodyLabel.text = "观战模式 · 自动推进交战 · 全场景可见（实时阶段）";
         }
-        if (_autoBtn != null)
+
+        var showPrepList = prepUi && !awaiting && (chooseMode || chooseStance) && _prepScroll != null;
+        if (_prepScroll != null)
         {
-            _autoBtn.SetEnabled(prepUi && chooseMode);
-            _autoBtn.style.display = awaiting ? DisplayStyle.None : DisplayStyle.Flex;
+            _prepScroll.style.display = showPrepList ? DisplayStyle.Flex : DisplayStyle.None;
         }
-        if (_realtimeBtn != null)
+        if (showPrepList)
         {
-            _realtimeBtn.SetEnabled(prepUi && chooseMode);
-            _realtimeBtn.style.display = awaiting ? DisplayStyle.None : DisplayStyle.Flex;
+            var excl = entry?.excludedMemberIds.Count ?? 0;
+            var sig = HashCode.Combine(
+                s.combatQueueIndex,
+                (int)s.combatPrepStep,
+                s.combatQueue.Count,
+                excl,
+                entry?.entryId?.GetHashCode() ?? 0);
+            if (sig != _prepPopulateSig)
+            {
+                _prepPopulateSig = sig;
+                CombatPrepPanel.Populate(_prepScroll!, core, SetStatus, RefreshAll);
+            }
+            // Panel owns engage buttons — hide shell duplicates to avoid double UI.
+            if (_realtimeBtn != null)
+            {
+                _realtimeBtn.style.display = DisplayStyle.None;
+            }
+            if (_engageBtn != null)
+            {
+                _engageBtn.style.display = DisplayStyle.None;
+            }
+            if (_retreatBtn != null)
+            {
+                _retreatBtn.style.display = DisplayStyle.None;
+            }
         }
-        if (_engageBtn != null)
+        else
         {
-            _engageBtn.SetEnabled(prepUi && (chooseMode || chooseStance));
-            _engageBtn.style.display = awaiting ? DisplayStyle.None : DisplayStyle.Flex;
-        }
-        if (_retreatBtn != null)
-        {
-            _retreatBtn.SetEnabled(prepUi && (chooseMode || chooseStance));
-            _retreatBtn.style.display = awaiting ? DisplayStyle.None : DisplayStyle.Flex;
+            _prepPopulateSig = int.MinValue;
+            if (_realtimeBtn != null)
+            {
+                _realtimeBtn.SetEnabled(prepUi && (chooseMode || chooseStance));
+                _realtimeBtn.style.display = awaiting ? DisplayStyle.None : DisplayStyle.Flex;
+            }
+            if (_engageBtn != null)
+            {
+                _engageBtn.SetEnabled(prepUi && (chooseMode || chooseStance));
+                _engageBtn.style.display = awaiting ? DisplayStyle.None : DisplayStyle.Flex;
+            }
+            if (_retreatBtn != null)
+            {
+                _retreatBtn.SetEnabled(prepUi && (chooseMode || chooseStance));
+                _retreatBtn.style.display = awaiting ? DisplayStyle.None : DisplayStyle.Flex;
+            }
         }
         if (_continueBtn != null)
         {

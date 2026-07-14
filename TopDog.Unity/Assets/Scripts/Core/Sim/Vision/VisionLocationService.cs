@@ -11,9 +11,10 @@ using TopDog.Sim.State;
  * 权威: docs/TACTICAL_RIGHT_RAIL_SCENE_PROXY.md §2 · docs/LEGION_SKIRMISH.md §4 · docs/VISION.md
  * 本文件: VisionLocationService.cs — 可观察战场数据源与锚点团员判定
  * 【机制要点】
- * · ListBattlefieldVisionGroups：遍历战场 → 锚点团员 → 空战场隐藏
+ * · ListBattlefieldVisionGroups：遍历战场 → 锚点团员 → 空战场隐藏；**有存活敌舰的实时交战场不列入**（无法切视角）
  * · ListDescentEntries：groups 扁平化（兼容旧调用）
  * · IsVisionEligibleMember：trait_direct_possess | trait_intel_officer（含 identity 兜底）
+ * · IsHostileRealtimeCombatBattlefield：存活敌舰 → 非「可切换」列表
  * 【实现逻辑】
  * · 每战场：扫 units + tacticalWarpInTransit（仅 toBattlefieldId）→ TryAddUnitEntry
  * · TryAddUnitEntry：友方、非 proxy、VisionGate.IsRailEligibleFriendly、团员有锚点词条
@@ -116,6 +117,36 @@ public static class VisionLocationService
         return list;
     }
 
+    /// <summary>
+    /// 有存活敌舰的战场视为「实时交战场景」：不进可观察/可切换列表，禁止切视角进入。
+    /// 导航详测等仅友舰场景可列、可切。
+    /// </summary>
+    public static bool IsHostileRealtimeCombatBattlefield(BattlefieldState? bf)
+    {
+        if (bf == null)
+        {
+            return false;
+        }
+
+        foreach (var u in bf.units)
+        {
+            if (u.IsDestroyed()
+                || !u.Arrived(bf.timeSec)
+                || u.isBuilding
+                || BattlefieldSceneProxyService.IsSceneProxy(u))
+            {
+                continue;
+            }
+
+            if (u.side == UnitSide.ENEMY)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>可观察战场：遍历战场，仅展示含锚点团员的战场（空战场隐藏）。</summary>
     public static List<BattlefieldVisionGroup> ListBattlefieldVisionGroups(GameState state)
     {
@@ -127,6 +158,12 @@ public static class VisionLocationService
         {
             var includeDespiteFinished = BattlefieldSystem.ShouldTickBattlefield(state, bf);
             if ((bf.finished && !includeDespiteFinished) || bf.battlefieldId == null)
+            {
+                continue;
+            }
+
+            // 实时交战（有存活敌舰）不进可切换列表 — 无法切换视角进入
+            if (IsHostileRealtimeCombatBattlefield(bf))
             {
                 continue;
             }
@@ -312,6 +349,11 @@ public static class VisionLocationService
                 continue;
             }
 
+            if (IsHostileRealtimeCombatBattlefield(memberBf))
+            {
+                continue;
+            }
+
             if (!groupMap.TryGetValue(memberBf.battlefieldId, out var bucket))
             {
                 groupMap[memberBf.battlefieldId] = (memberBf, new List<VisionDescentEntry>());
@@ -340,7 +382,7 @@ public static class VisionLocationService
     private static List<BattlefieldVisionGroup> ForceBuildLocalRosterGroups(GameState state)
     {
         var memberBf = ResolveBattlefieldForVision(state);
-        if (memberBf?.battlefieldId == null)
+        if (memberBf?.battlefieldId == null || IsHostileRealtimeCombatBattlefield(memberBf))
         {
             return new List<BattlefieldVisionGroup>();
         }

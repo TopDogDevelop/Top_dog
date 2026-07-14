@@ -4,5 +4,7 @@
   "displayNameEn": "Board Admin Module",
   "slotCategory": "FUNCTION",
   "moduleKind": "admin_board_summon",
-  "moduleSize": "SMALL"
+  "moduleSize": "SMALL",
+  "fromTrait": true,
+  "playerVisibleInteractable": false
 }

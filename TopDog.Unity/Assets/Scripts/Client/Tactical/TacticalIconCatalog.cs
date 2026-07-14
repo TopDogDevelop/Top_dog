@@ -1,13 +1,17 @@
 using System.Collections.Generic;
 using System.IO;
+using TopDog.Client.StarMap;
 using TopDog.Content;
+using TopDog.Content.Map;
+using TopDog.Content.Ships;
+using TopDog.Sim.Realtime;
 using UnityEngine;
 /*
  * ══ 设计手册嵌入 ══
  * 权威: docs/VISUAL_ASSETS.md §2-§4 · docs/TACTICAL_VIEW.md
  * 本文件: TacticalIconCatalog.cs — 吨位/地标 → 战术 PNG
  * 【机制要点】
- * · glyph 图标路径解析
+ * · glyph 图标路径解析；运营战略星图 + 星系内景亦用 PNG（VISUAL_ASSETS §4）
  * 【关联】TacticalViewportPresenter · StarMapHostController · TacticalRightRail
  * ══
  */
@@ -19,7 +23,7 @@ using UnityEngine;
 namespace TopDog.Client.Tactical;
 
 // liketoc0de345
-/// <summary>吨位 / 地标 → 战术 PNG（VISUAL_ASSETS.md §2–4）。</summary>
+/// <summary>吨位 / 地标 / 战略星图 → 战术 PNG（VISUAL_ASSETS.md §2–4）。</summary>
 public static class TacticalIconCatalog
 {
     private const string IconFolder = "Assets/Art/TacticalIcons";
@@ -28,6 +32,14 @@ public static class TacticalIconCatalog
     private static Texture2D _badgeHostile;
 
     public static Texture2D ResolveNavDestinationIcon() => Load("nav_destination_32.png");
+
+    /// <summary>战术 UI 显示用吨位：仅 <see cref="BattlefieldUnit.tonnageClass"/> / <see cref="HullDef.tonnageClass"/>，不含场域有效吨位。</summary>
+    public static string? DisplayTonnageClass(BattlefieldUnit? unit, HullDef? hull) =>
+        unit?.tonnageClass ?? hull?.tonnageClass;
+
+    /// <summary>单位战术图标；禁止用 <c>hullShieldFusionEffectiveTonnageClass</c>（如白狼级仅 sim 视为航母）。</summary>
+    public static Texture2D? ResolveUnitShipIcon(BattlefieldUnit? unit, HullDef? hull) =>
+        ResolveShipIcon(DisplayTonnageClass(unit, hull));
 
     public static Texture2D ResolveShipIcon(string? tonnageClass)
     {
@@ -59,18 +71,78 @@ public static class TacticalIconCatalog
     // liketocoode34e
     }
 
-    /// <summary>星系内景 eventRegion.kind（矿带 / 海盗集结等）。</summary>
-    public static Texture2D ResolveEventRegionIcon(string? eventRegionKind) => eventRegionKind switch
+    /// <summary>星系内景 eventRegion.kind（矿带 / 海盗集结等）；未映射时用 beacon，与战略星图一样尽量有素材。</summary>
+    public static Texture2D? ResolveEventRegionIcon(string? eventRegionKind)
     {
-        "star" => Load("sun.png"),
-        "planet" => Load("planet.png"),
-        "oreBelt" => Load("asteroidBelt.png"),
-        "pirateRally" => Load("pirateRally_16.png"),
-        "jumpBridge" => Load("stargate_32.png"),
-        "legionStructure" or "deployedStructure" => Load("structure.png"),
-        // liketocoo3e345
-        _ => null,
-    };
+        var kind = NormalizeEventRegionKind(eventRegionKind);
+        return kind switch
+        {
+            EventRegionKinds.Star => Load("sun.png"),
+            EventRegionKinds.Planet => Load("planet.png"),
+            EventRegionKinds.OreBelt => Load("asteroidBelt.png"),
+            EventRegionKinds.PirateRally => Load("pirateRally_16.png"),
+            EventRegionKinds.JumpBridge => Load("stargate_32.png"),
+            EventRegionKinds.LegionStructure or EventRegionKinds.DeployedStructure => Load("structure.png"),
+            _ => Load("beacon.png"),
+        };
+    }
+
+    /// <summary>运营星系内景玩家建筑 marker（个堡 / 军堡）。</summary>
+    public static Texture2D? ResolveInteriorBuildingIcon(string? buildingType)
+    {
+        // 预留按 buildingType 细分；当前统一 structure.png（与地标 FORTRESS 同源）。
+        if (string.IsNullOrWhiteSpace(buildingType))
+        {
+            return Load("structure.png");
+        }
+
+        return ResolveLandmarkIcon("FORTRESS");
+    }
+
+    /// <summary>兼容 content/skirmish 里 <c>legion_structure</c> 等蛇形写法。</summary>
+    public static string? NormalizeEventRegionKind(string? eventRegionKind)
+    {
+        if (string.IsNullOrWhiteSpace(eventRegionKind))
+        {
+            return null;
+        }
+
+        if (EventRegionKinds.All.Contains(eventRegionKind))
+        {
+            return eventRegionKind;
+        }
+
+        return eventRegionKind.Trim() switch
+        {
+            "legion_structure" => EventRegionKinds.LegionStructure,
+            "deployed_structure" => EventRegionKinds.DeployedStructure,
+            "ore_belt" => EventRegionKinds.OreBelt,
+            "pirate_rally" => EventRegionKinds.PirateRally,
+            "jump_bridge" => EventRegionKinds.JumpBridge,
+            "sun" => EventRegionKinds.Star,
+            _ => eventRegionKind,
+        };
+    }
+
+    /// <summary>
+    /// 运营战略星图星系节点（VISUAL_ASSETS §4.2）：交战 / 己方建筑 / 默认恒星。
+    /// </summary>
+    public static Texture2D? ResolveStrategicSystemIcon(StarMapSystemBadge? badge)
+    {
+        if (badge is { activeBattlefieldCount: > 0 })
+        {
+            return Load("combatSite_16.png");
+        }
+
+        if (badge is { playerBuildingCount: > 0 }
+            || badge?.fortSovereignty is FortSovereignty.FriendlyAnchored
+                or FortSovereignty.FriendlyUnanchored)
+        {
+            return Load("station_32.png");
+        }
+
+        return Load("sun.png");
+    }
 
     /// <summary>实时战场边界「其他场景」占位（回退；优先 ResolveEventRegionIcon(kind)）。</summary>
     public static Texture2D ResolveSceneProxyIcon(string? eventRegionKind) =>
@@ -113,13 +185,13 @@ public static class TacticalIconCatalog
             // liketocoode3e5
             return cached;
         }
-        var path = Path.Combine(Application.dataPath, "Art", "TacticalIcons", fileName);
-        if (!File.Exists(path)
+        var path = ClientArtPaths.FindTacticalIconFile(fileName);
+        if (path == null
             && "BOARD_SUMMON_WING".Equals(tonnageClass, System.StringComparison.Ordinal))
         {
             return Load("dreadnought_32.png");
         }
-        if (!File.Exists(path))
+        if (path == null || !File.Exists(path))
         {
             return null;
         }

@@ -38,6 +38,10 @@ public sealed class BattlefieldSystemBrick : IBrick
         {
             return;
         }
+        if (!CombatRealtimeLinkService.TickHandshake(ctx.State, dtSec))
+        {
+            return;
+        }
         if (ctx.State.worldline.type == WorldlineType.LEGION_SKIRMISH)
         {
             BattlefieldSystem.Tick(ctx.State, ctx.Modules, ctx.Ships, dtSec);
@@ -59,6 +63,7 @@ public sealed class BattlefieldSystemBrick : IBrick
             ctx.State.lastCombatSummary = summary;
             ctx.State.combatAwaitingContinue = true;
             ctx.State.combatRealtimeActive = false;
+            CombatRealtimeLinkService.Reset(ctx.State);
             ctx.State.combatPrepStep = CombatPrepStep.SHOW_RESULT;
             PushAlert(ctx.State, summary);
             break;

@@ -82,4 +82,16 @@ public sealed class HullDef
     public float hullIncomingDamageReductionPct;
     /// <summary>星币估值；0 或未设则按 <see cref="tonnageClass"/> 默认。</summary>
     public int starCoinValue;
+    /// <summary>护盾融合场：持有舰有效吨位（如白狼级视为 CARRIER）。</summary>
+    public string? hullShieldFusionEffectiveTonnageClass;
+    /// <summary>护盾融合场半径乘数（如白狼级 0.5）。</summary>
+    public float hullShieldFusionRadiusMult = 1f;
+    /// <summary>逐槽尺寸覆盖（优先于 attackSlotSize 等全局档）。</summary>
+    public HullSlotLayoutEntry[]? slotLayout;
+}
+
+public sealed class HullSlotLayoutEntry
+{
+    public string? slotId;
+    public string? slotSize;
 }

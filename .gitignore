@@ -46,3 +46,7 @@ docs/
 # Cursor / local tooling
 .cursor/
 .codegraph/
+
+# HybridCLR generated / vendor (local build only; not for archive)
+TopDog.Unity/HybridCLRData/
+TopDog.Unity/Packages/com.code-philosophy.hybridclr/

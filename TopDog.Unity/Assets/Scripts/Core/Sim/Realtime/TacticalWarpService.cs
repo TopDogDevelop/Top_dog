@@ -6,14 +6,15 @@ using TopDog.Sim.Skirmish;
 using TopDog.Sim.State;
 /*
  * ══ 设计手册嵌入 ══
- * 权威: docs/TACTICAL_WARP_AND_ORDERS.md §2 战场间跃迁 · docs/VISION.md §8
+ * 权威: docs/TACTICAL_WARP_AND_ORDERS.md §2 战场间跃迁 · §2.1.1 同场景跃迁 · docs/VISION.md §8
  * 本文件: TacticalWarpService.cs — 同星系跃迁 + 跨星系星门
  * 【机制要点】
  * · BeginWarp：ETA = DistanceAu / warpSpeedAups；跨场景 ≤ MaxWarpDistanceAu (1000 AU)
- * · TryOrderIntraSceneWarp：同 bf、≥150 km 世界坐标冲刺，无 AU 在途
+ * · TryOrderIntraSceneWarp：同 bf、≥150 km 世界坐标冲刺，无 AU 在途；不经边缘 proxy
+ * · 单位点选同场景跃迁：FleetOrderService 门控友好声望（UnitSide.FRIENDLY；§2.1.1）
  * · RecordLandingClearance：起跳/EnterTransit 时落点阻挡扫描（预留）
  * · GateJump：JumpBridgeResolver 对端锚点瞬移
- * 【关联】FleetOrderService · JumpBridgeResolver · BattlefieldAnchorResolver
+ * 【关联】FleetOrderService · JumpBridgeResolver · BattlefieldAnchorResolver · mt_intra_scene_warp
  * ══
  */
 

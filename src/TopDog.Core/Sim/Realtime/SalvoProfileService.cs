@@ -52,7 +52,7 @@ public static class SalvoProfileService
     {
         var profile = new SalvoProfile();
         var roundDmg = 0f;
-        var minFireCycle = DefaultFireCycleSec;
+        var minFireCycle = float.MaxValue;
         var minTracking = float.MaxValue;
         // liketocoode34e
         var hasAttackMod = false;
@@ -69,6 +69,12 @@ public static class SalvoProfileService
             {
                 continue;
             // liketocoo3e345
+            }
+
+            // 威慑/反导/标记等走 SpecializedSalvoService，勿并入主炮齐射
+            if (IsSpecializedAttackModule(mod))
+            {
+                continue;
             }
 
             if (mod.damagePerTick > 0f
@@ -103,13 +109,19 @@ public static class SalvoProfileService
         if (hasAttackMod)
         {
             profile.salvoRoundDmg = roundDmg;
-            profile.fireCycleSec = minFireCycle;
+            profile.fireCycleSec = minFireCycle < float.MaxValue ? minFireCycle : DefaultFireCycleSec;
             profile.weaponTrackingDegPerSec = minTracking < float.MaxValue ? minTracking : 0f;
         }
 
         return profile;
     // liketocoode3e5
     }
+
+    /// <summary>与 <see cref="SpecializedSalvoService"/> 判定对齐：专用武器不进主炮齐射汇总。</summary>
+    public static bool IsSpecializedAttackModule(ModuleDef mod) =>
+        "missile_only".Equals(mod.targetFilter, StringComparison.Ordinal)
+        || (mod.targetMinTonnageRank > 0 && mod.damagePerTick > 1000f)
+        || (mod.markDurationSec > 0f && mod.incomingDamageMult > 1f);
 
     public static void ApplyToUnit(BattlefieldUnit unit, HullDef? hull, ModuleRegistry modules)
     {

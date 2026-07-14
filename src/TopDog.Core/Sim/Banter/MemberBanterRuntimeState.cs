@@ -28,4 +28,6 @@ public sealed class MemberBanterRuntimeState
     public List<BanterPlannedEmit> idleEmitQueue = new();
     /// <summary>下一待投递的 <see cref="idleEmitQueue"/> 下标。</summary>
     public int idleEmitQueueIndex;
+    /// <summary>上一拍 <see cref="BanterEligibleSpeakers"/> 人数；0→有人时立即拉起闲聊。</summary>
+    public int idleLastEligibleSpeakerCount;
 }

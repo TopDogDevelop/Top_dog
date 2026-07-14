@@ -2,7 +2,9 @@
     "name": "TopDog.Editor",
     "rootNamespace": "TopDog.Client.Editor",
     "references": [
-        "TopDog.Client"
+        "TopDog.Client",
+        "HybridCLR.Editor",
+        "HybridCLR.Runtime"
     ],
     "includePlatforms": [
         "Editor"

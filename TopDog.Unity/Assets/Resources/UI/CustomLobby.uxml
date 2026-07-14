@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+  <ui:Style src="AppStyles.uss" />
+  <ui:Style src="CustomLobby.uss" />
+  <ui:VisualElement class="display-shell">
+    <ui:VisualElement class="viewport-frame">
+      <ui:VisualElement name="root" class="lobby-root screen-root-layered">
+        <ui:VisualElement name="art-screen-bg" class="art-layer art-slot-screen-bg" />
+        <ui:Label text="自定义战役大厅" class="lobby-title" />
+        <ui:VisualElement class="lobby-body-row">
+          <ui:VisualElement class="lobby-left">
+            <ui:ScrollView class="lobby-left-scroll">
+              <ui:Label text="玩家" class="lobby-section-caption" />
+              <ui:ScrollView name="player-list" class="lobby-player-scroll" />
+              <ui:Button name="btn-add-ai" text="+ 添加人机" class="lobby-secondary-btn" />
+              <ui:Label text="地图" class="lobby-section-caption" />
+              <ui:ScrollView name="map-list" class="lobby-map-scroll" />
+              <ui:VisualElement name="random-map-options" class="lobby-random-options">
+                <ui:Label text="星系数" class="lobby-option-caption" />
+                <ui:VisualElement name="system-count-row" class="lobby-option-chip-row" />
+                <ui:Label text="跳桥密度" class="lobby-option-caption" />
+                <ui:VisualElement name="bridge-density-row" class="lobby-bridge-density-row">
+                  <ui:Slider name="bridge-density-slider" low-value="0.25" high-value="3" value="1" class="lobby-density-slider" />
+                  <ui:Label name="lbl-bridge-density" text="1.00 标准" class="lobby-density-value" />
+                </ui:VisualElement>
+                <ui:Button name="btn-regenerate-map" text="重新生成星图" class="lobby-secondary-btn" />
+              </ui:VisualElement>
+              <ui:Label text="团员模版" class="lobby-section-caption" />
+              <ui:ScrollView name="template-list" class="lobby-pick-scroll" />
+              <ui:Label text="资产模版" class="lobby-section-caption" />
+              <ui:ScrollView name="asset-list" class="lobby-pick-scroll lobby-asset-scroll" />
+              <ui:Button name="btn-start" text="开始战役" class="menu-button-wide lobby-start-btn" />
+              <ui:Label name="lbl-rule" text="" class="lobby-rule lobby-rule-below-start" />
+              <ui:Button name="btn-back" text="返回" class="menu-button lobby-back-btn" />
+            </ui:ScrollView>
+          </ui:VisualElement>
+          <ui:VisualElement class="lobby-right">
+            <ui:Label text="星图预览" class="lobby-section-caption" />
+            <ui:VisualElement name="star-map-host" class="lobby-star-map-host art-viewport-host">
+              <ui:VisualElement name="art-viewport-bg" class="art-layer art-slot-viewport-bg" />
+              <ui:VisualElement name="star-map-view-bar" class="lobby-star-map-view-bar">
+                <ui:Button name="btn-view-top" text="俯视 XZ" class="lobby-view-btn lobby-view-btn-selected" />
+                <ui:Button name="btn-view-side" text="侧视 XY" class="lobby-view-btn" />
+                <ui:Button name="btn-view-front" text="正视 YZ" class="lobby-view-btn" />
+              </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:Label text="出生星系（选中玩家）" class="lobby-section-caption" />
+            <ui:ScrollView name="spawn-list" class="lobby-spawn-scroll" />
+            <ui:Label name="lbl-spawn-hint" text="" class="lobby-spawn-hint" />
+          </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:Label name="lbl-status" text="" class="lobby-status" />
+      </ui:VisualElement>
+    </ui:VisualElement>
+  </ui:VisualElement>
+</ui:UXML>

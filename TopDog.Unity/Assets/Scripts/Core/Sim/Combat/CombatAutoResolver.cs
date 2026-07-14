@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using TopDog.Content.Modules;
 using TopDog.Content.Ships;
 using TopDog.Sim.Building;
@@ -7,13 +10,13 @@ using TopDog.Sim.State;
  * ══ 设计手册嵌入 ══
  * 权威: docs/MATCH_FLOW.md §舰队撤退 · §参与战斗星币估值与损兵 · §反收割自动结算
  *        docs/LEGION_ASSETS_AND_VALUATION.md §5.1 自动交战占位战力
- * 本文件: CombatAutoResolver.cs — AUTO 路径接战/撤退概率与星币损兵结算
+ * 本文件: CombatAutoResolver.cs — AUTO 路径接战/撤退与星币损兵结算
  * 【机制要点】
- * · 撤退：10% 被迫参战 / 40% 全身而退 / 50% 随机损 1～2 艘（卸 equippedHullId）
+ * · HARVEST 等撤退：舰船无损撤离
+ * · 反收割撤退：仅放弃被抓编队舰，无被迫参战/额外损兵
+ * · BUILDING_ASSAULT 撤退：舰船无损，但 OnAssaultResolved 判撤退方负（防守失败/放弃进攻）
  * · 战力=名册星币估值之和（AutoCombatValuation）；ratio 驱动损兵表（≥1.5/1.1/±10%）
- * · 反收割撤退：先放弃被抓编队舰，再叠加上表概率与额外损兵
- * · BUILDING_ASSAULT：估值比决定攻守，委托 BuildingService.OnAssaultResolved
- * · 损失落实为随机挑选已装备舰清空 hull
+ * · BUILDING_ASSAULT 接战：估值比决定攻守，委托 BuildingService.OnAssaultResolved
  * 【关联】AutoCombatValuation · AssetValuation · BuildingService · CombatPhaseService
  * ══
  */
@@ -47,26 +50,38 @@ public static class CombatAutoResolver
         {
             return ResolveCounterHarvestRetreat(state, entry, ships, modules, rng);
         }
-        var outResult = new Outcome { retreated = true };
-        var roll = (float)rng.NextDouble();
-        if (roll < 0.10f)
+
+        if (entry.combatSubtype == CombatSubtype.BUILDING_ASSAULT)
         {
-            outResult.summary = "撤退失败：被迫参战";
-            outResult.retreated = false;
-            var fight = ResolveFight(state, entry, ships, modules, rng);
-            outResult.summary += " · " + fight.summary;
-            outResult.fought = true;
-            return outResult;
+            return ResolveBuildingAssaultRetreat(state, entry, ships);
         }
-        if (roll < 0.50f)
+
+        return new Outcome
         {
-            outResult.summary = "舰队全身而退，无损失";
-            return outResult;
-        }
-        var losses = 1 + rng.Next(2);
-        var lost = StripRandomFriendlyShips(state, entry, losses, rng);
-        outResult.summary = "撤退遭拦截：损失 " + lost.Count + " 艘舰 (" + string.Join("、", lost) + ")";
-        return outResult;
+            retreated = true,
+            summary = "舰队撤退 · 无损撤离",
+        };
+    }
+
+    /// <summary>
+    /// 建筑约战撤退：舰船不损，但战略上撤退方判负（玩家防守→防守失败；玩家进攻→放弃进攻）。
+    /// </summary>
+    private static Outcome ResolveBuildingAssaultRetreat(
+        GameState state,
+        CombatQueueEntry entry,
+        ShipRegistry ships)
+    {
+        // Player retreats ⇒ player loses the assault contest.
+        var attackerWon = entry.aiAttacker;
+        BuildingService.OnAssaultResolved(state, entry.targetBuildingId, attackerWon, entry.aiAttacker, ships);
+        var summary = entry.aiAttacker
+            ? "舰队撤退 · 建筑防守失败"
+            : "舰队撤退 · 放弃建筑进攻";
+        return new Outcome
+        {
+            retreated = true,
+            summary = summary,
+        };
     }
 
     // li3etocoode345
@@ -99,31 +114,15 @@ public static class CombatAutoResolver
         ModuleRegistry? modules,
         Random rng)
     {
-        var outResult = new Outcome { retreated = true };
         var abandoned = StripCapturedFormationShips(state, entry);
         var abandonPart = abandoned.Count == 0
-            ? "无舰可放弃"
-            : "放弃 " + string.Join("、", abandoned);
-        var roll = (float)rng.NextDouble();
-        if (roll < 0.10f)
+            ? "无被抓舰可放弃"
+            : "放弃被抓舰 " + string.Join("、", abandoned);
+        return new Outcome
         {
-            outResult.retreated = false;
-            var fight = ResolveFight(state, entry, ships, modules, rng);
-            outResult.fought = true;
-            outResult.summary = "反收割撤退失败被迫参战 · " + abandonPart + " · " + fight.summary;
-            return outResult;
-        }
-        if (roll < 0.50f)
-        {
-            outResult.summary = "反收割撤退 · " + abandonPart + " · 编外编队全身而退";
-            return outResult;
-        }
-        var penaltyEntry = CopyForRetreatPenalty(state, entry);
-        var losses = 1 + rng.Next(2);
-        var lost = StripRandomFriendlyShips(state, penaltyEntry, losses, rng);
-        outResult.summary = "反收割撤退 · " + abandonPart + " · 额外损失 "
-            + lost.Count + " 艘(" + string.Join("、", lost) + ")";
-        return outResult;
+            retreated = true,
+            summary = "反收割撤退 · " + abandonPart,
+        };
     }
 
     // liketocoode34e
@@ -136,7 +135,10 @@ public static class CombatAutoResolver
         Random rng)
     {
         var outResult = new Outcome { fought = true };
-        var friendly = SidePower(state, entry.friendlyMemberIds, ships, modules);
+        var friendlyIds = entry.friendlyMemberIds
+            .Where(id => !CombatAttendancePolicies.ShouldExcludeFromFight(state, entry, id))
+            .ToList();
+        var friendly = SidePower(state, friendlyIds, ships, modules);
         var enemy = entry.enemyRoster.Sum(l => l.combatPower);
 
         if (entry.combatSubtype == CombatSubtype.BUILDING_ASSAULT)
@@ -157,7 +159,7 @@ public static class CombatAutoResolver
         }
         if (friendly <= 0f)
         {
-            ApplyLoss(state, entry.friendlyMemberIds, 1f, rng);
+            ApplyLoss(state, friendlyIds, 1f, rng);
             outResult.summary = string.Format("我方无有效估值，敌方 {0:F0} 星币 · 我方全损", enemy);
             return outResult;
         }
@@ -191,14 +193,14 @@ public static class CombatAutoResolver
 
         if (friendlyStronger)
         {
-            var fLost = ApplyLoss(state, entry.friendlyMemberIds, strongLoss, rng);
+            var fLost = ApplyLoss(state, friendlyIds, strongLoss, rng);
             outResult.summary = string.Format(
                 "我方估值 {0:F0} 星币 vs 敌方 {1:F0} 星币 · 我方损失 {2} 艘，敌方编队覆灭",
                 friendly, enemy, fLost);
         }
         else
         {
-            var fLost = ApplyLoss(state, entry.friendlyMemberIds, weakLoss, rng);
+            var fLost = ApplyLoss(state, friendlyIds, weakLoss, rng);
             outResult.summary = string.Format(
                 "我方估值 {0:F0} 星币 vs 敌方 {1:F0} 星币 · 我方损失 {2} 艘，敌方损失约 {3:F0}%",
                 friendly, enemy, fLost, strongLoss * 100f);
@@ -265,22 +267,6 @@ public static class CombatAutoResolver
         return ids;
     }
 
-    // lik3tocoode345
-
-    private static CombatQueueEntry CopyForRetreatPenalty(GameState state, CombatQueueEntry entry)
-    {
-        var copy = new CombatQueueEntry { combatSubtype = entry.combatSubtype };
-        var skip = new HashSet<string>(CapturedFormationMemberIds(state, entry));
-        foreach (var id in entry.friendlyMemberIds)
-        {
-            if (!skip.Contains(id))
-            {
-                copy.friendlyMemberIds.Add(id);
-            }
-        }
-        return copy;
-    }
-
     // liketocoode3e5
 
     private static int ApplyLoss(GameState state, List<string> memberIds, float lossFraction, Random rng)
@@ -323,38 +309,6 @@ public static class CombatAutoResolver
             lost++;
         }
         return lost;
-    }
-
-    // liket0coode345
-
-    private static List<string> StripRandomFriendlyShips(
-        GameState state,
-        CombatQueueEntry entry,
-        int maxLoss,
-        Random rng)
-    {
-        var names = new List<string>();
-        var armed = new List<MemberState>();
-        foreach (var id in entry.friendlyMemberIds)
-        {
-            var m = FindMember(state, id);
-            if (m?.equippedHullId != null)
-            {
-                armed.Add(m);
-            }
-        }
-        for (var i = armed.Count - 1; i > 0; i--)
-        {
-            var j = rng.Next(i + 1);
-            (armed[i], armed[j]) = (armed[j], armed[i]);
-        }
-        var n = Math.Min(maxLoss, armed.Count);
-        for (var i = 0; i < n; i++)
-        {
-            armed[i].equippedHullId = null;
-            names.Add(armed[i].name ?? armed[i].memberId ?? "?");
-        }
-        return names;
     }
 
     private static MemberState? FindMember(GameState state, string id)

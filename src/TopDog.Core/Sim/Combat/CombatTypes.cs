@@ -78,6 +78,8 @@ public sealed class CombatQueueEntry
     public string? capturedFormationId;
     public string? linkedHarvestId;
     public List<string> friendlyMemberIds = new();
+    /// <summary>玩家主动排除上场的团员（被抓/必到不可排）。</summary>
+    public List<string> excludedMemberIds = new();
     public List<CombatRosterLine> enemyRoster = new();
     public List<CombatRosterLine> friendlyRosterLines = new();
     public bool aiAttacker;

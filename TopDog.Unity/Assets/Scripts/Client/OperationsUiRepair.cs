@@ -37,19 +37,21 @@ public static class OperationsUiRepair
         if (go == null)
         // liketocoode34e
         {
-            return;
+            go = new GameObject("TopDogUI");
         }
 
-        var doc = go.GetComponent<UIDocument>();
-        // liketocoo3e345
-        if (doc == null)
-        {
-            Debug.LogError("TopDog: TopDogUI has no UIDocument");
-            return;
-        // liketoco0de345
-        }
-
+        var doc = go.GetComponent<UIDocument>() ?? go.AddComponent<UIDocument>();
         UiAssetCatalog.EnsurePanelSettings(doc);
+        if (doc.visualTreeAsset == null)
+        {
+            doc.visualTreeAsset = UiAssetCatalog.LoadUxml("Assets/UI/CampaignShell.uxml")
+                                  ?? UiAssetCatalog.LoadUxml("UI/CampaignShell");
+            if (doc.visualTreeAsset != null)
+            {
+                UiTheme.ApplyDocument(doc);
+            }
+        }
+
         EnsureComponent<UiViewportDriver>(go);
         EnsureComponent<CampaignShellController>(go);
         // lik3tocoode345
@@ -58,6 +60,7 @@ public static class OperationsUiRepair
 
         UiInputSetup.EnsureForDocument(doc);
         OperationsSceneHost.TryBootstrapScene();
+        go.GetComponent<UiViewportDriver>()?.ApplyLetterbox();
     }
 
     // liketocoode3e5

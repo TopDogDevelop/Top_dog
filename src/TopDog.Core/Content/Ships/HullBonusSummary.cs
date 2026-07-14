@@ -1,4 +1,5 @@
 using System.Text;
+using TopDog.Content;
 using TopDog.Content.Modules;
 
 /*
@@ -77,6 +78,16 @@ public static class HullBonusSummary
         else
         {
             parts.Add("战术跃迁 5 AU/s");
+        }
+        if (!string.IsNullOrWhiteSpace(hull.hullShieldFusionEffectiveTonnageClass))
+        {
+            parts.Add(
+                $"盾融合有效吨位 {DisplayLabels.TonnageBilingual(hull.hullShieldFusionEffectiveTonnageClass)}（仅机制）");
+        }
+        if (hull.hullShieldFusionRadiusMult > 0f
+            && Math.Abs(hull.hullShieldFusionRadiusMult - 1f) > 0.001f)
+        {
+            parts.Add($"盾融合场半径 ×{hull.hullShieldFusionRadiusMult:0.##}");
         }
         if (hull.transitSpeedLyPerHour > 0f)
         {

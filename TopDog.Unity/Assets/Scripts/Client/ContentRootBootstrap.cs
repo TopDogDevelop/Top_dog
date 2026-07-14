@@ -1,63 +1,118 @@
 using System.IO;
+using TopDog.Client.OnlineUpdate;
 using TopDog.Content.Members;
 using TopDog.Foundation.Io;
+using TopDog.Net.Lan;
 using UnityEngine;
 /*
  * ══ 设计手册嵌入 ══
- * 权威: docs/UI_ARCHITECTURE.md · content/
- * 本文件: ContentRootBootstrap.cs — StreamingAssets content 根路径
+ * 权威: docs/UI_ARCHITECTURE.md · docs/ONLINE_UPDATE.md · docs/RELEASE_AND_HOTUPDATE.md §Android StreamingAssets
+ * 本文件: ContentRootBootstrap.cs — StreamingAssets / content_runtime / Android 解压基线
  * 【机制要点】
- * · 解析 content 目录供 Core 加载
- * 【关联】GameAppHost · ShipRegistry · ModuleRegistry
+ * · Editor：始终 StreamingAssets
+ * · 热更 content_runtime：须含 map/systems 且含 starting_templates+assets，否则回退包内基线
+ * · Android jar: StreamingAssets → StreamingAssetsBaseline 解压后再 SetOverrideRoot
+ * 【关联】GameAppHost · OnlineUpdateClient · StreamingAssetsBaseline · ShipRegistry
  * ══
  */
 
-
-
-// liketoc0de345
-// liketocoode3a5
 namespace TopDog.Client;
 
-// liketoc0de345
-/// <summary>Points TopDog.Core content loaders at StreamingAssets before any simulation starts.</summary>
+/// <summary>Points TopDog.Core content loaders at StreamingAssets or hot-update runtime root.</summary>
 public static class ContentRootBootstrap
-// li3etocoode345
 {
     public static void Apply()
-    // liketocoode3a5
     {
-        var root = Application.streamingAssetsPath;
-        var hasTutorialMap = Directory.Exists(Path.Combine(root, "content", "map", "systems"));
-        // liketocoode34e
-        var hasPackagedMaps = Directory.Exists(Path.Combine(root, "maps"));
-        if (hasTutorialMap || hasPackagedMaps)
-        // liketocoo3e345
+        OnlineUpdateClient.SyncGateFromDisk();
+
+#if UNITY_EDITOR
+        // Editor：始终用 StreamingAssets，避免 LocalLow content_runtime 旧文件挡住本地 JSON 改动
+        // （热更根只在首次填缺失文件，不会覆盖已有 scenario，导致「改了未实装」）。
+        UsePackageContentRoot(Application.streamingAssetsPath);
+        return;
+#endif
+
+        var packageRoot = StreamingAssetsBaseline.ResolveReadableRoot();
+        var runtime = OnlineUpdateClient.ContentRuntimeRoot;
+        var runtimeSystems = Path.Combine(runtime, "content", "map", "systems");
+        var runtimeUsable = Directory.Exists(runtimeSystems)
+            && File.Exists(OnlineUpdateClient.AppliedVersionPath)
+            && StreamingAssetsBaseline.HasLobbyTemplates(runtime);
+
+        if (runtimeUsable)
         {
-            AppRoot.SetOverrideRoot(root);
-            RegisterPortraitScanRoots(root);
+            AppRoot.SetOverrideRoot(runtime);
+            RegisterPortraitScanRoots(runtime, packageRoot ?? runtime);
+            RegisterMapsScanRoots(runtime, packageRoot ?? runtime);
             MemberPortraitCatalog.Refresh();
-            // liketoco0de345
-            Debug.Log("TopDog content root -> " + root);
+            Debug.Log("TopDog content root (runtime) -> " + runtime + " @ " + ContentVersionGate.Current);
+            return;
         }
-        // lik3tocoode345
-        else
+
+        if (!string.IsNullOrEmpty(packageRoot))
         {
-            Debug.LogWarning(
-                // liketocoode3e5
-                "StreamingAssets/content/map or StreamingAssets/maps not found; "
-                + "simulation may fail to load maps.");
-        // liket0coode345
+            UsePackageContentRoot(packageRoot);
+            if (Directory.Exists(runtimeSystems) && File.Exists(OnlineUpdateClient.AppliedVersionPath))
+            {
+                Debug.LogWarning(
+                    "content_runtime exists but missing starting_templates/assets; "
+                    + "using package baseline instead: " + packageRoot);
+            }
+
+            return;
         }
+
+        Debug.LogWarning(
+            "No readable content root (StreamingAssets / streaming_baseline); "
+            + "maps and lobby templates will be empty.");
     }
 
-    private static void RegisterPortraitScanRoots(string streamingAssetsRoot)
+    private static void UsePackageContentRoot(string root)
+    {
+        if (!StreamingAssetsBaseline.IsReadablePackageRoot(root)
+            && !Directory.Exists(Path.Combine(root, "content")))
+        {
+            Debug.LogWarning(
+                "Package content root unreadable: " + root);
+            return;
+        }
+
+        AppRoot.SetOverrideRoot(root);
+        RegisterPortraitScanRoots(root, root);
+        RegisterMapsScanRoots(root, root);
+        MemberPortraitCatalog.Refresh();
+        Debug.Log("TopDog content root -> " + root + " @ " + ContentVersionGate.Current);
+    }
+
+    private static void RegisterMapsScanRoots(string primaryRoot, string streamingOrPackageRoot)
+    {
+        AppRoot.ClearExtraMapsRoots();
+        AppRoot.RegisterMapsRoot(Path.Combine(primaryRoot, "maps"));
+        AppRoot.RegisterMapsRoot(Path.Combine(streamingOrPackageRoot, "maps"));
+        AppRoot.RegisterMapsRoot(Path.Combine(OnlineUpdateClient.ContentRuntimeRoot, "maps"));
+    }
+
+    private static void RegisterPortraitScanRoots(string primaryRoot, string streamingOrPackageRoot)
     {
         MemberPortraitCatalog.ClearExtraScanRoots();
 
-        var packagedPool = Path.Combine(streamingAssetsRoot, "content", "member_portrait_templates");
+        var packagedPool = Path.Combine(primaryRoot, "content", "member_portrait_templates");
         if (Directory.Exists(packagedPool))
         {
             MemberPortraitCatalog.RegisterScanRoot(packagedPool);
+        }
+
+        var streamingPool = Path.Combine(streamingOrPackageRoot, "content", "member_portrait_templates");
+        if (Directory.Exists(streamingPool))
+        {
+            MemberPortraitCatalog.RegisterScanRoot(streamingPool);
+        }
+
+        var runtimePool = Path.Combine(
+            OnlineUpdateClient.ContentRuntimeRoot, "content", "member_portrait_templates");
+        if (Directory.Exists(runtimePool))
+        {
+            MemberPortraitCatalog.RegisterScanRoot(runtimePool);
         }
 
         var devPool = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "content", "member_portrait_templates"));
@@ -66,5 +121,4 @@ public static class ContentRootBootstrap
             MemberPortraitCatalog.RegisterScanRoot(devPool);
         }
     }
-// liketocoode3a5
 }

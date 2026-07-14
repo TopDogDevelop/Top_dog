@@ -148,6 +148,13 @@ public static class UiAssetCatalog
             Debug.LogError("TopDog: UnityDefaultRuntimeTheme.tss missing at " + RuntimeThemePath);
         }
 #else
+        var theme = Resources.Load<ThemeStyleSheet>("UnityDefaultRuntimeTheme");
+        if (theme != null)
+        {
+            panelSettings.themeStyleSheet = theme;
+            return;
+        }
+
         Debug.LogError("TopDog: PanelSettings has no themeStyleSheet — UI will not render");
 #endif
     }

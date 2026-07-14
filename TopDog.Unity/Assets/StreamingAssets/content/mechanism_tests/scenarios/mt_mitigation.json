@@ -1,6 +1,7 @@
 {
   "scenarioId": "mt_mitigation",
   "displayName": "反射弧·磐石",
+  "scenarioOrder": 5,
   "seed": 1005,
   "spawnSeparationM": 20000,
   "legions": [

@@ -1,4 +1,5 @@
 using TopDog.Sim.Combat;
+using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 
 namespace TopDog.Sim.Skirmish;
@@ -16,6 +17,7 @@ public static class SkirmishPhaseRules
 
     public static void EnsureRealtimeCombat(GameState state)
     {
+        var wasActive = state.combatRealtimeActive;
         state.phase = GamePhase.COMBAT;
         state.combatRealtimeActive = true;
         state.combatAwaitingContinue = false;
@@ -24,6 +26,10 @@ public static class SkirmishPhaseRules
         state.combatQueueIndex = 0;
         state.emptyCombatPending = false;
         state.operationTimeRemainingSec = 0f;
+        if (!wasActive)
+        {
+            CombatRealtimeLinkService.Begin(state);
+        }
     }
 
     public static bool BlocksCampaignPhaseTransition(GameState state, GamePhase target) =>

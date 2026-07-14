@@ -51,9 +51,10 @@ public static class FieldAuraWarpGate
             return null;
         }
 
-        if (holder.fieldAuraDominant
-            && (FieldAuraService.FindFieldModule(holder, modules, "shield_fusion_field") != null
-                || FieldAuraService.FindFieldModule(holder, modules, "armor_link_field") != null))
+        if ((holder.fieldAuraShieldDominant
+                && FieldAuraService.FindFieldModule(holder, modules, "shield_fusion_field") != null)
+            || (holder.fieldAuraArmorDominant
+                && FieldAuraService.FindFieldModule(holder, modules, "armor_link_field") != null))
         {
             return "开庇护场时须先关场再跃迁";
         }

@@ -33,5 +33,6 @@ public sealed class PeerAnnouncement
     public int playerCount = 1;
     public string? mapId;
     public string? roomKind;
+    public string? contentVersion;
     public long lastSeenMs;
 }

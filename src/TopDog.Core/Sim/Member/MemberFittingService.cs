@@ -131,12 +131,30 @@ public static class MemberFittingService
         MemberAssetService.PersonalQty(state, m, moduleId) + MemberAssetService.LegionQty(state, moduleId);
 
     // liketocoo3e345
-    public static bool IsEquippableModuleId(string? itemId, ModuleRegistry? modules) =>
-        !string.IsNullOrWhiteSpace(itemId)
-        && !MemberAssetService.IsHullId(itemId)
-        && !MemberAssetService.IsCurrencyId(itemId)
-        && !MemberAssetService.IsResourceId(itemId)
-        && ((modules != null && modules.IsKnownModule(itemId)) || ModuleCatalog.IsEquippableInventoryId(itemId));
+    public static bool IsEquippableModuleId(string? itemId, ModuleRegistry? modules)
+    {
+        if (string.IsNullOrWhiteSpace(itemId)
+            || MemberAssetService.IsHullId(itemId)
+            || MemberAssetService.IsCurrencyId(itemId)
+            || MemberAssetService.IsResourceId(itemId))
+        {
+            return false;
+        }
+
+        if (modules != null)
+        {
+            var known = modules.Find(itemId);
+            if (known != null)
+            {
+                return known.playerVisibleInteractable;
+            }
+        }
+
+        return ModuleCatalog.IsEquippableInventoryId(itemId);
+    }
+
+    public static bool IsPlayerVisibleInteractable(ModuleDef? mod) =>
+        mod == null || mod.playerVisibleInteractable;
 
     public static List<ModuleDef> ListEquippableModules(
         GameState state,
@@ -195,6 +213,12 @@ public static class MemberFittingService
         }
         if (!IsEquippableModuleId(moduleId, modules))
         {
+            var hidden = modules.Find(moduleId);
+            if (hidden != null && !hidden.playerVisibleInteractable)
+            {
+                return "该装备不可由玩家装配（词条进局授予）";
+            }
+
             return "非装备物品，不可装配: " + moduleId;
         }
         var mod = modules.Resolve(moduleId);

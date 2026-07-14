@@ -61,11 +61,11 @@ public static class CombatPhaseService
         var entry = CurrentEntry(state);
         if (entry?.combatSubtype == CombatSubtype.COUNTER_HARVEST)
         {
-            PushAlert(state, "自动交战 · 请选接战或撤退（仅撤退放弃被抓编队）");
-            return "自动交战 · 反收割：接战 / 撤退";
+            PushAlert(state, "交战准备 · 请选接战或撤退（仅撤退放弃被抓编队）");
+            return "交战准备 · 反收割：接战 / 撤退";
         }
-        PushAlert(state, "自动交战 · 请选接战或撤退");
-        return "自动交战 · 请选择接战或撤退";
+        PushAlert(state, "交战准备 · 请选接战或撤退");
+        return "交战准备 · 请选择接战或撤退";
     }
 
     // li3etocoode345
@@ -106,6 +106,7 @@ public static class CombatPhaseService
         state.combatAwaitingContinue = false;
         state.combatPrepStep = CombatPrepStep.CHOOSE_STANCE;
         state.autoFireEnabled = false;
+        CombatRealtimeLinkService.Begin(state);
         MatchMemberBaselineService.EnsureSnapshot(state);
         var loc = entry.battlefieldSystemId ?? "?";
         if (!string.IsNullOrWhiteSpace(entry.battlefieldSubLocation))
@@ -177,6 +178,7 @@ public static class CombatPhaseService
         state.combatAwaitingContinue = false;
         state.lastCombatSummary = "";
         state.combatRealtimeActive = false;
+        CombatRealtimeLinkService.Reset(state);
         state.possessingMemberId = null;
         state.battlefields.Clear();
         state.activeBattlefieldId = null;
@@ -187,7 +189,7 @@ public static class CombatPhaseService
         }
         return ctx.State.phase == GamePhase.OPERATIONS
             ? "交战列表已清空，进入新一轮运营"
-            : "下一项交战 · 顶栏「自动交战」";
+            : "下一项交战 · 顶栏「交战」";
     }
 
     // l1ketocoode345
@@ -229,6 +231,7 @@ public static class CombatPhaseService
         state.combatPrepStep = CombatPrepStep.CHOOSE_MODE;
         state.combatAwaitingContinue = false;
         state.combatRealtimeActive = false;
+        CombatRealtimeLinkService.Reset(state);
         AiOpponentService.OnOperationsStart(state, ships, modules);
     }
 

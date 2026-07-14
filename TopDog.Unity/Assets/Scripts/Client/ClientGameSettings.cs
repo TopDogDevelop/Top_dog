@@ -26,6 +26,15 @@ public static class ClientGameSettings
     private const string KeyCombatVerticalFovDeg = "topdog.combat_vertical_fov_deg";
     private const string KeyCombatBackgroundMaxRes = "topdog.combat_background_max_res";
     private const string KeyCombatBackgroundSet = "topdog.combat_background_set";
+    private const string KeyCombatViewBreathingPct = "topdog.combat_view_breathing_pct";
+
+    public const int DefaultCombatViewBreathingPercent = 35;
+    public const int MinCombatViewBreathingPercent = 0;
+    public const int MaxCombatViewBreathingPercent = 100;
+    /// <summary>滑块 100% 时 yaw 半幅（弧度）。</summary>
+    public const float MaxCombatViewBreathingOrbitRad = 0.055f;
+    public const float CombatViewBreathingPeriodSec = 14f;
+    public const float CombatViewBreathingPitchFactor = 0.65f;
 
     /// <summary>PlayerPrefs 值：每场从 Main 池随机抽背景。</summary>
     public const string CombatBackgroundSetRandom = "random";
@@ -42,6 +51,7 @@ public static class ClientGameSettings
     public static event Action CombatViewFovChanged;
     public static event Action CombatBackgroundResolutionChanged;
     public static event Action CombatBackgroundSetChanged;
+    public static event Action CombatViewBreathingChanged;
     public static event Action AudioSettingsChanged;
 
     private const string KeyBackgroundMusicEnabled = "topdog.audio_bgm_enabled";
@@ -211,6 +221,42 @@ public static class ClientGameSettings
         IsRandomBackgroundPreference(CombatBackgroundSetPreference)
             ? CombatBackgroundCatalog.PickRandomMainSetId()
             : CombatBackgroundSetPreference;
+
+    public static int CombatViewBreathingAmplitudePercent
+    {
+        get
+        {
+            if (!PlayerPrefs.HasKey(KeyCombatViewBreathingPct))
+            {
+                return DefaultCombatViewBreathingPercent;
+            }
+
+            return Mathf.Clamp(
+                PlayerPrefs.GetInt(KeyCombatViewBreathingPct, DefaultCombatViewBreathingPercent),
+                MinCombatViewBreathingPercent,
+                MaxCombatViewBreathingPercent);
+        }
+    }
+
+    public static float CombatViewBreathingAmplitudeRad =>
+        MaxCombatViewBreathingOrbitRad
+        * (CombatViewBreathingAmplitudePercent / (float)MaxCombatViewBreathingPercent);
+
+    public static void SetCombatViewBreathingAmplitudePercent(int percent, bool persist = true)
+    {
+        var clamped = Mathf.Clamp(percent, MinCombatViewBreathingPercent, MaxCombatViewBreathingPercent);
+        var previous = CombatViewBreathingAmplitudePercent;
+        if (persist)
+        {
+            PlayerPrefs.SetInt(KeyCombatViewBreathingPct, clamped);
+            PlayerPrefs.Save();
+        }
+
+        if (previous != clamped)
+        {
+            CombatViewBreathingChanged?.Invoke();
+        }
+    }
 
     public static void SetCombatBackgroundSetPreference(string setIdOrRandom, bool persist = true)
     {

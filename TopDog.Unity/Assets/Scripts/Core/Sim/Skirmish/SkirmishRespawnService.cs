@@ -6,6 +6,7 @@ using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
 using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
+using TopDog.Sim.Traits;
 
 namespace TopDog.Sim.Skirmish;
 
@@ -140,6 +141,7 @@ public static class SkirmishRespawnService
                 }
             }
 
+            TraitGrantedModuleService.ApplyForMember(member, u, modules);
             ModuleRuntime.ApplyToUnit(u, hull, modules);
             bf.units.Add(u);
             PushAlert(state, $"{u.displayName} 已在军堡附近重生");

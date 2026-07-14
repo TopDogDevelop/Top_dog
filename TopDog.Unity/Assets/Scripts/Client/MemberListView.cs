@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using TopDog.App;
+using TopDog.Client.Gestures;
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
+using UnityEngine;
 using UnityEngine.UIElements;
 /*
  * ══ 设计手册嵌入 ══
@@ -40,6 +42,8 @@ public static class MemberListView
         public string? SelectedKey;
         public HashSet<string>? FormationPickedKeys;
         public Action<MemberState, string, bool>? OnRowActivated;
+        /// <summary>编队模式：双指命中两行时的首尾连选（等价 Shift）。</summary>
+        public Action<string, string>? OnFormationTwoFingerRange;
         public SimulationCore? Core;
         public ScrollView? ScrollHost;
         /// <summary>本地军团 id；名册经 <see cref="MemberRosterSort.RosterForLegion"/> 读取。</summary>
@@ -101,7 +105,104 @@ public static class MemberListView
         // liketocoode3a5
         shell.Add(listHost);
         shell.Add(BuildIndexRail(indexEntries, sorted, rowByKey, options.ScrollHost));
+        if (options.FormationEditMode && options.OnFormationTwoFingerRange != null)
+        {
+            WireFormationTwoFinger(listHost, rowByKey, options.OnFormationTwoFingerRange);
+        }
+
         container.Add(shell);
+    }
+
+    private static void WireFormationTwoFinger(
+        VisualElement listHost,
+        IReadOnlyDictionary<string, VisualElement> rowByKey,
+        Action<string, string> onRange)
+    {
+        var touch = new PointerActionMapper();
+        var idToKey = new Dictionary<int, string>();
+
+        listHost.RegisterCallback<PointerDownEvent>(evt =>
+        {
+            if (!PointerActionMapper.IsTouchPointer(evt))
+            {
+                return;
+            }
+
+            var key = HitMemberKey(listHost, rowByKey, evt.position);
+            if (key != null)
+            {
+                idToKey[evt.pointerId] = key;
+            }
+
+            touch.OnDown(evt.pointerId, evt.localPosition);
+            if (touch.ActiveCount >= 2)
+            {
+                string? a = null;
+                string? b = null;
+                foreach (var kv in idToKey)
+                {
+                    if (a == null)
+                    {
+                        a = kv.Value;
+                    }
+                    else
+                    {
+                        b = kv.Value;
+                        break;
+                    }
+                }
+
+                if (a != null && b != null && !string.Equals(a, b, StringComparison.Ordinal))
+                {
+                    onRange(a, b);
+                    evt.StopPropagation();
+                }
+            }
+        }, TrickleDown.TrickleDown);
+
+        listHost.RegisterCallback<PointerUpEvent>(evt =>
+        {
+            if (!PointerActionMapper.IsTouchPointer(evt))
+            {
+                return;
+            }
+
+            touch.OnUp(evt.pointerId);
+            idToKey.Remove(evt.pointerId);
+            if (touch.ActiveCount == 0)
+            {
+                touch.Clear();
+                idToKey.Clear();
+            }
+        }, TrickleDown.TrickleDown);
+    }
+
+    private static string? HitMemberKey(
+        VisualElement listHost,
+        IReadOnlyDictionary<string, VisualElement> rowByKey,
+        Vector2 panelPosition)
+    {
+        string? best = null;
+        var bestDist = float.MaxValue;
+        foreach (var kv in rowByKey)
+        {
+            var bound = kv.Value.worldBound;
+            if (bound.Contains(panelPosition))
+            {
+                return kv.Key;
+            }
+
+            var cx = bound.xMin + bound.width * 0.5f;
+            var cy = bound.yMin + bound.height * 0.5f;
+            var d = (panelPosition - new Vector2(cx, cy)).sqrMagnitude;
+            if (d < bestDist)
+            {
+                bestDist = d;
+                best = kv.Key;
+            }
+        }
+
+        return best;
     }
 
     private static readonly HashSet<string> EmptySet = new();
@@ -280,7 +381,7 @@ public static class MemberListView
 
         if (options.FormationEditMode)
         {
-            var hint = new Label(selected ? "[✓] 已选" : "[ ] 点选 · Shift+点首尾连选");
+            var hint = new Label(selected ? "[✓] 已选" : "[ ] 点选 · Shift/双指首尾连选");
             hint.AddToClassList("ops-member-sub");
             body.Add(hint);
         }

@@ -49,21 +49,90 @@ public sealed class GameAppHost : MonoBehaviour
     private LanGameSession? _lanClient;
     private LocalSessionHost? _localSession;
 
+    /// <summary>
+    /// Ensures a live singleton exists (Boot DDOL host or runtime repair).
+    /// Call before launching matches from OutOfMatch UI.
+    /// </summary>
+    public static GameAppHost EnsureAlive()
+    {
+        if (Instance != null)
+        {
+            return Instance;
+        }
+
+        var existing = FindAnyObjectByType<GameAppHost>();
+        if (existing != null)
+        {
+            // Awake may have failed before Instance was assigned — bind now.
+            Instance = existing;
+            DontDestroyOnLoad(existing.gameObject);
+            if (existing.GetComponent<GameSceneRouter>() == null)
+            {
+                existing.gameObject.AddComponent<GameSceneRouter>();
+            }
+
+            if (existing.GetComponent<GameAppBootstrap>() == null)
+            {
+                existing.gameObject.AddComponent<GameAppBootstrap>();
+            }
+
+            try
+            {
+                ContentRootBootstrap.Apply();
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogException(e);
+            }
+
+            return existing;
+        }
+
+        var go = GameObject.Find("TopDogPersistent");
+        if (go == null)
+        {
+            go = new GameObject("TopDogPersistent");
+        }
+
+        DontDestroyOnLoad(go);
+        var host = go.GetComponent<GameAppHost>() ?? go.AddComponent<GameAppHost>();
+        if (go.GetComponent<GameSceneRouter>() == null)
+        {
+            go.AddComponent<GameSceneRouter>();
+        }
+
+        if (go.GetComponent<GameAppBootstrap>() == null)
+        {
+            go.AddComponent<GameAppBootstrap>();
+        }
+
+        return host;
+    }
+
     private void Awake()
     {
-        ContentRootBootstrap.Apply();
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
             return;
         }
+
         Instance = this;
         DontDestroyOnLoad(gameObject);
         Application.targetFrameRate = 60;
+
+        try
+        {
+            ContentRootBootstrap.Apply();
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogException(e);
+        }
+
         if (GetComponent<MatchCreditsPresenter>() == null)
         {
             gameObject.AddComponent<MatchCreditsPresenter>();
-        // li3etocoode345
         }
 
         if (GetComponent<UiAudioHost>() == null)

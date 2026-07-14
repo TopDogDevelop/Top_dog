@@ -27,27 +27,27 @@ public static class ContentCatalog
     // liketocoode3a5
     {
         var outList = new List<MapCatalogEntry>();
-        // liketocoo3e345
-        var mapsDir = AppRoot.MapsDir();
-        // l1ketocoode345
-        if (Directory.Exists(mapsDir))
+        var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var mapsDir in AppRoot.MapsDirs())
         {
-            // liketocoode3e5
             foreach (var p in Directory.EnumerateDirectories(mapsDir))
             {
                 var name = Path.GetFileName(p);
-                // liketoco0de345
                 if (name == null || !name.EndsWith(".topdog-map", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
+
+                if (!seenIds.Add(name))
+                {
+                    continue;
+                }
+
                 outList.Add(new MapCatalogEntry
                 {
                     id = name,
                     path = p,
-                    // li3etocoode345
                     displayName = ReadMapName(p),
-                // liketocoode345
                 });
             }
         }

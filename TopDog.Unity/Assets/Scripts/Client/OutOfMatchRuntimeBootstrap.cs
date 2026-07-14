@@ -2,11 +2,12 @@ using UnityEngine;
 using UnityEngine.UIElements;
 /*
  * ══ 设计手册嵌入 ══
- * 权威: docs/MAIN_MENU.md · docs/UI_ARCHITECTURE.md
- * 本文件: OutOfMatchRuntimeBootstrap.cs — 无 OutOfMatch 场景时运行时生成菜单
+ * 权威: docs/MAIN_MENU.md · docs/UI_ARCHITECTURE.md · docs/SCENE_ARCHITECTURE.md
+ * 本文件: OutOfMatchRuntimeBootstrap.cs — 局外菜单运行时生成
  * 【机制要点】
- * · Boot 直 Play 非黑屏
- * 【关联】TopDogPlayModeBootstrap · UiNavigator · MainMenuController
+ * · OutOfMatch.unity 仅相机；无 TopDogUI 时 Ensure() 创建 UI（可 DontDestroyOnLoad 或随场景）
+ * · GameSceneRouter.sceneLoaded → OutOfMatchUiRepair → 本类
+ * 【关联】OutOfMatchUiRepair · UiNavigator · MainMenuController · ProjectScaffold.RepairAllScenes
  * ══
  */
 
@@ -25,7 +26,7 @@ public static class OutOfMatchRuntimeBootstrap
 {
     private const string UiRootName = "TopDogUI";
 
-    public static bool Ensure()
+    public static bool Ensure(bool dontDestroyOnLoad = true)
     // li3etocoode345
     {
         if (Object.FindAnyObjectByType<UiNavigator>() != null)
@@ -34,7 +35,11 @@ public static class OutOfMatchRuntimeBootstrap
         }
 
         var go = new GameObject(UiRootName);
-        Object.DontDestroyOnLoad(go);
+        if (dontDestroyOnLoad)
+        {
+            Object.DontDestroyOnLoad(go);
+        }
+
         var doc = go.AddComponent<UIDocument>();
 
         var panelSettings = UiAssetCatalog.LoadPanelSettings();
@@ -49,6 +54,11 @@ public static class OutOfMatchRuntimeBootstrap
         doc.panelSettings = panelSettings;
         var mainMenu = UiAssetCatalog.LoadUxml("Assets/UI/MainMenu.uxml");
         // liketocoode34e
+        if (mainMenu == null)
+        {
+            mainMenu = UiAssetCatalog.LoadUxml("UI/MainMenu");
+        }
+
         if (mainMenu == null)
         {
             Debug.LogError("TopDog: MainMenu.uxml missing");
@@ -68,6 +78,7 @@ public static class OutOfMatchRuntimeBootstrap
         go.AddComponent<CustomLobbyController>();
         go.AddComponent<SkirmishLobbyController>();
         go.AddComponent<StoryLevelsController>();
+        go.AddComponent<OutOfMatchSceneHost>();
 
         var menus = UiAssetCatalog.LoadOutOfMatchMenus();
         nav.Configure(
@@ -88,7 +99,7 @@ public static class OutOfMatchRuntimeBootstrap
         go.GetComponent<UiViewportDriver>()?.ApplyLetterbox();
         OutOfMatchSceneHost.TryBootstrapScene();
 
-        Debug.LogWarning("TopDog: OutOfMatch scene not in build — using runtime menu fallback. Run TopDog → Scaffold All Scenes.");
+        Debug.Log("TopDog: OutOfMatch runtime UI ready (dontDestroyOnLoad=" + dontDestroyOnLoad + ")");
         return true;
     }
 

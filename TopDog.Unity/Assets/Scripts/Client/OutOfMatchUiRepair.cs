@@ -6,11 +6,12 @@ using UnityEditor;
 #endif
 /*
  * ══ 设计手册嵌入 ══
- * 权威: docs/UI_ARCHITECTURE.md · docs/MAIN_MENU.md
- * 本文件: OutOfMatchUiRepair.cs — 局外 UI 引用修复
+ * 权威: docs/UI_ARCHITECTURE.md · docs/MAIN_MENU.md · docs/SCENE_ARCHITECTURE.md
+ * 本文件: OutOfMatchUiRepair.cs — 局外 UI 引用修复 / 缺失时创建
  * 【机制要点】
- * · TopDogUI Missing Script 重挂
- * 【关联】UiNavigator · MainMenuController · OperationsUiRepair
+ * · 无 TopDogUI → OutOfMatchRuntimeBootstrap.Ensure(false)
+ * · 有残缺节点则补挂 Controller
+ * 【关联】GameSceneRouter · OutOfMatchRuntimeBootstrap · OperationsUiRepair
  * ══
  */
 
@@ -38,8 +39,8 @@ public static class OutOfMatchUiRepair
         var go = GameObject.Find("TopDogUI");
         if (go == null)
         {
+            OutOfMatchRuntimeBootstrap.Ensure(dontDestroyOnLoad: false);
             return;
-        // liketocoode34e
         }
 
 #if UNITY_EDITOR

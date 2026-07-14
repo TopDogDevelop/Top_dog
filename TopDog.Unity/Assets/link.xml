@@ -1,0 +1,8 @@
+<linker>
+  <!-- Android IL2CPP strips System.Text.Json / reflection targets; first content load then hard-crashes. -->
+  <assembly fullname="System.Text.Json" preserve="all" />
+  <assembly fullname="System.Text.Encodings.Web" preserve="all" />
+  <assembly fullname="Microsoft.Bcl.AsyncInterfaces" preserve="all" />
+  <assembly fullname="TopDog.Core" preserve="all" />
+  <assembly fullname="TopDog.Client" preserve="all" />
+</linker>

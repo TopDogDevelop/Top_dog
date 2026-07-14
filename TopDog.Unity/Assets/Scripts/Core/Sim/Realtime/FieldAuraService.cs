@@ -112,7 +112,7 @@ public static class FieldAuraService
                 continue;
             }
 
-            if (holder.fieldAuraEnabledAtSec <= 0f || !holder.fieldAuraDominant)
+            if (holder.fieldAuraEnabledAtSec <= 0f || !holder.fieldAuraArmorDominant)
             {
                 continue;
             }
@@ -131,8 +131,10 @@ public static class FieldAuraService
         SettleAllProteges(holder, bf, "shield_fusion_field", collapse: false);
         SettleAllProteges(holder, bf, "armor_link_field", collapse: false);
         holder.fieldAuraEnabledAtSec = 0f;
-        holder.fieldAuraDominant = false;
-        holder.fieldAuraSuppressed = false;
+        holder.fieldAuraShieldDominant = false;
+        holder.fieldAuraArmorDominant = false;
+        holder.fieldAuraShieldSuppressed = false;
+        holder.fieldAuraArmorSuppressed = false;
     }
 
     public static float ResolveFieldRadiusM(BattlefieldUnit holder, ModuleDef mod, HullDef? hull)
@@ -155,6 +157,13 @@ public static class FieldAuraService
             km += hull.hullArmorLinkSmallRadiusBonusKm;
         }
 
+        if ("shield_fusion_field".Equals(mod.moduleKind, StringComparison.Ordinal)
+            && hull?.hullShieldFusionRadiusMult > 0f
+            && Math.Abs(hull.hullShieldFusionRadiusMult - 1f) > 0.001f)
+        {
+            km *= hull.hullShieldFusionRadiusMult;
+        }
+
         return km * 1000f;
     }
 
@@ -167,7 +176,7 @@ public static class FieldAuraService
         var bestAt = float.MaxValue;
         foreach (var u in bf.units)
         {
-            if (u.IsDestroyed() || u.isBuilding || !u.fieldAuraDominant)
+            if (u.IsDestroyed() || u.isBuilding || !IsDominantForKind(u, moduleKind))
             {
                 continue;
             }
@@ -253,9 +262,9 @@ public static class FieldAuraService
                 || host.IsDestroyed()
                 || mod == null
                 || host.fieldAuraCollapseCooldownSec > bf.timeSec
-                || !host.fieldAuraDominant
+                || !IsDominantForKind(host, moduleKind)
                 || DistanceM(protege, host) > radius
-                || !Eligible(protege, host))
+                || !EligibleForBinding(protege, host, ships.FindHull(host.hullId), moduleKind))
             {
                 if (host != null)
                 {
@@ -290,14 +299,33 @@ public static class FieldAuraService
 
         var dominantRadius = ResolveFieldRadiusM(
             dominant, dominantMod, ships.FindHull(dominant.hullId));
-        if (DistanceM(protege, dominant) > dominantRadius || !Eligible(protege, dominant))
+        var holderHull = ships.FindHull(dominant.hullId);
+        if (DistanceM(protege, dominant) > dominantRadius
+            || !EligibleForBinding(protege, dominant, holderHull, moduleKind))
         {
             return;
         }
 
-        ApplyEnter(protege, dominant, bf, moduleKind);
-        setHostId(dominant.unitId);
-        CombatTelemetryLog.LogFieldEnter(protege.unitId!, dominant.unitId!, moduleKind);
+        if ("shield_fusion_field".Equals(moduleKind, StringComparison.Ordinal))
+        {
+            if (EligibleForShieldFusion(protege, dominant, holderHull))
+            {
+                ApplyEnter(protege, dominant, bf, moduleKind);
+                setHostId(dominant.unitId);
+                CombatTelemetryLog.LogFieldEnter(protege.unitId!, dominant.unitId!, moduleKind);
+            }
+            else if (EligibleForBinding(protege, dominant, holderHull, moduleKind))
+            {
+                setHostId(dominant.unitId);
+                CombatTelemetryLog.LogFieldEnter(protege.unitId!, dominant.unitId!, moduleKind + "|bind");
+            }
+        }
+        else
+        {
+            ApplyEnter(protege, dominant, bf, moduleKind);
+            setHostId(dominant.unitId);
+            CombatTelemetryLog.LogFieldEnter(protege.unitId!, dominant.unitId!, moduleKind);
+        }
     }
 
     public static void ApplyEnter(
@@ -350,12 +378,25 @@ public static class FieldAuraService
         var key = BindingKey(protege.unitId, moduleKind);
         if (!Bindings.TryGetValue(key, out var binding))
         {
+            if ("shield_fusion_field".Equals(moduleKind, StringComparison.Ordinal))
+            {
+                protege.shieldFieldHostUnitId = null;
+            }
+            else if ("armor_link_field".Equals(moduleKind, StringComparison.Ordinal))
+            {
+                protege.armorFieldHostUnitId = null;
+            }
+
             return;
         }
 
         if ("shield_fusion_field".Equals(moduleKind, StringComparison.Ordinal))
         {
-            holder.shieldMax = Math.Max(0f, holder.shieldMax - binding.shieldContributedCap);
+            if (Bindings.ContainsKey(key))
+            {
+                holder.shieldMax = Math.Max(0f, holder.shieldMax - binding.shieldContributedCap);
+            }
+
             protege.shieldHp = 0f;
             protege.shieldFieldHostUnitId = null;
         }
@@ -416,8 +457,8 @@ public static class FieldAuraService
             var mod = FindFieldModule(u, modules, moduleKind);
             if (mod == null || u.fieldAuraCollapseCooldownSec > bf.timeSec || u.fieldAuraEnabledAtSec <= 0f)
             {
-                u.fieldAuraDominant = false;
-                u.fieldAuraSuppressed = false;
+                SetDominantForKind(u, moduleKind, false);
+                SetSuppressedForKind(u, moduleKind, false);
                 continue;
             }
 
@@ -428,8 +469,37 @@ public static class FieldAuraService
         for (var i = 0; i < candidates.Count; i++)
         {
             var dominant = i == 0;
-            candidates[i].fieldAuraDominant = dominant;
-            candidates[i].fieldAuraSuppressed = !dominant;
+            SetDominantForKind(candidates[i], moduleKind, dominant);
+            SetSuppressedForKind(candidates[i], moduleKind, !dominant);
+        }
+    }
+
+    public static bool IsDominantForKind(BattlefieldUnit unit, string moduleKind) =>
+        "armor_link_field".Equals(moduleKind, StringComparison.Ordinal)
+            ? unit.fieldAuraArmorDominant
+            : unit.fieldAuraShieldDominant;
+
+    public static void SetDominantForKind(BattlefieldUnit unit, string moduleKind, bool dominant)
+    {
+        if ("armor_link_field".Equals(moduleKind, StringComparison.Ordinal))
+        {
+            unit.fieldAuraArmorDominant = dominant;
+        }
+        else
+        {
+            unit.fieldAuraShieldDominant = dominant;
+        }
+    }
+
+    private static void SetSuppressedForKind(BattlefieldUnit unit, string moduleKind, bool suppressed)
+    {
+        if ("armor_link_field".Equals(moduleKind, StringComparison.Ordinal))
+        {
+            unit.fieldAuraArmorSuppressed = suppressed;
+        }
+        else
+        {
+            unit.fieldAuraShieldSuppressed = suppressed;
         }
     }
 
@@ -457,7 +527,25 @@ public static class FieldAuraService
         && !"STRIKE_CRAFT".Equals(u.tonnageClass, StringComparison.Ordinal)
         && !"MISSILE".Equals(u.tonnageClass, StringComparison.Ordinal);
 
-    public static bool Eligible(BattlefieldUnit protege, BattlefieldUnit holder)
+    public static int ResolveEffectiveHolderRank(
+        BattlefieldUnit holder,
+        HullDef? hull,
+        string moduleKind)
+    {
+        if ("shield_fusion_field".Equals(moduleKind, StringComparison.Ordinal)
+            && hull?.hullShieldFusionEffectiveTonnageClass != null)
+        {
+            return CombatPowerCalculator.TonnageRankOf(hull.hullShieldFusionEffectiveTonnageClass);
+        }
+
+        return CombatPowerCalculator.TonnageRankOf(holder.tonnageClass);
+    }
+
+    public static bool EligibleForBinding(
+        BattlefieldUnit protege,
+        BattlefieldUnit holder,
+        HullDef? holderHull,
+        string moduleKind)
     {
         if (protege.unitId != null
             && holder.unitId != null
@@ -476,10 +564,40 @@ public static class FieldAuraService
             return false;
         }
 
-        var holderRank = CombatPowerCalculator.TonnageRankOf(holder.tonnageClass);
-        var protegeRank = CombatPowerCalculator.TonnageRankOf(protege.tonnageClass);
-        return protegeRank <= holderRank;
+        if ("armor_link_field".Equals(moduleKind, StringComparison.Ordinal))
+        {
+            var holderRank = ResolveEffectiveHolderRank(holder, holderHull, moduleKind);
+            var protegeRank = CombatPowerCalculator.TonnageRankOf(protege.tonnageClass);
+            return protegeRank <= holderRank;
+        }
+
+        return true;
     }
+
+    public static bool EligibleForShieldFusion(
+        BattlefieldUnit protege,
+        BattlefieldUnit holder,
+        HullDef? holderHull)
+    {
+        if (!EligibleForBinding(protege, holder, holderHull, "shield_fusion_field"))
+        {
+            return false;
+        }
+
+        var effectiveRank = ResolveEffectiveHolderRank(holder, holderHull, "shield_fusion_field");
+        var holderNativeRank = CombatPowerCalculator.TonnageRankOf(holder.tonnageClass);
+        var protegeRank = CombatPowerCalculator.TonnageRankOf(protege.tonnageClass);
+        if (protegeRank > holderNativeRank)
+        {
+            return false;
+        }
+
+        return protegeRank <= effectiveRank;
+    }
+
+    public static bool Eligible(BattlefieldUnit protege, BattlefieldUnit holder) =>
+        EligibleForBinding(protege, holder, null, "shield_fusion_field")
+        && EligibleForShieldFusion(protege, holder, null);
 
     public static float DistanceM(BattlefieldUnit a, BattlefieldUnit b)
     {
