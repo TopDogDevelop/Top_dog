@@ -180,7 +180,19 @@ public sealed class SimulationCore
     public void ApplyPossessionInput(PossessionInputSample sample) =>
         PossessionInputService.QueueInput(_state, sample);
 
-    public string ToggleAutoFire() => FleetOrderService.ToggleAutoFire(_state);
+    public string SetAutoFire(bool enabled, IReadOnlyList<string>? selectedUnitIds)
+    {
+        var bf = _state.battlefields.FirstOrDefault(b =>
+            b.battlefieldId == _state.activeBattlefieldId) ?? _state.battlefields.FirstOrDefault();
+        return FleetOrderService.SetAutoFire(_state, bf, enabled, selectedUnitIds);
+    }
+
+    public string SetAutoInterdictionContinuous(bool enabled, IReadOnlyList<string>? selectedUnitIds)
+    {
+        var bf = _state.battlefields.FirstOrDefault(b =>
+            b.battlefieldId == _state.activeBattlefieldId) ?? _state.battlefields.FirstOrDefault();
+        return FleetOrderService.SetAutoInterdictionContinuous(_state, bf, enabled, selectedUnitIds);
+    }
 
     /// <summary>设置战术跃迁默认落点（km，1–1000）；单舰 warpLandingDistM 可覆盖。</summary>
     public string SetTacticalWarpLandingDistKm(float km)

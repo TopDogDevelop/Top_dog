@@ -106,6 +106,7 @@ public static class CombatPhaseService
         state.combatAwaitingContinue = false;
         state.combatPrepStep = CombatPrepStep.CHOOSE_STANCE;
         state.autoFireEnabled = false;
+        state.fleetDefaultAutoInterdiction = false;
         CombatRealtimeLinkService.Begin(state);
         MatchMemberBaselineService.EnsureSnapshot(state);
         var loc = entry.battlefieldSystemId ?? "?";

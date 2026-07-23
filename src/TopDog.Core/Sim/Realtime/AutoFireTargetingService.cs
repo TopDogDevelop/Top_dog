@@ -29,7 +29,7 @@ public static class AutoFireTargetingService
             return;
         }
 
-        if (!state.autoFireEnabled)
+        if (!FleetOrderService.EffectiveAutoFire(state, u))
         {
             return;
         }

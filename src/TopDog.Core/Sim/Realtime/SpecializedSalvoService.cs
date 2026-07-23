@@ -268,7 +268,7 @@ public static class SpecializedSalvoService
             }
         }
 
-        if (!state.autoFireEnabled)
+        if (!FleetOrderService.EffectiveAutoFire(state, u))
         {
             return null;
         }

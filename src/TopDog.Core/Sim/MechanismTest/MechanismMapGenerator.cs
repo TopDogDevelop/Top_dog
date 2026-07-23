@@ -15,8 +15,13 @@ public static class MechanismMapGenerator
     public const string SystemId = "mt_sys";
     public const string StarRegionId = "mt_star";
     public const string BeltRegionId = "mt_belt";
+    public const string BeltRegionIdB = "mt_belt_b";
 
-    public static LoadedMap Generate(int seed)
+    public static LoadedMap Generate(int seed) => GenerateInternal(seed, dualBelt: false);
+
+    public static LoadedMap GenerateDualBelt(int seed) => GenerateInternal(seed, dualBelt: true);
+
+    private static LoadedMap GenerateInternal(int seed, bool dualBelt)
     {
         _ = seed;
         var regions = new List<EventRegionDef>
@@ -33,11 +38,22 @@ public static class MechanismMapGenerator
             {
                 eventRegionId = BeltRegionId,
                 kind = EventRegionKinds.OreBelt,
-                name = "矿带",
+                name = "矿带甲",
                 radiusKm = 1200,
                 anchorAu = new[] { 2f, 0f, 0f },
             },
         };
+        if (dualBelt)
+        {
+            regions.Add(new EventRegionDef
+            {
+                eventRegionId = BeltRegionIdB,
+                kind = EventRegionKinds.OreBelt,
+                name = "矿带乙",
+                radiusKm = 1200,
+                anchorAu = new[] { -2f, 0f, 0f },
+            });
+        }
 
         var project = new MapProject
         {

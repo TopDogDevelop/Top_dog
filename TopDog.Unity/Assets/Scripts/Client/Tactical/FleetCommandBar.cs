@@ -102,12 +102,36 @@ public sealed class FleetCommandBar
         });
         BindSimple(root, "btn-enter-building", () =>
             WithBf((s, bf) => FleetOrderService.OrderEnterBuilding(s, bf, TacticalSelectionState.SelectedTargetUnitId, Sel())));
-        BindSimple(root, "btn-auto-fire", () =>
+        BindSimple(root, "btn-auto-fire-on", () =>
         {
             var c = _core();
             if (c != null)
             {
-                Emit(c.ToggleAutoFire(), true);
+                Emit(c.SetAutoFire(true, Sel().ToList()), true);
+            }
+        });
+        BindSimple(root, "btn-auto-fire-off", () =>
+        {
+            var c = _core();
+            if (c != null)
+            {
+                Emit(c.SetAutoFire(false, Sel().ToList()), true);
+            }
+        });
+        BindSimple(root, "btn-auto-interdiction-on", () =>
+        {
+            var c = _core();
+            if (c != null)
+            {
+                Emit(c.SetAutoInterdictionContinuous(true, Sel().ToList()), true);
+            }
+        });
+        BindSimple(root, "btn-auto-interdiction-off", () =>
+        {
+            var c = _core();
+            if (c != null)
+            {
+                Emit(c.SetAutoInterdictionContinuous(false, Sel().ToList()), true);
             }
         });
         BindSimple(root, "btn-possess-friendly", () =>

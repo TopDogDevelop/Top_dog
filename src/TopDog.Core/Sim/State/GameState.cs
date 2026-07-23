@@ -107,6 +107,8 @@ public sealed class GameState
     /// <summary>握手剩余秒；-1 表示未在握手。</summary>
     public float combatRealtimeLinkDelaySec = -1f;
     public bool autoFireEnabled;
+    /// <summary>舰队默认：自动连续启用拦截装备（进实时默认关）。</summary>
+    public bool fleetDefaultAutoInterdiction;
     /// <summary>战术跃迁默认落点距中心（米，1–1000 km）；单舰 warpLandingDistM 可覆盖。</summary>
     public float tacticalWarpLandingDistM = TacticalWarpLandingService.DefaultLandingDistM;
     public List<TacticalWarpTransitEntry> tacticalWarpInTransit = new();

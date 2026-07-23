@@ -15,6 +15,10 @@ public static class MechanismTestBootstrap
         {
             state.map = MechanismNavMapGenerator.Generate(seed);
         }
+        else if ("dual_belt".Equals(scenario.mapMode, StringComparison.Ordinal))
+        {
+            state.map = MechanismMapGenerator.GenerateDualBelt(seed);
+        }
         else
         {
             state.map = MechanismMapGenerator.Generate(seed);

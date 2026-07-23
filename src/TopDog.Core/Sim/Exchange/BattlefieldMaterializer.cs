@@ -88,6 +88,7 @@ public static class BattlefieldMaterializer
         state.combatPrepStep = CombatPrepStep.CHOOSE_STANCE;
 
         state.autoFireEnabled = false;
+        state.fleetDefaultAutoInterdiction = false;
 
         state.pendingResolveMode = CombatResolveMode.REALTIME;
 

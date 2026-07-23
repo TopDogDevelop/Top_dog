@@ -80,7 +80,10 @@
           <ui:Button name="btn-stop" text="停船" class="ops-shortcut-btn rtcombat-fleet-btn" />
           <ui:Button name="btn-stop-all" text="集体停船" class="ops-shortcut-btn rtcombat-fleet-btn" />
           <ui:Button name="btn-retreat" text="撤退" class="ops-shortcut-btn rtcombat-fleet-btn" />
-          <ui:Button name="btn-auto-fire" text="自开火" class="ops-shortcut-btn rtcombat-fleet-btn" />
+          <ui:Button name="btn-auto-fire-on" text="自开火开" class="ops-shortcut-btn rtcombat-fleet-btn" />
+          <ui:Button name="btn-auto-fire-off" text="自开火关" class="ops-shortcut-btn rtcombat-fleet-btn" />
+          <ui:Button name="btn-auto-interdiction-on" text="自动拦截开" class="ops-shortcut-btn rtcombat-fleet-btn" />
+          <ui:Button name="btn-auto-interdiction-off" text="自动拦截关" class="ops-shortcut-btn rtcombat-fleet-btn" />
           <ui:Button name="btn-continue" text="继续" class="ops-shortcut-btn rtcombat-fleet-btn-wide" />
         </ui:VisualElement>
         <ui:Button name="btn-abort" text="中止实时战（调试）" class="ops-shortcut-btn rtcombat-fleet-btn-wide" />

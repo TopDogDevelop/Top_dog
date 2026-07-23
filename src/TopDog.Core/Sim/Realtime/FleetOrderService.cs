@@ -68,10 +68,76 @@ public static class FleetOrderService
 
     // li3etocoode345
 
-    public static string ToggleAutoFire(GameState state)
+    public static bool EffectiveAutoFire(GameState state, BattlefieldUnit u) =>
+        u.hasAutoFireOverride ? u.autoFireEnabled : state.autoFireEnabled;
+
+    public static bool EffectiveAutoInterdiction(GameState state, BattlefieldUnit u) =>
+        u.hasAutoInterdictionOverride ? u.autoInterdictionContinuous : state.fleetDefaultAutoInterdiction;
+
+    public static string SetAutoFire(
+        GameState state,
+        BattlefieldState? bf,
+        bool enabled,
+        IReadOnlyList<string>? selectedUnitIds)
     {
-        state.autoFireEnabled = !state.autoFireEnabled;
-        return state.autoFireEnabled ? "已开启自开火" : "已禁止自开火";
+        state.autoFireEnabled = enabled;
+        var n = ApplyUnitBoolOverrides(
+            bf,
+            selectedUnitIds,
+            (u) =>
+            {
+                u.hasAutoFireOverride = true;
+                u.autoFireEnabled = enabled;
+            });
+        return enabled
+            ? $"自开火开：舰队默认+{n}舰"
+            : $"自开火关：舰队默认+{n}舰";
+    }
+
+    public static string SetAutoInterdictionContinuous(
+        GameState state,
+        BattlefieldState? bf,
+        bool enabled,
+        IReadOnlyList<string>? selectedUnitIds)
+    {
+        state.fleetDefaultAutoInterdiction = enabled;
+        var n = ApplyUnitBoolOverrides(
+            bf,
+            selectedUnitIds,
+            (u) =>
+            {
+                u.hasAutoInterdictionOverride = true;
+                u.autoInterdictionContinuous = enabled;
+            });
+        return enabled
+            ? $"自动拦截开：舰队默认+{n}舰"
+            : $"自动拦截关：舰队默认+{n}舰";
+    }
+
+    private static int ApplyUnitBoolOverrides(
+        BattlefieldState? bf,
+        IReadOnlyList<string>? selectedUnitIds,
+        Action<BattlefieldUnit> apply)
+    {
+        if (bf == null || selectedUnitIds == null || selectedUnitIds.Count == 0)
+        {
+            return 0;
+        }
+
+        var n = 0;
+        foreach (var id in selectedUnitIds)
+        {
+            var u = FindUnit(bf, id);
+            if (u == null || u.IsDestroyed() || u.isBuilding || u.side != UnitSide.FRIENDLY)
+            {
+                continue;
+            }
+
+            apply(u);
+            n++;
+        }
+
+        return n;
     }
 
     public static bool TryResolveWarpTargetScene(

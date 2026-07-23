@@ -112,7 +112,7 @@ public static class BattlefieldSystem
         {
             bf.runtimeEffectNextTickSec = bf.timeSec + 1f;
             AreaModuleRuntimeService.TickOneHz(bf, modules);
-            InterdictionFieldService.TickOneHz(bf, modules);
+            InterdictionFieldService.TickOneHz(state, bf, modules);
             DynamicModuleQuotaService.Tick(bf, ships, modules);
         }
 
@@ -642,7 +642,7 @@ public static class BattlefieldSystem
             return true;
         }
 
-        if (!state.autoFireEnabled)
+        if (!FleetOrderService.EffectiveAutoFire(state, u))
         {
             return false;
         }

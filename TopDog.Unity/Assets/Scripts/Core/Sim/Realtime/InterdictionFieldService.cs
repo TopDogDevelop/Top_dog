@@ -1,4 +1,15 @@
 using TopDog.Content.Modules;
+using TopDog.Sim.State;
+
+/*
+ * ══ 设计手册嵌入 ══
+ * 权威: docs/INTERDICTION_FIELD.md · 数值策划.md §9.1
+ * 本文件: InterdictionFieldService.cs — 区域拦截发射源 1Hz
+ * 【机制要点】
+ * · 跃迁舰主动查询源；无代承/无挡火弹道
+ * · 自动连开：effectiveAutoInterdiction → 到期后 SetSlotEnabled(true)
+ * ══
+ */
 
 namespace TopDog.Sim.Realtime;
 
@@ -19,11 +30,13 @@ public static class InterdictionFieldService
 {
     public const float LandingSafetyOffsetM = 100f;
 
-    public static void TickOneHz(BattlefieldState battlefield, ModuleRegistry modules)
+    public static void TickOneHz(GameState state, BattlefieldState battlefield, ModuleRegistry modules)
     {
         battlefield.interdictionSources.RemoveAll(source =>
             source.expiresAtSec <= battlefield.timeSec
             || source.mobile && (FindOwner(battlefield, source.ownerUnitId) is not { } owner || owner.IsDestroyed()));
+
+        TryAutoReenableInterdictionSlots(state, battlefield, modules);
 
         foreach (var owner in battlefield.units.OrderBy(unit => unit.unitId, StringComparer.Ordinal))
         {
@@ -103,6 +116,54 @@ public static class InterdictionFieldService
         }
     }
 
+    private static void TryAutoReenableInterdictionSlots(
+        GameState state,
+        BattlefieldState battlefield,
+        ModuleRegistry modules)
+    {
+        foreach (var owner in battlefield.units)
+        {
+            if (owner.IsDestroyed() || owner.isBuilding)
+            {
+                continue;
+            }
+
+            if (!FleetOrderService.EffectiveAutoInterdiction(state, owner))
+            {
+                continue;
+            }
+
+            foreach (var pair in owner.fittedModules)
+            {
+                var module = modules.Resolve(pair.Value);
+                if (module?.logicId is not ("logic_interdiction_field_fixed" or "logic_interdiction_field_mobile"))
+                {
+                    continue;
+                }
+
+                if (CombatModuleEnableService.IsSlotEnabled(owner, pair.Key))
+                {
+                    continue;
+                }
+
+                // 玩家手关：不自动重开
+                if (owner.playerDisabledModuleSlots.Contains(pair.Key))
+                {
+                    continue;
+                }
+
+                if (owner.modulePulseNextSec.TryGetValue(pair.Key, out var until)
+                    && battlefield.timeSec < until)
+                {
+                    continue;
+                }
+
+                owner.modulePulseNextSec.Remove(pair.Key);
+                CombatModuleEnableService.SetSlotEnabled(owner, pair.Key, true);
+            }
+        }
+    }
+
     public static bool IsOriginBlocked(
         BattlefieldState battlefield,
         float x,
@@ -118,100 +179,131 @@ public static class InterdictionFieldService
         float originX,
         float originY,
         float originZ,
-        float destinationX,
-        float destinationY,
-        float destinationZ,
-        out float clippedX,
-        out float clippedY,
-        out float clippedZ)
+        float destX,
+        float destY,
+        float destZ,
+        out float landX,
+        out float landY,
+        out float landZ)
     {
-        clippedX = destinationX;
-        clippedY = destinationY;
-        clippedZ = destinationZ;
-        var dx = destinationX - originX;
-        var dy = destinationY - originY;
-        var dz = destinationZ - originZ;
-        var routeLength = MathF.Sqrt(dx * dx + dy * dy + dz * dz);
-        if (routeLength <= 0.001f)
-        {
-            return false;
-        }
-
-        var bestT = float.PositiveInfinity;
+        landX = destX;
+        landY = destY;
+        landZ = destZ;
+        var bestT = float.MaxValue;
+        InterdictionFieldSource? hit = null;
         foreach (var source in battlefield.interdictionSources)
         {
             if (source.expiresAtSec <= battlefield.timeSec)
             {
                 continue;
             }
-            if (TryFirstEntryT(
+
+            if (!TryRaySphereFirstHit(
                     originX, originY, originZ,
-                    dx, dy, dz,
-                    source,
-                    out var entryT)
-                && entryT < bestT)
+                    destX, destY, destZ,
+                    source.x, source.y, source.z,
+                    source.radiusM,
+                    out var t)
+                || t >= bestT)
             {
-                bestT = entryT;
+                continue;
             }
+
+            bestT = t;
+            hit = source;
         }
-        if (float.IsPositiveInfinity(bestT))
+
+        if (hit == null)
         {
             return false;
         }
 
-        var outsideT = Math.Max(0f, bestT - LandingSafetyOffsetM / routeLength);
-        clippedX = originX + dx * outsideT;
-        clippedY = originY + dy * outsideT;
-        clippedZ = originZ + dz * outsideT;
+        var dx = destX - originX;
+        var dy = destY - originY;
+        var dz = destZ - originZ;
+        var len = MathF.Sqrt(dx * dx + dy * dy + dz * dz);
+        if (len < 1e-3f)
+        {
+            return false;
+        }
+
+        dx /= len;
+        dy /= len;
+        dz /= len;
+        var hx = originX + dx * bestT * len;
+        var hy = originY + dy * bestT * len;
+        var hz = originZ + dz * bestT * len;
+        var ox = hx - hit.x;
+        var oy = hy - hit.y;
+        var oz = hz - hit.z;
+        var ol = MathF.Sqrt(ox * ox + oy * oy + oz * oz);
+        if (ol < 1e-3f)
+        {
+            ox = dx;
+            oy = dy;
+            oz = dz;
+            ol = 1f;
+        }
+
+        ox /= ol;
+        oy /= ol;
+        oz /= ol;
+        var edge = hit.radiusM + LandingSafetyOffsetM;
+        landX = hit.x + ox * edge;
+        landY = hit.y + oy * edge;
+        landZ = hit.z + oz * edge;
         return true;
     }
 
-    private static bool TryFirstEntryT(
-        float ox,
-        float oy,
-        float oz,
-        float dx,
-        float dy,
-        float dz,
-        InterdictionFieldSource source,
-        out float entryT)
-    {
-        entryT = 0f;
-        var mx = ox - source.x;
-        var my = oy - source.y;
-        var mz = oz - source.z;
-        var a = dx * dx + dy * dy + dz * dz;
-        var b = 2f * (mx * dx + my * dy + mz * dz);
-        var c = mx * mx + my * my + mz * mz - source.radiusM * source.radiusM;
-        if (c <= 0f)
-        {
-            return false;
-        }
-        var discriminant = b * b - 4f * a * c;
-        if (discriminant < 0f)
-        {
-            return false;
-        }
-        var sqrt = MathF.Sqrt(discriminant);
-        var t = (-b - sqrt) / (2f * a);
-        if (t < 0f || t > 1f)
-        {
-            return false;
-        }
-        entryT = t;
-        return true;
-    }
+    private static BattlefieldUnit? FindOwner(BattlefieldState bf, string? ownerUnitId) =>
+        ownerUnitId == null ? null : bf.units.FirstOrDefault(u => ownerUnitId.Equals(u.unitId, StringComparison.Ordinal));
 
-    private static BattlefieldUnit? FindOwner(BattlefieldState battlefield, string? ownerUnitId) =>
-        ownerUnitId == null ? null : BattlefieldSystem.FindUnit(battlefield, ownerUnitId);
-
-    private static float DistanceSquared(
-        float ax, float ay, float az,
-        float bx, float by, float bz)
+    private static float DistanceSquared(float ax, float ay, float az, float bx, float by, float bz)
     {
         var dx = ax - bx;
         var dy = ay - by;
         var dz = az - bz;
         return dx * dx + dy * dy + dz * dz;
+    }
+
+    private static bool TryRaySphereFirstHit(
+        float ox, float oy, float oz,
+        float dxEnd, float dyEnd, float dzEnd,
+        float cx, float cy, float cz,
+        float radius,
+        out float t01)
+    {
+        t01 = 0f;
+        var dx = dxEnd - ox;
+        var dy = dyEnd - oy;
+        var dz = dzEnd - oz;
+        var fx = ox - cx;
+        var fy = oy - cy;
+        var fz = oz - cz;
+        var a = dx * dx + dy * dy + dz * dz;
+        if (a < 1e-8f)
+        {
+            return false;
+        }
+
+        var b = 2f * (fx * dx + fy * dy + fz * dz);
+        var c = fx * fx + fy * fy + fz * fz - radius * radius;
+        var disc = b * b - 4f * a * c;
+        if (disc < 0f)
+        {
+            return false;
+        }
+
+        var s = MathF.Sqrt(disc);
+        var t0 = (-b - s) / (2f * a);
+        var t1 = (-b + s) / (2f * a);
+        var t = t0 >= 0f && t0 <= 1f ? t0 : t1 >= 0f && t1 <= 1f ? t1 : -1f;
+        if (t < 0f)
+        {
+            return false;
+        }
+
+        t01 = t;
+        return true;
     }
 }

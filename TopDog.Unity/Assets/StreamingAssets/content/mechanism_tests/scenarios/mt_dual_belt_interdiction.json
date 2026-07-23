@@ -1,0 +1,55 @@
+{
+  "scenarioId": "mt_dual_belt_interdiction",
+  "displayName": "双矿带·拦截泡",
+  "scenarioOrder": 12,
+  "seed": 1012,
+  "mapMode": "dual_belt",
+  "spawnSeparationM": 20000,
+  "legions": [
+    {
+      "legionId": "mt_player",
+      "displayName": "详测方",
+      "isPlayer": true,
+      "isAiControlled": false,
+      "members": [
+        {
+          "memberId": "mt_db_p1",
+          "hullId": "hull_omni_light_interdictor",
+          "fitted": { "fn_1": "mod_interdiction_rebel_s" }
+        },
+        {
+          "memberId": "mt_db_p2",
+          "hullId": "hull_omni_interdictor_cruiser",
+          "fitted": { "fn_1": "mod_interdiction_bite_s" }
+        },
+        {
+          "memberId": "mt_db_p3",
+          "hullId": "hull_cruiser_greywolf_guard",
+          "fitted": { "fn_1": "mod_armor_link_s" }
+        },
+        {
+          "memberId": "mt_db_p4",
+          "hullId": "hull_cruiser_whitewolf_guard",
+          "fitted": { "fn_1": "mod_shield_fusion_s" }
+        },
+        {
+          "memberId": "mt_db_p5",
+          "hullId": "hull_frigate_shortlegwolf",
+          "fitted": {}
+        }
+      ]
+    },
+    {
+      "legionId": "mt_enemy",
+      "displayName": "敌方",
+      "isAiControlled": true,
+      "members": [
+        {
+          "memberId": "mt_db_e1",
+          "hullId": "hull_dread_ironcoffin",
+          "fitted": {}
+        }
+      ]
+    }
+  ]
+}

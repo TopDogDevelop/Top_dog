@@ -170,6 +170,12 @@ public sealed class BattlefieldUnit
     public bool logisticsAutoAimActive;
     /// <summary>远程维修自动瞄准：无玩家指令时维修最近场域持有舰（RemoteRepairAutoTargetingService）。</summary>
     public bool remoteRepairAutoActive;
+    /// <summary>单舰覆盖自开火；无覆盖时用 GameState.autoFireEnabled 舰队默认。</summary>
+    public bool hasAutoFireOverride;
+    public bool autoFireEnabled;
+    /// <summary>单舰覆盖自动连续启用拦截装备。</summary>
+    public bool hasAutoInterdictionOverride;
+    public bool autoInterdictionContinuous;
     public bool inTacticalWarp;
     public string? warpTargetBfId;
     public string? warpFromBfId;

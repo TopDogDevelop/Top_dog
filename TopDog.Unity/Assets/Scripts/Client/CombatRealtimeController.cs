@@ -70,6 +70,7 @@ public sealed class CombatRealtimeController : UiScreenController
     private VisualElement _combatFxHost;
     private CombatFxCameraHost _combatFxCamera;
     private FieldAuraVfxPresenter _fieldAuraVfx;
+    private InterdictionVfxPresenter? _interdictionVfx;
     private FieldAuraUitkPresenter? _fieldAuraUitk;
     private CombatFxTracerPresenter? _combatFxTracers;
     private Transform? _combatFxWorldRoot;
@@ -824,12 +825,14 @@ public sealed class CombatRealtimeController : UiScreenController
         if (core == null || !core.State.combatRealtimeActive)
         {
             _fieldAuraVfx?.Refresh(null, null, Vector3.zero);
+            _interdictionVfx?.Refresh(null, null, Vector3.zero);
             return;
         }
 
         if (CombatViewModeState.Mode == CombatViewMode.StarMap)
         {
             _fieldAuraVfx?.Refresh(null, null, Vector3.zero);
+            _interdictionVfx?.Refresh(null, null, Vector3.zero);
             return;
         }
 
@@ -838,9 +841,16 @@ public sealed class CombatRealtimeController : UiScreenController
             _fieldAuraVfx = new FieldAuraVfxPresenter(_combatFxWorldRoot, core.Ships, core.Modules);
         }
 
+        if (_interdictionVfx == null && _combatFxWorldRoot != null)
+        {
+            _interdictionVfx = new InterdictionVfxPresenter(_combatFxWorldRoot);
+        }
+
         _combatFxCamera?.PrepareWorldRootForFrame();
         var fxFocus = _combatFxCamera != null ? _combatFxCamera.CurrentFocusWorld : Vector3.zero;
-        _fieldAuraVfx?.Refresh(core.State, ActiveBf(core.State), fxFocus);
+        var activeBf = ActiveBf(core.State);
+        _fieldAuraVfx?.Refresh(core.State, activeBf, fxFocus);
+        _interdictionVfx?.Refresh(core.State, activeBf, fxFocus);
         // #region agent log
         if (Time.frameCount % 90 == 0)
         {
@@ -1060,14 +1070,46 @@ public sealed class CombatRealtimeController : UiScreenController
         {
             var possessed = FindPossessedUnit(bf, s.possessingMemberId);
             var throttle = possessed?.throttleOn == true ? "开" : "关";
-            var selCount = TacticalSelectionState.GetSelectedFriendlyUnitIds().Count;
+            var selIds = TacticalSelectionState.GetSelectedFriendlyUnitIds();
+            var selCount = selIds.Count;
+            var fireOn = 0;
+            var interOn = 0;
+            if (bf != null && selCount > 0)
+            {
+                foreach (var id in selIds)
+                {
+                    var u = BattlefieldSystem.FindUnit(bf, id);
+                    if (u == null || u.IsDestroyed())
+                    {
+                        continue;
+                    }
+
+                    if (FleetOrderService.EffectiveAutoFire(s, u))
+                    {
+                        fireOn++;
+                    }
+
+                    if (FleetOrderService.EffectiveAutoInterdiction(s, u))
+                    {
+                        interOn++;
+                    }
+                }
+            }
+
+            var fireSummary = selCount > 0
+                ? $"自开火 {fireOn}/{selCount} 开"
+                : (s.autoFireEnabled ? "自开火默认开" : "自开火默认关");
+            var interSummary = selCount > 0
+                ? $"自动拦截 {interOn}/{selCount} 开"
+                : (s.fleetDefaultAutoInterdiction ? "自动拦截默认开" : "自动拦截默认关");
             _possessionLabel.text = "附身: " + (s.possessingMemberId ?? "无")
                 + " · 框选=" + selCount
                 + " · 默认距=" + (TacticalSelectionState.EffectiveDefaultCommandRangeKm <= 0.01f
                     ? "0km(不限)"
                     : TacticalSelectionState.EffectiveDefaultCommandRangeKm.ToString("0") + "km")
                 + " · 油门=" + throttle
-                + " · 自开火=" + (s.autoFireEnabled ? "开" : "关");
+                + " · " + fireSummary
+                + " · " + interSummary;
         }
 
         if (_overviewLabel != null)

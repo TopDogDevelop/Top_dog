@@ -83,7 +83,7 @@ public sealed class MechanismTestSpawnTests
     [Test]
     public void Catalog_LoadsAllScenarios()
     {
-        Assert.That(MechanismTestCatalog.ListAll(), Has.Count.EqualTo(11));
+        Assert.That(MechanismTestCatalog.ListAll(), Has.Count.EqualTo(12));
     }
 
     [Test]
@@ -162,5 +162,30 @@ public sealed class MechanismTestSpawnTests
             selectedFriendlyUnitIds: new[] { source.unitId! });
         Assert.That(msg, Does.StartWith("已下令").Or.Contain("同场景跃迁"));
         Assert.That(source.warpPhase, Is.Not.EqualTo(TacticalWarpPhase.None));
+    }
+
+    [Test]
+    public void DualBeltInterdiction_SpawnsFiveVsOne_ModulesStartDisabled()
+    {
+        FieldNavTestContent.PinRepoContentRoot();
+        var core = CampaignBootstrap.CreateFromMechanismTest("mt_dual_belt_interdiction");
+        var state = core.State;
+        Assert.That(state.fleetDefaultAutoInterdiction, Is.False);
+        Assert.That(state.autoFireEnabled, Is.False);
+        Assert.That(state.map!.Project.systems[0].eventRegions.Count(r =>
+            r.kind == TopDog.Content.Map.EventRegionKinds.OreBelt), Is.EqualTo(2));
+        var bf = state.battlefields[0];
+        Assert.That(bf.eventRegionId, Is.EqualTo("mt_belt"));
+        var friendlies = bf.units.Where(u =>
+            u.side == UnitSide.FRIENDLY && u.parentUnitId == null && !u.isSceneProxy).ToList();
+        var enemies = bf.units.Where(u =>
+            u.side == UnitSide.ENEMY && u.parentUnitId == null && !u.isSceneProxy).ToList();
+        Assert.That(friendlies, Has.Count.EqualTo(5));
+        Assert.That(enemies, Has.Count.EqualTo(1));
+        Assert.That(enemies[0].hullId, Is.EqualTo("hull_dread_ironcoffin"));
+        var interdictor = friendlies.First(u => u.hullId == "hull_omni_light_interdictor");
+        Assert.That(interdictor.disabledModuleSlots, Does.Contain("fn_1"));
+        Assert.That(bf.interdictionSources, Is.Empty);
+        Assert.That(bf.units.Any(u => u.isSceneProxy), Is.True);
     }
 }

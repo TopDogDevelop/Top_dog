@@ -102,6 +102,11 @@ public static class CampaignBootstrap
             MechanismTestStressSpawnService.BootstrapBattlefields(
                 state, scenario, core.Ships, core.Modules, rng);
         }
+        else if ("dual_belt".Equals(scenario.mapMode, StringComparison.Ordinal))
+        {
+            MechanismDualBeltSpawnService.BootstrapBattlefields(
+                state, scenario, core.Ships, core.Modules, rng);
+        }
         else
         {
             MechanismTestSpawnService.BootstrapBattlefields(state, scenario, core.Ships, core.Modules, rng);

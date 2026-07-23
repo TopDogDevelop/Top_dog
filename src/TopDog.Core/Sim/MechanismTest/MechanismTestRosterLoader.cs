@@ -1,12 +1,15 @@
 using TopDog.Content.Starting;
+using TopDog.Content.Traits;
 using TopDog.Lobby;
 using TopDog.Sim.Member;
 using TopDog.Sim.State;
+using TopDog.Sim.Traits;
 
 /*
  * ══ 设计手册嵌入 ══
- * 权威: docs/MECHANISM_TEST_SCENARIOS.md §名册
+ * 权威: docs/MECHANISM_TEST_SCENARIOS.md §名册 · §驾驶员默认
  * 本文件: MechanismTestRosterLoader.cs — 场景 JSON → members + fittings
+ * · 未点名驾驶员：template_vip_invest 全表无主动技词条，每场重抽（池写死）
  * ══
  */
 
@@ -14,11 +17,17 @@ namespace TopDog.Sim.MechanismTest;
 
 public static class MechanismTestRosterLoader
 {
+    /// <summary>驾驶员随机池写死；以后不扩。</summary>
+    public const string RandomPilotTemplateId = "template_vip_invest";
+
     public static void ApplyScenario(GameState state, MechanismTestScenarioDef scenario, Random rng)
     {
         state.members.Clear();
         state.memberFittedModules.Clear();
         state.legions.Clear();
+
+        var pilotPool = BuildNoActiveSkillPilotPool();
+        var usedRowKeys = new HashSet<string>(StringComparer.Ordinal);
 
         var memberIndex = 0;
         foreach (var legionDef in scenario.legions)
@@ -40,9 +49,83 @@ public static class MechanismTestRosterLoader
 
             foreach (var memberDef in legionDef.members)
             {
+                AssignRandomPilotIfNeeded(memberDef, pilotPool, usedRowKeys, rng);
                 AddMember(state, legionDef.legionId, memberDef, ref memberIndex);
             }
         }
+    }
+
+    private static void AssignRandomPilotIfNeeded(
+        MechanismTestMemberDef def,
+        IReadOnlyList<MemberState> pool,
+        HashSet<string> usedRowKeys,
+        Random rng)
+    {
+        var named = !string.IsNullOrWhiteSpace(def.displayName)
+                    || !string.IsNullOrWhiteSpace(def.memberTemplateRowId);
+        if (named || pool.Count == 0)
+        {
+            return;
+        }
+
+        var candidates = pool
+            .Where(m => !usedRowKeys.Contains(SkirmishTemplateRows.RowKey(RandomPilotTemplateId, m)))
+            .ToList();
+        if (candidates.Count == 0)
+        {
+            candidates = pool.ToList();
+            usedRowKeys.Clear();
+        }
+
+        var pick = candidates[rng.Next(candidates.Count)];
+        var rowKey = SkirmishTemplateRows.RowKey(RandomPilotTemplateId, pick);
+        usedRowKeys.Add(rowKey);
+        def.memberTemplateId = RandomPilotTemplateId;
+        def.memberTemplateRowId = rowKey;
+        def.displayName = pick.name ?? pick.accountName ?? "?";
+    }
+
+    private static List<MemberState> BuildNoActiveSkillPilotPool()
+    {
+        TraitCatalog? traits = null;
+        try
+        {
+            traits = TraitCatalog.LoadDefault();
+        }
+        catch
+        {
+            // fall back to known VIP active-skill ids only
+        }
+
+        return StartingTemplateLoader.LoadMembers(RandomPilotTemplateId)
+            .Where(m => !HasActiveSkillTrait(m.traitIds, traits))
+            .ToList();
+    }
+
+    private static bool HasActiveSkillTrait(IEnumerable<string> traitIds, TraitCatalog? catalog)
+    {
+        foreach (var traitId in traitIds)
+        {
+            if (string.IsNullOrWhiteSpace(traitId))
+            {
+                continue;
+            }
+
+            if (traitId is TraitActiveSkillService.BoardSummonTraitId
+                or TraitActiveSkillService.PlanningSupportTraitId
+                or TraitActiveSkillService.InfiltratorTraitId)
+            {
+                return true;
+            }
+
+            var phase = catalog?.Find(traitId)?.activeSkillPhase;
+            if (!string.IsNullOrWhiteSpace(phase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static void ExpandTemplateMembers(
