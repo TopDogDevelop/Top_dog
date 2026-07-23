@@ -1,0 +1,114 @@
+{
+  "sourceBundles": [
+    "H:\\sg\\_run\\decrypted\\bundles\\fx_equipmentfx_abs.b",
+    "H:\\sg\\_run\\decrypted\\bundles\\fx_commonfx_abs.b",
+    "H:\\sg\\_run\\decrypted\\bundles\\shaders_abs.b"
+  ],
+  "shellTextures": {
+    "shell_tile.png": "T_FX_Tile_042",
+    "noise.png": "T_FX_Noise01",
+    "shield_noise.png": "T_FX_Tile_009",
+    "armor_noise.png": "T_FX_Noise04",
+    "shield_stripe.png": "shell_stripe.png TR-BL blue/purple half (mirrored fill)",
+    "armor_stripe.png": "shell_stripe.png TR-BL gold/yellow half (mirrored fill)"
+  },
+  "roles": {
+    "shield": {
+      "file": "shield_main.png",
+      "materials": [
+        "FX_DisturbWeaknessField_Active_ForceField",
+        "FX_DisturbWeaknessField_Active_Glow",
+        "FX_DisturbWeaknessField_Active_Spot"
+      ],
+      "textures": [
+        {
+          "slot": "_MainTex",
+          "material": "FX_DisturbWeaknessField_Active_ForceField",
+          "texture": "T_FX_Tile_042"
+        },
+        {
+          "slot": "_AlphaTex",
+          "material": "FX_DisturbWeaknessField_Active_ForceField",
+          "texture": "T_FX_Tile_042"
+        },
+        {
+          "slot": "_DistortTex",
+          "material": "FX_DisturbWeaknessField_Active_ForceField",
+          "texture": "T_FX_Tile_009"
+        },
+        {
+          "slot": "_MainTex",
+          "material": "FX_DisturbWeaknessField_Active_Glow",
+          "texture": "T_FX_glow_004"
+        },
+        {
+          "slot": "_MainTex",
+          "material": "FX_DisturbWeaknessField_Active_Spot",
+          "texture": "T_FX_Atlas_13"
+        }
+      ],
+      "tintHdr": [
+        9.82758617401123,
+        8.75,
+        10.0
+      ]
+    },
+    "armor": {
+      "file": "armor_main.png",
+      "materials": [
+        "FX_ArmorMaintainField_Active_ForceField",
+        "FX_ArmorMaintainField_Active_Glow",
+        "FX_ArmorMaintainField_Active_Fragment",
+        "FX_ArmorMaintain_LoopShieldPlane"
+      ],
+      "textures": [
+        {
+          "slot": "_MainTex",
+          "material": "FX_ArmorMaintainField_Active_ForceField",
+          "texture": "T_FX_Tile_042"
+        },
+        {
+          "slot": "_AlphaTex",
+          "material": "FX_ArmorMaintainField_Active_ForceField",
+          "texture": "T_FX_Tile_042"
+        },
+        {
+          "slot": "_DistortTex",
+          "material": "FX_ArmorMaintainField_Active_ForceField",
+          "texture": "T_FX_Tile_042"
+        },
+        {
+          "slot": "_MainTex",
+          "material": "FX_ArmorMaintainField_Active_Glow",
+          "texture": "T_FX_glow_004"
+        },
+        {
+          "slot": "_MainTex",
+          "material": "FX_ArmorMaintainField_Active_Fragment",
+          "texture": "T_FX_Particle_02"
+        },
+        {
+          "slot": "_MainTex",
+          "material": "FX_ArmorMaintain_LoopShieldPlane",
+          "texture": "T_FX_Atlas_19"
+        },
+        {
+          "slot": "_AlphaTex",
+          "material": "FX_ArmorMaintain_LoopShieldPlane",
+          "texture": "T_FX_Tile_026"
+        },
+        {
+          "slot": "_DistortTex",
+          "material": "FX_ArmorMaintain_LoopShieldPlane",
+          "texture": "T_FX_Tile_012"
+        }
+      ],
+      "tintHdr": [
+        10.0,
+        7.890469551086426,
+        4.117647171020508
+      ]
+    }
+  },
+  "note": "3D FieldAuraSphere uses shell_tile.png + {shield,armor}_noise.png / noise.png; *_main.png kept as soft fallback disc (HF hot-update)"
+}

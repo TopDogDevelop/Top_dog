@@ -55,6 +55,48 @@
     min-height: 28px;
 }
 
+.rtcombat-rail-filter-bar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 4px;
+    padding-bottom: 4px;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+
+.rtcombat-rail-filter-btn {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    margin-right: 3px;
+    margin-bottom: 3px;
+    padding: 2px;
+    font-size: 10px;
+    background-color: rgba(255, 255, 255, 0.06);
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.14);
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.rtcombat-rail-filter-all {
+    width: auto;
+    min-width: 36px;
+    padding-left: 6px;
+    padding-right: 6px;
+}
+
+.rtcombat-rail-filter-btn-active {
+    background-color: rgba(80, 140, 220, 0.45);
+    border-color: rgba(120, 180, 255, 0.7);
+}
+
+.rtcombat-rail-object-list {
+    flex-direction: column;
+    flex-grow: 1;
+}
+
 .rtcombat-rail-group {
     font-size: 11px;
     color: rgb(180, 190, 210);
@@ -200,7 +242,19 @@
     picking-mode: ignore;
 }
 
-.rtcombat-field-aura-rt {
+.rtcombat-combat-fx-overlay {
+    position: absolute;
+    left: 0;
+    right: 68px;
+    top: 0;
+    bottom: 0;
+    overflow: hidden;
+    background-color: rgba(0, 0, 0, 0);
+    picking-mode: ignore;
+}
+
+.rtcombat-field-aura-rt,
+.rtcombat-combat-fx-rt {
     opacity: 1;
     background-color: rgba(0, 0, 0, 0);
     -unity-background-image-tint-color: rgb(255, 255, 255);
@@ -253,7 +307,8 @@
 .rtcombat-marker-scene-proxy {
     border-width: 0;
     border-color: rgba(0, 0, 0, 0);
-    background-color: rgba(0, 20, 40, 0.55);
+    /* Icons must be transparent — opaque slate behind proxies was showing in MuMu playtest */
+    background-color: rgba(0, 0, 0, 0);
 }
 
 .rtcombat-marker-scene-proxy.rtcombat-marker-selected {
@@ -291,11 +346,11 @@
 }
 
 .rtcombat-marker-badge-friendly {
-    color: rgb(0, 210, 255);
+    color: rgb(80, 160, 255);
 }
 
 .rtcombat-marker-badge-hostile {
-    color: rgb(255, 45, 70);
+    color: rgb(220, 70, 70);
 }
 
 .rtcombat-marker-selected {

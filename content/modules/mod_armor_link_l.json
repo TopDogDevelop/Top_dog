@@ -7,5 +7,7 @@
   "moduleSubtype": "aura_field_armor",
   "moduleSize": "LARGE",
   "requiredHullLicenses": ["armor_fleet"],
-  "fieldRadiusKm": 15
+  "fieldRadiusKm": 50,
+  "fieldCollapseCooldownSec": 30,
+  "starCoinValue": 10000
 }

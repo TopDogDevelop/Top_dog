@@ -1,0 +1,12 @@
+{
+  "moduleId": "mod_armor_regen_s",
+  "displayName": "甲回模块 S",
+  "displayNameEn": "Armor Regen S",
+  "slotCategory": "DEFENSE",
+  "moduleSize": "SMALL",
+  "moduleSubtype": "regen_passive",
+  "repairLayer": "armor",
+  "repairPerSalvo": 500,
+  "repairCycleSec": 20,
+  "starCoinValue": 400
+}

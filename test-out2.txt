@@ -1,0 +1,45 @@
+﻿  姝ｅ湪纭畾瑕佽繕鍘熺殑椤圭洰鈥?
+  鎵€鏈夐」鐩潎鏄渶鏂扮殑锛屾棤娉曡繕鍘熴€?
+  TopDog.Core -> E:\game_dev\top_dog_unity\src\TopDog.Core\bin\Debug\net8.0\TopDog.Core.dll
+  TopDog.Core.Tests -> E:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\bin\Debug\net8.0\TopDog.Core.Tests.dll
+E:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\bin\Debug\net8.0\TopDog.Core.Tests.dll (.NETCoreApp,Version=v8.0)鐨勬祴璇曡繍琛?
+VSTest 鐗堟湰 17.11.1 (x64)
+
+姝ｅ湪鍚姩娴嬭瘯鎵ц锛岃绋嶅€?..
+鎬诲叡 1 涓祴璇曟枃浠朵笌鎸囧畾妯″紡鐩稿尮閰嶃€?
+  澶辫触 Combat_BoardingModule_SeizesEnemyHullAfterHold [21 ms]
+  閿欒娑堟伅:
+     Assert.That(attacker.structureHp, Is.EqualTo(100f))
+  Expected: 100.0f
+  But was:  20.0f
+
+  鍫嗘爤璺熻釜:
+     at TopDog.Core.Tests.BoardingModuleTests.Combat_BoardingModule_SeizesEnemyHullAfterHold() in E:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\BoardingModuleTests.cs:line 87
+
+1)    at TopDog.Core.Tests.BoardingModuleTests.Combat_BoardingModule_SeizesEnemyHullAfterHold() in E:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\BoardingModuleTests.cs:line 87
+
+
+  澶辫触 PendingInject_ClearsWhenCasterNotOnAnyBattlefield [7 ms]
+  閿欒娑堟伅:
+   System.InvalidOperationException : Sequence contains no elements
+  鍫嗘爤璺熻釜:
+     at System.Linq.ThrowHelper.ThrowNoElementsException()
+   at System.Linq.Enumerable.Last[TSource](IEnumerable`1 source)
+   at TopDog.Core.Tests.BoardSummonWingTests.PendingInject_ClearsWhenCasterNotOnAnyBattlefield() in E:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\BoardSummonWingTests.cs:line 160
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+  澶辫触 SandboxCampaignSeedsPineappleInLegionStock [7 ms]
+  閿欒娑堟伅:
+     Assert.That(core.State.legionStock.GetValueOrDefault("hull_frigate_pineapple"), Is.EqualTo(1))
+  Expected: 1
+  But was:  0
+
+  鍫嗘爤璺熻釜:
+     at TopDog.Tests.CampaignBootstrapTemplateTests.SandboxCampaignSeedsPineappleInLegionStock() in E:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\CampaignBootstrapTemplateTests.cs:line 139
+
+1)    at TopDog.Tests.CampaignBootstrapTemplateTests.SandboxCampaignSeedsPineappleInLegionStock() in E:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\CampaignBootstrapTemplateTests.cs:line 139
+
+
+
+澶辫触!  - 澶辫触:     3锛岄€氳繃:   277锛屽凡璺宠繃:     0锛屾€昏:   280锛屾寔缁椂闂? 3 s - TopDog.Core.Tests.dll (net8.0)

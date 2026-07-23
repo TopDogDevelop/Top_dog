@@ -3,9 +3,10 @@
   "displayName": "增伤射线 S",
   "slotCategory": "ATTACK",
   "moduleSize": "SMALL",
-  "attackRangeM": 50000,
+  "attackRangeM": 10000,
   "fireCycleSec": 10,
   "markDurationSec": 10,
-  "incomingDamageMult": 1.01,
-  "damagePerTick": 0
+  "incomingDamageMult": 1.05,
+  "damagePerTick": 0,
+  "starCoinValue": 100
 }

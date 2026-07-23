@@ -1,0 +1,12 @@
+{
+  "moduleId": "mod_drone_gun_a",
+  "displayName": "无人机炮 A",
+  "displayNameEn": "Drone Gun A",
+  "slotCategory": "ATTACK",
+  "moduleKind": "direct_weapon",
+  "moduleSize": "SMALL",
+  "damagePerTick": 550,
+  "fireCycleSec": 10,
+  "attackRangeM": 6000,
+  "starCoinValue": 100
+}

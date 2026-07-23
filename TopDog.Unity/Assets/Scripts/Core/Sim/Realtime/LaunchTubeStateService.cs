@@ -20,6 +20,7 @@ public static class LaunchTubeStateService
     public static void InitTubeStates(BattlefieldUnit unit, ModuleRegistry? modules = null)
     {
         unit.tubeStates.Clear();
+        unit.bayStates.Clear();
         foreach (var kv in unit.fittedModules)
         {
             if (!kv.Key.StartsWith("tube_", StringComparison.Ordinal))
@@ -33,6 +34,12 @@ public static class LaunchTubeStateService
             }
 
             unit.tubeStates[kv.Key] = LaunchTubeState.Inactive;
+            if (modules != null
+                && modules.Resolve(kv.Value) is { } module
+                && CarriedUnitDeploymentService.IsCarriedUnitBay(module))
+            {
+                unit.bayStates[kv.Key] = new BayRuntimeState();
+            }
         }
     }
 
@@ -59,7 +66,9 @@ public static class LaunchTubeStateService
         }
     }
 
-    public static void ResetStrikeWingTubesToInactive(BattlefieldUnit launcher)
+    public static void ResetStrikeWingTubesToInactive(
+        BattlefieldUnit launcher,
+        ModuleRegistry? modules = null)
     {
         foreach (var kv in launcher.tubeStates.ToList())
         {
@@ -73,10 +82,18 @@ public static class LaunchTubeStateService
                 continue;
             }
 
-            if (modId.Contains("strike_wing", StringComparison.Ordinal)
+            var module = modules?.Resolve(modId);
+            if (module != null
+                && CarriedUnitDeploymentService.IsCarriedUnitBay(module)
                 && kv.Value == LaunchTubeState.Activated)
             {
                 launcher.tubeStates[kv.Key] = LaunchTubeState.Inactive;
+                if (launcher.bayStates.TryGetValue(kv.Key, out var bay))
+                {
+                    bay.state = CarriedUnitLifecycle.Stored;
+                    bay.childUnitId = null;
+                    bay.reservedCapacity = 0;
+                }
             }
         }
     }
@@ -112,11 +129,27 @@ public static class LaunchTubeStateService
             return;
         }
 
-        var slot = !string.IsNullOrWhiteSpace(child.missileLaunchTubeSlot)
-            ? child.missileLaunchTubeSlot
+        var slot = !string.IsNullOrWhiteSpace(child.carriedSourceSlot)
+            ? child.carriedSourceSlot
+            : !string.IsNullOrWhiteSpace(child.missileLaunchTubeSlot)
+                ? child.missileLaunchTubeSlot
             : FindTubeSlotForModule(parent, modId);
         if (slot != null)
         {
+            if (parent.carriedShipsBySlot.TryGetValue(slot, out var payload)
+                && payload.shipInstanceId.Equals(child.shipInstanceId, StringComparison.Ordinal))
+            {
+                payload.shieldHp = child.shieldHp;
+                payload.armorHp = child.armorHp;
+                payload.structureHp = child.structureHp;
+                payload.destroyed = true;
+            }
+            if (parent.bayStates.TryGetValue(slot, out var bay))
+            {
+                bay.state = CarriedUnitLifecycle.Lost;
+                bay.childUnitId = null;
+                bay.reservedCapacity = 0;
+            }
             if (BoardSummonWingService.IsTempBoardTube(slot))
             {
                 BoardSummonWingService.RemoveTempTube(parent, slot);
@@ -195,16 +228,7 @@ public static class LaunchTubeStateService
             return false;
         }
 
-        if (mod.moduleId != null
-            && (mod.moduleId.Contains("strike_wing", StringComparison.Ordinal)
-                || mod.moduleId.Contains("missile", StringComparison.Ordinal)
-                || mod.moduleId.Contains("drone", StringComparison.Ordinal)
-                || mod.moduleId.Contains("board_summon_wing", StringComparison.Ordinal)))
-        {
-            return true;
-        }
-
-        return "strike_wing".Equals(mod.moduleKind, StringComparison.Ordinal)
+        return CarriedUnitDeploymentService.IsCarriedUnitBay(mod)
                || mod.missileStructureHp > 0f;
     }
 
@@ -218,21 +242,17 @@ public static class LaunchTubeStateService
 
         if ("strike_craft".Equals(kind, StringComparison.Ordinal))
         {
-            return tubeMod.moduleId != null
-                   && tubeMod.moduleId.Contains("strike_wing", StringComparison.Ordinal);
+            return CarriedUnitDeploymentService.IsCarriedUnitBay(tubeMod);
         }
 
         if ("missile".Equals(kind, StringComparison.Ordinal))
         {
-            return tubeMod.missileStructureHp > 0f
-                   || (tubeMod.moduleId != null
-                       && tubeMod.moduleId.Contains("missile", StringComparison.Ordinal));
+            return tubeMod.missileStructureHp > 0f;
         }
 
         if ("drone".Equals(kind, StringComparison.Ordinal))
         {
-            return tubeMod.moduleId != null
-                   && tubeMod.moduleId.Contains("drone", StringComparison.Ordinal);
+            return CarriedUnitDeploymentService.IsCarriedUnitBay(tubeMod);
         }
 
         return false;

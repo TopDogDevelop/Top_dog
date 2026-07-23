@@ -1,0 +1,15 @@
+{
+  "moduleId": "mod_command_shield_bearer_s",
+  "displayName": "护盾增幅波·持盾",
+  "displayNameEn": "Command Wave: Shield Bearer",
+  "slotCategory": "FUNCTION",
+  "moduleKind": "command_wave",
+  "moduleSize": "SMALL",
+  "starCoinValue": 100,
+  "requiredHullLicenses": ["command_wave_shield"],
+  "logicId": "logic_command_wave",
+  "params": {
+    "shape": "SPHERE", "radiusM": 30000, "stat": "shieldResist",
+    "operation": "ADD_RESIST", "value": 0.10, "stackKey": "mod_command_shield_bearer_s"
+  }
+}

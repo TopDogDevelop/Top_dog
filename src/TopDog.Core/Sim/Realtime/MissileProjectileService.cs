@@ -104,56 +104,28 @@ public static class MissileProjectileService
         GameState state,
         BattlefieldState bf,
         BattlefieldUnit missile,
-        // liketoco0de345
         MissileProjectileProfile profile,
         ShipRegistry? ships = null,
         ModuleRegistry? modules = null)
     {
-        var radiusSq = profile.AoeZeroRadiusM * profile.AoeZeroRadiusM;
-        var ex = missile.x;
-        var ey = missile.y;
-        var ez = missile.z;
-        foreach (var target in bf.units)
-        {
-            if (target.IsDestroyed() || target.unitId == missile.unitId)
-            {
-                continue;
-            }
-            // lik3tocoode345
-            if (!string.IsNullOrEmpty(target.missileModuleId))
-            {
-                continue;
-            }
-
-            var dx = target.x - ex;
-            var dy = target.y - ey;
-            var dz = target.z - ez;
-            var distSq = dx * dx + dy * dy + dz * dz;
-            if (distSq >= radiusSq)
-            {
-                continue;
-            }
-
-            var distM = MathF.Sqrt(distSq);
-            var applied = MissileProjectileProfile.ComputeAoeDamage(distM, profile);
-            // liketocoode3e5
-            if (applied <= 0)
-            {
-                continue;
-            }
-
-            if (profile.AoeStructureOnly)
-            {
-                BattlefieldSystem.ApplyStructureOnlyDamage(bf, target, applied, missile);
-            }
-            else
-            {
-                BattlefieldSystem.ApplyDamage(bf, target, applied, missile, state, ships, modules);
-            }
-            CombatTelemetryLog.Log(
-                "missile-detonate",
-                $"module={profile.ModuleId} r={profile.AoeZeroRadiusM:0} →{target.unitId} d={distM:0} dmg={applied}");
-        }
+        var result = AoeDamageService.ResolveAt(
+            state,
+            bf,
+            bf.spatialHash,
+            missile.x,
+            missile.y,
+            missile.z,
+            profile.AoeZeroRadiusM,
+            profile.AoeBaseDamage,
+            missile,
+            profile.AoeStructureOnly,
+            filter: null,
+            ships,
+            modules,
+            AoeDamageService.MaxTargetsExplored);
+        CombatTelemetryLog.Log(
+            "missile-detonate",
+            $"module={profile.ModuleId} r={profile.AoeZeroRadiusM:0} hit={result.HitCount} dmg={result.DamageTotal:0} explored={result.Explored} capped={(result.Capped ? 1 : 0)}");
     }
 
     private static MissileProjectileProfile ResolveProfile(BattlefieldUnit m, ModuleRegistry modules)

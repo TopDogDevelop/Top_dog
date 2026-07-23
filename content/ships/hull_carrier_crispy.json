@@ -3,11 +3,11 @@
   "displayName": "脆鸡级",
   "displayNameEn": "Crispy Carrier",
   "tonnageClass": "CARRIER",
-  "shieldHp": 40000,
-  "armorHp": 1000,
-  "structureHp": 10000,
-  "baseSpeedMps": 100,
-  "baseAccelMps2": 20,
+  "shieldHp": 212000,
+  "armorHp": 108000,
+  "structureHp": 80000,
+  "baseSpeedMps": 300,
+  "baseAccelMps2": 60,
   "transitSpeedLyPerHour": 1.0,
   "warpSpeedAups": 5.0,
   "launchTubeSlotSize": "LARGE",
@@ -18,5 +18,6 @@
   "defenseSlots": 5,
   "passiveSlots": 2,
   "defaultSlotSize": "LARGE",
-  "maxOverslots": 1
+  "maxOverslots": 1,
+  "starCoinValue": 300000
 }

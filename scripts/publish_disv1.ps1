@@ -1,6 +1,6 @@
 param(
     [string]$DevelopRoot = (Split-Path $PSScriptRoot -Parent),
-    [string]$Disv1 = "e:\disv1",
+    [string]$Disv1 = "H:\disv1",
     [string]$WinDir = "",
     [string]$ApkPath = "",
     [string]$StubExe = ""
@@ -8,7 +8,7 @@ param(
 
 <#
 .SYNOPSIS
-  Sync latest Windows Setup + Android APK into e:\disv1 (exactly two files).
+  Sync latest Windows Setup + Android APK into H:\disv1 (exactly two files).
 
 .NOTES
   Run when the user asks to package EXE/APK / 套壳 / 打包到 disv1

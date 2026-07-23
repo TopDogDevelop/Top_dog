@@ -27,7 +27,7 @@ public static class MissileLaunchService
         if (launcher.IsDestroyed()
             || launcher.isBuilding
             || launcher.IsBallisticMissile()
-            || launcher.parentUnitId != null
+            || launcher.IsTemplateCarriedUnit()
             || launcher.fittedModules.Count == 0)
         {
             return;
@@ -60,6 +60,22 @@ public static class MissileLaunchService
             return;
         }
 
+        if (bf.maxLiveMissiles > 0)
+        {
+            var live = 0;
+            foreach (var u in bf.units)
+            {
+                if (!u.IsDestroyed() && u.IsBallisticMissile())
+                {
+                    live++;
+                    if (live >= bf.maxLiveMissiles)
+                    {
+                        return;
+                    }
+                }
+            }
+        }
+
         if (!BattlefieldUnitLimits.CanSpawnNonCrewUnit(bf))
         {
             return;
@@ -88,7 +104,7 @@ public static class MissileLaunchService
         var max = launcher.attackRangeM;
         foreach (var modId in launcher.fittedModules.Values)
         {
-            if (!MissileSpawnService.IsMissileModuleId(modId))
+            if (!MissileSpawnService.IsMissileModuleId(modId, modules))
             {
                 continue;
             }
@@ -144,9 +160,9 @@ public static class MissileLaunchService
         if (target == null
             || target.IsDestroyed()
             || !target.Arrived(bf.timeSec)
-            || target.side == launcher.side
             || target.IsBallisticMissile()
-            || BattlefieldSceneProxyService.IsSceneProxy(target))
+            || BattlefieldSceneProxyService.IsSceneProxy(target)
+            || !CombatHostility.AreHostile(launcher, target))
         {
             return false;
         }
@@ -158,7 +174,7 @@ public static class MissileLaunchService
     {
         foreach (var modId in launcher.fittedModules.Values)
         {
-            if (!MissileSpawnService.IsMissileModuleId(modId))
+            if (!MissileSpawnService.IsMissileModuleId(modId, modules))
             {
                 continue;
             }

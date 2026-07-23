@@ -4,6 +4,7 @@
   "slotCategory": "DEFENSE",
   "moduleSize": "EXTRA_LARGE",
   "damageMitigationKind": "reflex_shield_block",
-  "blockShieldPctOfMax": 0.01,
-  "blockLockSec": 0.1
+  "blockShieldPctOfMax": 0.03,
+  "blockLockSec": 0.5,
+  "starCoinValue": 100000
 }

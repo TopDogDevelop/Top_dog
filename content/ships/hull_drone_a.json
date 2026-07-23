@@ -1,0 +1,19 @@
+{
+  "hullId": "hull_drone_a",
+  "displayName": "攻击无人机 A",
+  "displayNameEn": "Attack Drone A",
+  "tonnageClass": "DRONE",
+  "unitKind": "DRONE",
+  "canCarryOperator": false,
+  "collision": false,
+  "canBeCarried": true,
+  "carriedSize": "SMALL",
+  "shieldHp": 0,
+  "armorHp": 0,
+  "structureHp": 80,
+  "baseSpeedMps": 900,
+  "baseAccelMps2": 400,
+  "attackSlots": 1,
+  "defaultSlotSize": "SMALL",
+  "defaultFittedModules": {"atk_0": "mod_drone_gun_a"}
+}

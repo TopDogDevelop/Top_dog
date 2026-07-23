@@ -1,8 +1,8 @@
 # One-time (or refresh) EVE BUG6-X -> Unity StreamingAssets. Runtime never reads EEVVEE.
 $ErrorActionPreference = "Stop"
 
-$ImportScript = "e:\game_dev\top_dog\tools\import_eve_constellation.py"
-$OutputMap = "e:\game_dev\top_dog_unity\TopDog.Unity\Assets\StreamingAssets\maps\eve_bug6-x.topdog-map"
+$ImportScript = "H:\game_dev\top_dog\tools\import_eve_constellation.py"
+$OutputMap = "H:\game_dev\top_dog_unity\TopDog.Unity\Assets\StreamingAssets\maps\eve_bug6-x.topdog-map"
 
 if (-not (Test-Path $ImportScript)) {
     Write-Error "Import script not found: $ImportScript"

@@ -93,14 +93,14 @@ public sealed class TacticalObjectCommandMenu
         AddCommandButton("集火", () => Issue((s, bf, ships, sel) =>
             FleetOrderService.OrderFocus(s, bf, _targetUnitId, sel)));
         AddCommandButton("接近", () => Issue((s, bf, ships, sel) =>
-            FleetOrderService.OrderApproach(s, bf, _targetUnitId, sel, TacticalSelectionState.DefaultCommandRangeKm)));
+            FleetOrderService.OrderApproach(s, bf, _targetUnitId, sel, TacticalSelectionState.EffectiveDefaultCommandRangeKm)));
         AddCommandButton("远离", () => Issue((s, bf, ships, sel) =>
-            FleetOrderService.OrderAway(s, bf, _targetUnitId, sel, TacticalSelectionState.DefaultCommandRangeKm)));
+            FleetOrderService.OrderAway(s, bf, _targetUnitId, sel, TacticalSelectionState.EffectiveDefaultCommandRangeKm)));
         AddCommandButton("环绕", () => Issue((s, bf, ships, sel) =>
-            FleetOrderService.OrderOrbit(s, bf, _targetUnitId, sel, TacticalSelectionState.DefaultCommandRangeKm)));
+            FleetOrderService.OrderOrbit(s, bf, _targetUnitId, sel, TacticalSelectionState.EffectiveDefaultCommandRangeKm)));
         AddCommandButton("跃迁", () => Issue((s, bf, ships, sel) =>
             FleetOrderService.OrderWarpToSceneTarget(
-                s, bf, _targetUnitId, ships, _allFriendly, sel, TacticalSelectionState.DefaultCommandRangeKm)));
+                s, bf, _targetUnitId, ships, _allFriendly, sel, TacticalSelectionState.EffectiveDefaultCommandRangeKm)));
 
         AppendActiveSkillButtons();
 

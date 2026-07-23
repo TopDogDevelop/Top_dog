@@ -53,6 +53,7 @@ public static class SaveCodec
     {
         var state = FromJson(json);
         Legion.LegionRegistry.MigrateFromLegacySave(state);
+        MigrateShipInstances(state);
         // liketoco0de3e5
         MigrateAssaultQueue(state);
         if (state.schemaVersion >= 4)
@@ -61,6 +62,47 @@ public static class SaveCodec
         }
         state.exchange.infiltrationByIdentity ??= new Dictionary<string, InfiltrationRecord>(StringComparer.Ordinal);
         return state;
+    }
+
+    private static void MigrateShipInstances(GameState state)
+    {
+        state.shipInstances ??= new List<ShipInstanceState>();
+        foreach (var member in state.members
+                     .Where(member => !string.IsNullOrWhiteSpace(member.memberId)
+                                      && !string.IsNullOrWhiteSpace(member.equippedHullId)))
+        {
+            var memberId = member.memberId!;
+            var hullId = member.equippedHullId!;
+            var existing = !string.IsNullOrWhiteSpace(member.equippedShipInstanceId)
+                ? state.shipInstances.FirstOrDefault(ship =>
+                    member.equippedShipInstanceId.Equals(ship.shipInstanceId, StringComparison.Ordinal))
+                : state.shipInstances.FirstOrDefault(ship =>
+                    memberId.Equals(ship.ownerMemberId, StringComparison.Ordinal)
+                    && hullId.Equals(ship.hullId, StringComparison.Ordinal));
+            if (existing == null)
+            {
+                var shipInstanceId = $"ship_{memberId}";
+                var suffix = 1;
+                while (state.shipInstances.Any(ship =>
+                           shipInstanceId.Equals(ship.shipInstanceId, StringComparison.Ordinal)))
+                {
+                    shipInstanceId = $"ship_{memberId}_{suffix++}";
+                }
+                state.memberFittedModules.TryGetValue(memberId, out var fitted);
+                existing = new ShipInstanceState
+                {
+                    shipInstanceId = shipInstanceId,
+                    hullId = hullId,
+                    ownerMemberId = memberId,
+                    fittedModules = fitted != null
+                        ? new Dictionary<string, string>(fitted, StringComparer.Ordinal)
+                        : new Dictionary<string, string>(StringComparer.Ordinal),
+                };
+                state.shipInstances.Add(existing);
+            }
+            member.equippedShipInstanceId = existing.shipInstanceId;
+        }
+        state.schemaVersion = Math.Max(state.schemaVersion, 6);
     }
 
     private static void MigrateAssaultQueue(GameState state)

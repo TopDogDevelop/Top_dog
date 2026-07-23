@@ -197,4 +197,64 @@ public sealed class DeterrenceCannonTests
         SpecializedSalvoService.Tick(state, bf, gun, 1f, ships, modules);
         Assert.That(cruiser.structureHp, Is.EqualTo(hp));
     }
+
+    [Test]
+    public void OrderRepairTarget_SelectedOnly_WithEmptySelection_ExplainsNeedSelection()
+    {
+        var modules = ModuleRegistry.LoadDefault();
+        var state = new GameState { fleetCommandScope = FleetCommandScope.SelectedOnly };
+        var bf = new BattlefieldState { battlefieldId = "bf1" };
+        state.battlefields.Add(bf);
+        var healer = new BattlefieldUnit
+        {
+            unitId = "heal",
+            side = UnitSide.FRIENDLY,
+            alive = true,
+            fittedModules = { ["atk_1"] = "mod_remote_shield_repair_s" },
+        };
+        var target = new BattlefieldUnit
+        {
+            unitId = "tgt",
+            side = UnitSide.FRIENDLY,
+            alive = true,
+            displayName = "友军",
+        };
+        bf.units.Add(healer);
+        bf.units.Add(target);
+
+        var msg = FleetOrderService.OrderRepairTarget(state, bf, "tgt", Array.Empty<string>(), modules);
+        Assert.That(msg, Does.Contain("框选").Or.Contain("全体"));
+        Assert.That(healer.pendingRepairRounds, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void OrderRepairTarget_AllInScene_RightClickFriendly_QueuesHealer()
+    {
+        var modules = ModuleRegistry.LoadDefault();
+        var state = new GameState { fleetCommandScope = FleetCommandScope.AllInScene };
+        var bf = new BattlefieldState { battlefieldId = "bf1" };
+        state.battlefields.Add(bf);
+        var healer = new BattlefieldUnit
+        {
+            unitId = "heal",
+            side = UnitSide.FRIENDLY,
+            alive = true,
+            fittedModules = { ["atk_1"] = "mod_remote_shield_repair_s" },
+        };
+        var target = new BattlefieldUnit
+        {
+            unitId = "tgt",
+            side = UnitSide.FRIENDLY,
+            alive = true,
+            displayName = "友军甲",
+        };
+        bf.units.Add(healer);
+        bf.units.Add(target);
+
+        var msg = FleetOrderService.OrderRepairTarget(state, bf, "tgt", null, modules);
+        Assert.That(msg, Does.StartWith("已下令"));
+        Assert.That(healer.pendingRepairRounds, Is.EqualTo(1));
+        Assert.That(healer.targetUnitId, Is.EqualTo("tgt"));
+        Assert.That(FleetOrderService.LastAcknowledgedUnitIds, Does.Contain("heal"));
+    }
 }

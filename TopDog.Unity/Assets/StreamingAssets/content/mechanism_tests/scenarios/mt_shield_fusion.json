@@ -3,7 +3,7 @@
   "displayName": "护盾融合·白狼",
   "scenarioOrder": 7,
   "seed": 1007,
-  "spawnSeparationM": 20000,
+  "spawnSeparationM": 50000,
   "legions": [
     {
       "legionId": "mt_player",

@@ -13,7 +13,7 @@ from pathlib import Path
 
 from PIL import Image
 
-ROOT = Path(r"e:/game_dev/top_dog_unity/TopDog.Unity/Assets/Art/CombatBackgrounds/Main")
+ROOT = Path(r"H:/game_dev/top_dog_unity/TopDog.Unity/Assets/Art/CombatBackgrounds/Main")
 SUFFIXES = ("+X", "+Y", "+Z", "-X", "-Y", "-Z")
 
 UNITY_NEIGHBORS = {

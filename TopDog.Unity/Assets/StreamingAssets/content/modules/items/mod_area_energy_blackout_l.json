@@ -1,0 +1,15 @@
+{
+  "moduleId": "mod_area_energy_blackout_l",
+  "displayName": "群毁电·熄灯",
+  "displayNameEn": "Area Energy Pulse: Blackout",
+  "slotCategory": "FUNCTION",
+  "moduleKind": "area_energy_pulse",
+  "moduleSize": "LARGE",
+  "starCoinValue": 10000,
+  "requiredHullLicenses": ["area_energy_drain"],
+  "logicId": "logic_area_energy_pulse",
+  "params": {
+    "shape": "SPHERE", "radiusM": 15000, "quotaDelta": -1,
+    "cycleSec": 10, "durationSec": 10
+  }
+}

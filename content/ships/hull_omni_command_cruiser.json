@@ -1,0 +1,12 @@
+{
+  "hullId": "hull_omni_command_cruiser",
+  "displayName": "全能级指挥型",
+  "displayNameEn": "Omni-class Command Cruiser",
+  "hullBrief": "入门级的战术万金油。",
+  "tonnageClass": "CRUISER",
+  "shieldHp": 2200, "armorHp": 2000, "structureHp": 1800,
+  "baseSpeedMps": 850, "baseAccelMps2": 550, "warpSpeedAups": 0.5,
+  "attackSlots": 1, "functionSlots": 5, "defenseSlots": 3, "passiveSlots": 1,
+  "defaultSlotSize": "SMALL", "simultaneousEnableLimit": 0, "starCoinValue": 4500,
+  "hullLicenses": ["command_wave_armor", "command_wave_shield", "command_wave_speed", "command_wave_energy"]
+}

@@ -21,6 +21,7 @@ namespace TopDog.Sim.Realtime;
 public static class FieldAuraService
 {
     public const float TickIntervalSec = 1f;
+    /// <summary>模块未写 fieldCollapseCooldownSec 时的回退（秒）；改数值请改模块 JSON。</summary>
     public const float FieldCollapseCooldownSec = 30f;
 
     private static readonly Dictionary<string, float> LastTickByBf = new(StringComparer.Ordinal);
@@ -51,6 +52,7 @@ public static class FieldAuraService
             return;
         }
 
+        TryResumeAfterCollapseCooldown(bf, modules);
         RefreshDominantField(bf, modules, "shield_fusion_field");
         RefreshDominantField(bf, modules, "armor_link_field");
 
@@ -131,10 +133,103 @@ public static class FieldAuraService
         SettleAllProteges(holder, bf, "shield_fusion_field", collapse: false);
         SettleAllProteges(holder, bf, "armor_link_field", collapse: false);
         holder.fieldAuraEnabledAtSec = 0f;
+        holder.fieldAuraResumeAfterCooldown = false;
         holder.fieldAuraShieldDominant = false;
         holder.fieldAuraArmorDominant = false;
         holder.fieldAuraShieldSuppressed = false;
         holder.fieldAuraArmorSuppressed = false;
+    }
+
+    /// <summary>
+    /// 崩溃冷却结束后自动续开：仅当场域槽仍在启用限额内（IsSlotEnabled）且对应池 HP&gt;0。
+    /// 不调用 SetSlotEnabled(true) 强行挤占配额。
+    /// </summary>
+    public static void TryResumeAfterCollapseCooldown(BattlefieldState bf, ModuleRegistry modules)
+    {
+        foreach (var holder in bf.units)
+        {
+            if (holder.IsDestroyed() || holder.isBuilding || !holder.fieldAuraResumeAfterCooldown)
+            {
+                continue;
+            }
+
+            if (holder.fieldAuraCollapseCooldownSec > bf.timeSec)
+            {
+                continue;
+            }
+
+            if (holder.fieldAuraEnabledAtSec > 0f)
+            {
+                holder.fieldAuraResumeAfterCooldown = false;
+                continue;
+            }
+
+            var shieldMod = FindFieldModule(holder, modules, "shield_fusion_field");
+            var armorMod = FindFieldModule(holder, modules, "armor_link_field");
+            var canShield = shieldMod != null && holder.shieldHp > 0f;
+            var canArmor = armorMod != null && holder.armorHp > 0f;
+            if (!canShield && !canArmor)
+            {
+                // 槽被限额关掉，或池仍空：保持 resume 标记，等配额/回复
+                if (!HasFittedFieldModule(holder, modules))
+                {
+                    holder.fieldAuraResumeAfterCooldown = false;
+                }
+
+                // #region agent log
+                try
+                {
+                    var path = System.IO.Path.Combine(@"h:\", "debug-85a1e0.log");
+                    var line = "{\"sessionId\":\"85a1e0\",\"runId\":\"post-fix\",\"hypothesisId\":\"N\",\"location\":\"FieldAuraService.TryResumeAfterCollapseCooldown\",\"message\":\"resume-wait\",\"data\":{"
+                               + "\"holder\":\"" + (holder.unitId ?? "") + "\""
+                               + ",\"slotOk\":" + ((shieldMod != null || armorMod != null) ? "true" : "false")
+                               + ",\"shieldHp\":" + holder.shieldHp.ToString("F0")
+                               + ",\"armorHp\":" + holder.armorHp.ToString("F0")
+                               + "},\"timestamp\":" + System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + "}\n";
+                    System.IO.File.AppendAllText(path, line);
+                }
+                catch
+                {
+                }
+                // #endregion
+                continue;
+            }
+
+            holder.fieldAuraEnabledAtSec = Math.Max(bf.timeSec, 0.001f);
+            holder.fieldAuraResumeAfterCooldown = false;
+            // #region agent log
+            try
+            {
+                var path = System.IO.Path.Combine(@"h:\", "debug-85a1e0.log");
+                var line = "{\"sessionId\":\"85a1e0\",\"runId\":\"post-fix\",\"hypothesisId\":\"N\",\"location\":\"FieldAuraService.TryResumeAfterCollapseCooldown\",\"message\":\"resume-ok\",\"data\":{"
+                           + "\"holder\":\"" + (holder.unitId ?? "") + "\""
+                           + ",\"canShield\":" + (canShield ? "true" : "false")
+                           + ",\"canArmor\":" + (canArmor ? "true" : "false")
+                           + ",\"enabledAt\":" + holder.fieldAuraEnabledAtSec.ToString("F1")
+                           + "},\"timestamp\":" + System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + "}\n";
+                System.IO.File.AppendAllText(path, line);
+            }
+            catch
+            {
+            }
+            // #endregion
+        }
+    }
+
+    private static bool HasFittedFieldModule(BattlefieldUnit unit, ModuleRegistry modules)
+    {
+        foreach (var modId in unit.fittedModules.Values)
+        {
+            var mod = modules.Resolve(modId);
+            if (mod != null
+                && ("shield_fusion_field".Equals(mod.moduleKind, StringComparison.Ordinal)
+                    || "armor_link_field".Equals(mod.moduleKind, StringComparison.Ordinal)))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public static float ResolveFieldRadiusM(BattlefieldUnit holder, ModuleDef mod, HullDef? hull)
@@ -503,7 +598,11 @@ public static class FieldAuraService
         }
     }
 
-    public static ModuleDef? FindFieldModule(BattlefieldUnit unit, ModuleRegistry modules, string moduleKind)
+    /// <summary>配装查询（读数值）；不检查启用限额。</summary>
+    public static ModuleDef? FindFittedFieldModule(
+        BattlefieldUnit unit,
+        ModuleRegistry modules,
+        string moduleKind)
     {
         foreach (var modId in unit.fittedModules.Values)
         {
@@ -517,10 +616,32 @@ public static class FieldAuraService
         return null;
     }
 
+    public static ModuleDef? FindFieldModule(BattlefieldUnit unit, ModuleRegistry modules, string moduleKind)
+    {
+        foreach (var kv in unit.fittedModules)
+        {
+            var mod = modules.Resolve(kv.Value);
+            if (mod == null || !moduleKind.Equals(mod.moduleKind, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            // 启用限额：被 quota/玩家关掉的槽不参与场域
+            if (!CombatModuleEnableService.IsSlotEnabled(unit, kv.Key))
+            {
+                continue;
+            }
+
+            return mod;
+        }
+
+        return null;
+    }
+
     public static bool IsFieldEligibleProtege(BattlefieldUnit u) =>
         !u.isBuilding
         && !BattlefieldSceneProxyService.IsSceneProxy(u)
-        && u.parentUnitId == null
+        && !u.IsTemplateCarriedUnit()
         && !u.IsBallisticMissile()
         && !"BUILDING".Equals(u.tonnageClass, StringComparison.Ordinal)
         && !"COMPLEX".Equals(u.tonnageClass, StringComparison.Ordinal)

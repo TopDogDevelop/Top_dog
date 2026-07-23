@@ -1,0 +1,60 @@
+{
+  "materials": [
+    "FX_ArmorMaintainField_Active_ForceField",
+    "FX_ArmorMaintainField_Active_Glow",
+    "FX_ArmorMaintainField_Active_Fragment",
+    "FX_ArmorMaintain_LoopShieldPlane"
+  ],
+  "textures": [
+    {
+      "slot": "_MainTex",
+      "material": "FX_ArmorMaintainField_Active_ForceField",
+      "texture": "T_FX_Tile_042"
+    },
+    {
+      "slot": "_AlphaTex",
+      "material": "FX_ArmorMaintainField_Active_ForceField",
+      "texture": "T_FX_Tile_042"
+    },
+    {
+      "slot": "_DistortTex",
+      "material": "FX_ArmorMaintainField_Active_ForceField",
+      "texture": "T_FX_Tile_042"
+    },
+    {
+      "slot": "_MainTex",
+      "material": "FX_ArmorMaintainField_Active_Glow",
+      "texture": "T_FX_glow_004"
+    },
+    {
+      "slot": "_MainTex",
+      "material": "FX_ArmorMaintainField_Active_Fragment",
+      "texture": "T_FX_Particle_02"
+    },
+    {
+      "slot": "_MainTex",
+      "material": "FX_ArmorMaintain_LoopShieldPlane",
+      "texture": "T_FX_Atlas_19"
+    },
+    {
+      "slot": "_AlphaTex",
+      "material": "FX_ArmorMaintain_LoopShieldPlane",
+      "texture": "T_FX_Tile_026"
+    },
+    {
+      "slot": "_DistortTex",
+      "material": "FX_ArmorMaintain_LoopShieldPlane",
+      "texture": "T_FX_Tile_012"
+    }
+  ],
+  "tintHdr": [
+    10.0,
+    7.890469551086426,
+    4.117647171020508
+  ],
+  "tintDisplay": [
+    1.0,
+    0.894955888856142,
+    0.6321018910002209
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "moduleId": "mod_command_speed_drive_s",
+  "displayName": "加速波·带动",
+  "displayNameEn": "Command Wave: Drive",
+  "slotCategory": "FUNCTION",
+  "moduleKind": "command_wave",
+  "moduleSize": "SMALL",
+  "starCoinValue": 100,
+  "requiredHullLicenses": ["command_wave_speed"],
+  "logicId": "logic_command_wave",
+  "params": {
+    "shape": "SPHERE", "radiusM": 10000, "stat": "maxSpeed",
+    "operation": "ADD_PCT", "value": 0.15, "stackKey": "mod_command_speed_drive_s"
+  }
+}

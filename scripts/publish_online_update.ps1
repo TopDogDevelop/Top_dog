@@ -1,7 +1,7 @@
 param(
     [string]$Version = "",
     [string]$DevelopRoot = (Split-Path $PSScriptRoot -Parent),
-    [string]$UpdateRepo = "e:\game_dev\topdog_online_update",
+    [string]$UpdateRepo = "H:\game_dev\topdog_online_update",
     [string]$RemoteUrl = "https://github.com/TopDogDevelop/topdog_online_update.git",
     [string]$HfBucket = "hf://buckets/liketocode789/topdog_online_update_data",
     [string]$HfResolveBaseUrl = "https://huggingface.co/buckets/liketocode789/topdog_online_update_data/resolve/",

@@ -43,6 +43,7 @@ public static class RemoteRepairSalvoService
             }
 
             u.targetUnitId = targetUnitId;
+            RemoteRepairAutoTargetingService.SuppressForPlayerOrder(u);
             u.remoteRepairAutoActive = false;
             if (u.pendingRepairRounds < MaxRepairRounds)
             {
@@ -51,6 +52,22 @@ public static class RemoteRepairSalvoService
 
             count++;
         }
+
+        // #region agent log
+        try
+        {
+            var path = System.IO.Path.Combine(@"h:\", "debug-85a1e0.log");
+            var line = "{\"sessionId\":\"85a1e0\",\"hypothesisId\":\"P\",\"location\":\"RemoteRepairSalvoService.OrderRepairTarget\",\"message\":\"repair-apply\",\"data\":{"
+                       + "\"target\":\"" + (targetUnitId ?? "") + "\""
+                       + ",\"healers\":" + count
+                       + ",\"targetName\":\"" + (target!.displayName ?? target.unitId ?? "").Replace("\"", "'") + "\""
+                       + "},\"timestamp\":" + System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + "}\n";
+            System.IO.File.AppendAllText(path, line);
+        }
+        catch
+        {
+        }
+        // #endregion
 
         return count > 0
             ? $"已下令 {count} 艘维修 {target!.displayName}（+1 轮）"
@@ -84,18 +101,25 @@ public static class RemoteRepairSalvoService
 
     public static bool HasRemoteRepairModule(BattlefieldUnit unit, ModuleRegistry modules)
     {
-        foreach (var modId in unit.fittedModules.Values)
+        foreach (var kv in unit.fittedModules)
         {
-            var mod = modules.Resolve(modId);
+            var mod = modules.Resolve(kv.Value);
             if (mod == null)
             {
                 continue;
             }
 
-            if ("remote_repair".Equals(mod.moduleSubtype, StringComparison.Ordinal))
+            if (!"remote_repair".Equals(mod.moduleSubtype, StringComparison.Ordinal))
             {
-                return true;
+                continue;
             }
+
+            if (!CombatModuleEnableService.IsSlotEnabled(unit, kv.Key))
+            {
+                continue;
+            }
+
+            return true;
         }
 
         return false;
@@ -258,9 +282,14 @@ public static class RemoteRepairSalvoService
     {
         ModuleDef? best = null;
         var bestAmount = 0f;
-        foreach (var modId in healer.fittedModules.Values)
+        foreach (var kv in healer.fittedModules)
         {
-            var mod = modules.Resolve(modId);
+            if (!CombatModuleEnableService.IsSlotEnabled(healer, kv.Key))
+            {
+                continue;
+            }
+
+            var mod = modules.Resolve(kv.Value);
             if (mod == null
                 || !"remote_repair".Equals(mod.moduleSubtype, StringComparison.Ordinal))
             {

@@ -30,6 +30,7 @@ public static class InstallRootFileLog
     private static string? _path;
     private static bool _started;
     private static bool _writing;
+    private static int _linesSinceFlush;
 
     /// <summary>Absolute path of the active log file, or null if not started.</summary>
     public static string? Path => _path;
@@ -127,6 +128,7 @@ public static class InstallRootFileLog
             {
                 var stamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
                 WriteLineUnlocked(stamp + " [" + type + "] " + condition);
+                _linesSinceFlush++;
                 if (type is LogType.Error or LogType.Exception or LogType.Assert)
                 {
                     if (!string.IsNullOrEmpty(stackTrace))
@@ -135,6 +137,12 @@ public static class InstallRootFileLog
                     }
 
                     _writer.Flush();
+                    _linesSinceFlush = 0;
+                }
+                else if (_linesSinceFlush >= 48)
+                {
+                    _writer.Flush();
+                    _linesSinceFlush = 0;
                 }
 
                 EnforceSizeLimitUnlocked();
@@ -191,7 +199,8 @@ public static class InstallRootFileLog
             FileShare.ReadWrite);
         _writer = new StreamWriter(_stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false))
         {
-            AutoFlush = true,
+            // 禁止逐行 Flush：游戏进程不得阻塞等日志 I/O
+            AutoFlush = false,
         };
     }
 

@@ -1,9 +1,0 @@
-{
-  "moduleId": "mod_reflex_arc_xl",
-  "displayName": "反射弧格挡 XL",
-  "slotCategory": "DEFENSE",
-  "moduleSize": "EXTRA_LARGE",
-  "damageMitigationKind": "reflex_shield_block",
-  "blockShieldPctOfMax": 1,
-  "blockLockSec": 0.1
-}

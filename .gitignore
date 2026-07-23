@@ -47,10 +47,6 @@ docs/
 .cursor/
 .codegraph/
 
-# HybridCLR generated / vendor (local build only; not for archive)
+# HybridCLR generated / vendor (local build only)
 TopDog.Unity/HybridCLRData/
 TopDog.Unity/Packages/com.code-philosophy.hybridclr/
-
-# Local prompt/design scratch ¡ª develop-only, not for GitHub archive
-record/
-*.xlsx

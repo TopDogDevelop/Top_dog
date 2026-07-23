@@ -3,8 +3,9 @@
   "displayName": "疗阻射线 S",
   "slotCategory": "ATTACK",
   "moduleSize": "SMALL",
-  "attackRangeM": 50000,
+  "attackRangeM": 10000,
   "fireCycleSec": 10,
   "markDurationSec": 10,
-  "outgoingRepairMult": 0.8
+  "outgoingRepairMult": 0.75,
+  "starCoinValue": 100
 }

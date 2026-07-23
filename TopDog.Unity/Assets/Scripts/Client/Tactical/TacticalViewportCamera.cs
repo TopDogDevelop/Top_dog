@@ -205,6 +205,48 @@ public sealed class TacticalViewportCamera : MonoBehaviour, IViewportCameraComma
             false);
     }
 
+    /// <summary>将单位实际世界速度投影为当前透视相机下的屏幕运动方向。</summary>
+    public bool TryProjectVelocityDirection(
+        float positionDx,
+        float positionDy,
+        float positionDz,
+        float velocityX,
+        float velocityY,
+        float velocityZ,
+        float viewportWidth,
+        float viewportHeight,
+        out Vector2 direction)
+    {
+        direction = default;
+        WorldOffsetToViewSpace(
+            positionDx, positionDy, positionDz,
+            out var px, out var py, out var pz);
+        WorldOffsetToViewSpace(
+            velocityX, velocityY, velocityZ,
+            out var ux, out var uy, out var uz);
+        var depth = pz + ViewDistance;
+        if (depth <= DepthEpsilon)
+        {
+            return false;
+        }
+
+        var halfW = viewportWidth * 0.5f;
+        var halfH = viewportHeight * 0.5f;
+        var aspect = viewportWidth / Mathf.Max(viewportHeight, 1f);
+        var tanHalf = Mathf.Tan(VerticalFovDeg * Mathf.Deg2Rad * 0.5f);
+        var depthSq = depth * depth;
+        var dx = (ux * depth - px * uz) / (depthSq * tanHalf * aspect) * halfW;
+        var dy = -(uy * depth - py * uz) / (depthSq * tanHalf) * halfH;
+        var length = Mathf.Sqrt(dx * dx + dy * dy);
+        if (length <= 0.0001f)
+        {
+            return false;
+        }
+
+        direction = new Vector2(dx / length, dy / length);
+        return true;
+    }
+
     public void ZoomIn()
     {
         ViewDistance /= ZoomFactor;

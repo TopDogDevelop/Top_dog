@@ -9,7 +9,7 @@ using TopDog.Sim.State;
  * 本文件: SpecializedSalvoService.cs — 反导弹/威慑炮/标记射线等按模块开火
  * 【机制要点】
  * · ResolveHostileTarget：autoFireEnabled=false 且无显式 targetUnitId 时不自动选敌
- * · 威慑炮/标记射线等专用武器走本服务，与 TryFireSalvo 自火门控一致
+ * · 伤害型模块：§4b TryConfirmSalvoTarget；显式集火与主炮共享 §4c 顺序槽
  * ══
  */
 
@@ -17,6 +17,8 @@ namespace TopDog.Sim.Realtime;
 
 public static class SpecializedSalvoService
 {
+    private static float _lastDeterrenceBlockLogWallMs;
+
     public static void Tick(
         GameState state,
         BattlefieldState bf,
@@ -25,7 +27,7 @@ public static class SpecializedSalvoService
         ShipRegistry ships,
         ModuleRegistry modules)
     {
-        if (u.IsDestroyed() || u.isBuilding || u.IsBallisticMissile() || u.parentUnitId != null)
+        if (u.IsDestroyed() || u.isBuilding || u.IsBallisticMissile() || u.IsTemplateCarriedUnit())
         {
             return;
         }
@@ -143,12 +145,12 @@ public static class SpecializedSalvoService
         ModuleRegistry modules)
     {
         var target = ResolveHostileTarget(bf, state, u);
-        if (target == null)
+        if (!BattlefieldSystem.TryConfirmSalvoTarget(u, target))
         {
             return false;
         }
 
-        var rank = CombatPowerCalculator.TonnageRankOf(target.tonnageClass);
+        var rank = CombatPowerCalculator.TonnageRankOf(target!.tonnageClass);
         if (rank < mod.targetMinTonnageRank)
         {
             return false;
@@ -169,8 +171,61 @@ public static class SpecializedSalvoService
             return false;
         }
 
+        if (!BattlefieldSystem.TryConfirmSalvoTarget(u, target)
+            || !FocusFireSequencer.TryClaimVolleySlot(bf, u))
+        {
+            // #region agent log
+            try
+            {
+                var nowMs = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                if (nowMs >= _lastDeterrenceBlockLogWallMs + 1000
+                    && u.explicitFocus
+                    && bf.focusFireTargetId != null)
+                {
+                    _lastDeterrenceBlockLogWallMs = nowMs;
+                    var path = System.IO.Path.Combine(@"h:\", "debug-85a1e0.log");
+                    var confirm = BattlefieldSystem.TryConfirmSalvoTarget(u, target);
+                    var line = "{\"sessionId\":\"85a1e0\",\"hypothesisId\":\"K\",\"location\":\"SpecializedSalvoService.TryFireDeterrence\",\"message\":\"deterrence-blocked\",\"data\":{"
+                               + "\"firer\":\"" + (u.unitId ?? "") + "\""
+                               + ",\"firerName\":\"" + (u.displayName ?? "") + "\""
+                               + ",\"target\":\"" + (target?.unitId ?? "") + "\""
+                               + ",\"targetName\":\"" + (target?.displayName ?? "") + "\""
+                               + ",\"salvo\":" + u.salvoRoundDmg.ToString("F0")
+                               + ",\"confirm\":" + (confirm ? "true" : "false")
+                               + ",\"explicit\":" + (u.explicitFocus ? "true" : "false")
+                               + ",\"focusT\":\"" + (bf.focusFireTargetId ?? "") + "\""
+                               + ",\"cursor\":" + bf.focusFireCursor
+                               + ",\"expected\":\"" + (bf.focusFireQueue != null && bf.focusFireQueue.Count > 0
+                                   ? bf.focusFireQueue[Math.Clamp(bf.focusFireCursor, 0, bf.focusFireQueue.Count - 1)]
+                                   : "") + "\""
+                               + "},\"timestamp\":" + nowMs + "}\n";
+                    System.IO.File.AppendAllText(path, line);
+                }
+            }
+            catch { }
+            // #endregion
+            return false;
+        }
+
         BattlefieldSystem.ApplyMixedDamage(bf, target, dmg, u, state, ships, modules);
+        CombatFxEmit.HybridGunTracer(bf, u, target, dist);
         CombatTelemetryLog.LogSalvo(u, target, dmg, mod.fireCycleSec, dmg);
+        // #region agent log
+        try
+        {
+            var path = System.IO.Path.Combine(@"h:\", "debug-85a1e0.log");
+            var line = "{\"sessionId\":\"85a1e0\",\"runId\":\"post-fix\",\"hypothesisId\":\"K\",\"location\":\"SpecializedSalvoService.TryFireDeterrence\",\"message\":\"deterrence-hit\",\"data\":{"
+                       + "\"firer\":\"" + (u.unitId ?? "") + "\""
+                       + ",\"firerName\":\"" + (u.displayName ?? "") + "\""
+                       + ",\"target\":\"" + (target.unitId ?? "") + "\""
+                       + ",\"targetName\":\"" + (target.displayName ?? "") + "\""
+                       + ",\"dmg\":" + dmg.ToString("F0")
+                       + ",\"dist\":" + dist.ToString("F0")
+                       + "},\"timestamp\":" + System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + "}\n";
+            System.IO.File.AppendAllText(path, line);
+        }
+        catch { }
+        // #endregion
         return true;
     }
 

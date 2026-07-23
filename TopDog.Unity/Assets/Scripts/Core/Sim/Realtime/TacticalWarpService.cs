@@ -139,6 +139,22 @@ public static class TacticalWarpService
         {
             return "当前无法跃迁";
         }
+        if (InterdictionFieldService.IsOriginBlocked(fromBf, unit.x, unit.y, unit.z))
+        {
+            return "区域拦截立场内无法跃迁";
+        }
+        if (InterdictionFieldService.TryClipRoute(
+                fromBf,
+                unit.x, unit.y, unit.z,
+                px, py, pz,
+                out var clippedX, out var clippedY, out var clippedZ))
+        {
+            toBf = fromBf;
+            px = clippedX;
+            py = clippedY;
+            pz = clippedZ;
+            landingDistM = 0f;
+        }
 
         var fail = TacticalWarpInitiateRules.Evaluate(state, fromBf, unit, hull, px, py, pz);
         if (fail is TacticalWarpInitiateRules.FailReason.Heading or TacticalWarpInitiateRules.FailReason.ForwardSpeed)
@@ -188,6 +204,20 @@ public static class TacticalWarpService
         {
             return "战场无效";
         }
+        if (InterdictionFieldService.IsOriginBlocked(bf, unit.x, unit.y, unit.z))
+        {
+            return "区域拦截立场内无法跃迁";
+        }
+        if (InterdictionFieldService.TryClipRoute(
+                bf,
+                unit.x, unit.y, unit.z,
+                targetX, targetY, targetZ,
+                out var clippedX, out var clippedY, out var clippedZ))
+        {
+            targetX = clippedX;
+            targetY = clippedY;
+            targetZ = clippedZ;
+        }
 
         var dx = targetX - unit.x;
         var dy = targetY - unit.y;
@@ -216,6 +246,11 @@ public static class TacticalWarpService
             return "当前无法跃迁";
         }
 
+        // Align craft toward target and seed forward speed so gates can pass immediately
+        // (same permission rules as cross-scene; avoid silent PrepareInitiate that looks like 无响应).
+        ShipMotionIntegrator.SnapHeadingToward(unit, targetX, targetY, targetZ);
+        SeedForwardSpeedForWarpGate(unit);
+
         var fail = TacticalWarpInitiateRules.Evaluate(state, bf, unit, hull, targetX, targetY, targetZ);
         if (fail is TacticalWarpInitiateRules.FailReason.Heading or TacticalWarpInitiateRules.FailReason.ForwardSpeed)
         {
@@ -229,7 +264,7 @@ public static class TacticalWarpService
                 "H3",
                 "TacticalWarpService.TryOrderIntraSceneWarp",
                 "prepare_initiate",
-                new { unitId = unit.unitId, distM, bfId = bf.battlefieldId });
+                new { unitId = unit.unitId, distM, bfId = bf.battlefieldId, fail = fail.ToString() });
             return null;
         }
 
@@ -238,6 +273,7 @@ public static class TacticalWarpService
             return TacticalWarpInitiateRules.MessageFor(fail);
         }
 
+        // PseudoWarp ApproachProxy → EntryBurst/Landing to the designated point (reuse cross-scene motion).
         BeginWarpAfterGate(state, unit, bf, bf, hull, targetX, targetY, targetZ, 0f);
         AgentSessionDebugLog.Write(
             "H3",
@@ -245,6 +281,28 @@ public static class TacticalWarpService
             "approach_target",
             new { unitId = unit.unitId, distM, targetX, targetY, targetZ });
         return null;
+    }
+
+    private static void SeedForwardSpeedForWarpGate(BattlefieldUnit unit)
+    {
+        var max = TacticalWarpInitiateRules.EffectiveMaxSpeedMps(unit);
+        if (max <= TacticalWarpInitiateRules.ImmobileMaxSpeedThresholdMps)
+        {
+            return;
+        }
+
+        var need = TacticalWarpInitiateRules.MinForwardSpeedFraction * max;
+        var forward = TacticalWarpInitiateRules.ForwardSpeedMps(unit);
+        if (forward >= need)
+        {
+            return;
+        }
+
+        var (hx, hy, hz) = ShipMotionIntegrator.HeadingToUnitVector(unit.facingRad, unit.pitchRad);
+        unit.vx = hx * need;
+        unit.vy = hy * need;
+        unit.vz = hz * need;
+        unit.throttleOn = true;
     }
 
     /// <summary>取消 PrepareInitiate（停船等指令调用）。</summary>
@@ -663,15 +721,17 @@ public static class TacticalWarpService
         {
             if (IsIntraSceneWarp(u))
             {
-                u.x = u.warpProxyX;
-                u.y = u.warpProxyY;
-                u.z = u.warpProxyZ;
-                u.vx = u.vy = u.vz = 0f;
-                CompleteWarp(u);
+                // Reuse cross-scene post-approach: high-speed EntryBurst → LandingDecel to destination.
+                u.warpLandingX = u.warpProxyX;
+                u.warpLandingY = u.warpProxyY;
+                u.warpLandingZ = u.warpProxyZ;
+                u.warpPhase = TacticalWarpPhase.EntryBurst;
+                u.warpPhaseTimerSec = 0f;
+                u.inTacticalWarp = true;
                 AgentSessionDebugLog.Write(
                     "H3",
                     "TacticalWarpService.TickApproachProxy",
-                    "intra_scene_arrived",
+                    "intra_scene_entry_burst",
                     new { unitId = u.unitId, bfId = bf.battlefieldId });
                 return;
             }
@@ -754,6 +814,20 @@ public static class TacticalWarpService
             out var lx,
             out var ly,
             out var lz);
+        if (InterdictionFieldService.TryClipRoute(
+                toBf,
+                ex, ey, ez,
+                lx, ly, lz,
+                out var interceptedX, out var interceptedY, out var interceptedZ))
+        {
+            lx = interceptedX;
+            ly = interceptedY;
+            lz = interceptedZ;
+            landingDistM = MathF.Sqrt(
+                (lx - ox) * (lx - ox)
+                + (ly - oy) * (ly - oy)
+                + (lz - oz) * (lz - oz));
+        }
 
         var burstDistM = TacticalWarpEtaEstimator.EstimateBurstToLandingDistM(ox, oy, oz, ex, ey, ez, landingDistM);
         var estLandingSec = TacticalWarpEtaEstimator.EstimatePostEntryLandingSec(burstDistM);

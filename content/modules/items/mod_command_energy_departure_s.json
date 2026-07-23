@@ -1,0 +1,15 @@
+{
+  "moduleId": "mod_command_energy_departure_s",
+  "displayName": "能量指挥波·启程",
+  "displayNameEn": "Command Wave: Departure",
+  "slotCategory": "FUNCTION",
+  "moduleKind": "command_wave",
+  "moduleSize": "SMALL",
+  "starCoinValue": 100,
+  "requiredHullLicenses": ["command_wave_energy"],
+  "logicId": "logic_command_wave",
+  "params": {
+    "shape": "SPHERE", "radiusM": 30000, "stat": "quota",
+    "operation": "ADD", "value": 1, "stackKey": "mod_command_energy_departure_s"
+  }
+}

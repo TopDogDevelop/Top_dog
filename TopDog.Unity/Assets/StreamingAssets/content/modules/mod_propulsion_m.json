@@ -4,7 +4,8 @@
   "displayNameEn": "Propulsion M",
   "slotCategory": "FUNCTION",
   "moduleSize": "MEDIUM",
-  "speedBonusMps": 40,
-  "speedBonusPctWhenEnabled": 0.12,
-  "appliesToPropulsion": true
+  "speedBonusMps": 0,
+  "speedBonusPctWhenEnabled": 2.2,
+  "appliesToPropulsion": true,
+  "starCoinValue": 1000
 }

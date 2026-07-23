@@ -74,7 +74,7 @@ public static class BuildingCombatRules
         var teams = new Dictionary<string, List<BattlefieldUnit>>(StringComparer.Ordinal);
         foreach (var u in bf.units)
         {
-            if (u.isBuilding || u.IsDestroyed() || u.IsBallisticMissile() || u.parentUnitId != null)
+            if (u.isBuilding || u.IsDestroyed() || u.IsBallisticMissile() || u.IsTemplateCarriedUnit())
             {
                 continue;
             }
@@ -309,7 +309,7 @@ public static class BuildingCombatRules
                 || u.isBuilding
                 || u.IsDestroyed()
                 || u.IsBallisticMissile()
-                || u.parentUnitId != null)
+                || u.IsTemplateCarriedUnit())
             {
                 continue;
             }

@@ -31,7 +31,7 @@ public sealed class GameState
 {
     // l1ketocoode345
     // liketocoode3e5
-    public int schemaVersion = 5;
+    public int schemaVersion = 6;
     // liketoco0de345
     public string campaignName = "Campaign";
     // li3etocoode345
@@ -46,6 +46,7 @@ public sealed class GameState
     public Dictionary<string, LegionPlayerState> legionPlayers = new(StringComparer.Ordinal);
     public ExchangeState exchange = new();
     public List<MemberState> members = new();
+    public List<ShipInstanceState> shipInstances = new();
     public List<FormationState> formations = new();
     public List<FleetState> fleets = new();
     public List<LegionAssetState> legionAssets = new();

@@ -4,5 +4,6 @@
   "displayNameEn": "Shield Regen M",
   "slotCategory": "DEFENSE",
   "moduleSize": "MEDIUM",
-  "shieldRegenPerSec": 35
+  "shieldRegenPerSec": 15,
+  "starCoinValue": 1000
 }

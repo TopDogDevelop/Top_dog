@@ -1,0 +1,7 @@
+{
+  "logicId": "logic_interdiction_field_mobile",
+  "blocks": [
+    { "type": "CREATE_MOBILE_INTERDICTION_SOURCE" }
+  ],
+  "paramSchema": ["radiusM", "durationSec"]
+}

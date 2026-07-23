@@ -1,0 +1,11 @@
+{
+  "logicId": "logic_carried_unit_bay",
+  "blocks": [
+    { "type": "DEPLOY_CARRIED_UNIT" },
+    { "type": "RECOVER_CARRIED_UNIT" }
+  ],
+  "paramSchema": [
+    "carriedHullId", "payloadMode", "carriedCapacity", "launchBatchSize",
+    "deploySec", "recoverSec", "recoverRangeM", "onParentDestroyed"
+  ]
+}

@@ -4,11 +4,11 @@
   "displayNameEn": "Useless-class Arsenal Carrier",
   "hullBrief": "航母的黄金搭档，无用的东西",
   "tonnageClass": "CARRIER",
-  "shieldHp": 10000,
-  "armorHp": 5000,
-  "structureHp": 20000,
-  "baseSpeedMps": 100,
-  "baseAccelMps2": 20,
+  "shieldHp": 115000,
+  "armorHp": 55000,
+  "structureHp": 230000,
+  "baseSpeedMps": 280,
+  "baseAccelMps2": 55,
   "warpSpeedAups": 5.0,
   "warpScramResist": 1,
   "attackSlots": 3,
@@ -24,5 +24,6 @@
   "maxOverslots": 0,
   "simultaneousEnableLimit": 0,
   "hullLicenses": ["logistics"],
-  "hullLargeRemoteRepairBonusPct": 100
+  "hullLargeRemoteRepairBonusPct": 30,
+  "starCoinValue": 320000
 }

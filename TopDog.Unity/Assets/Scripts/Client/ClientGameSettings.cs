@@ -1,5 +1,6 @@
 using System;
 using TopDog.Client.Tactical;
+using TopDog.Sim.Realtime;
 using UnityEngine;
 /*
  * ⚠️ 背景链（CombatBackground* / CombatSpaceBackground* / 本文件背景偏好块）：勿动，除非用户明确要求。
@@ -10,8 +11,9 @@ using UnityEngine;
  * · CombatVerticalFovDeg：36°–110°，默认 72°
  * · CombatBackgroundMaxResolution：512–4096（步进 128），RT 长边上限
  * · CombatBackgroundSetPreference：<c>random</c> 或 Main 池套系 id
+ * · CombatFxEnabled：实时交战特效（弹道/场域球）开关
  * · 变更事件驱动视口/背景 RT 刷新
- * 【关联】CombatViewSettingsBinder · TacticalViewportCamera · CombatSpaceBackgroundCameraHost
+ * 【关联】CombatViewSettingsBinder · TacticalViewportCamera · CombatFxCameraHost · CombatSpaceBackgroundCameraHost
  * ══
  */
 
@@ -53,14 +55,20 @@ public static class ClientGameSettings
     public static event Action CombatBackgroundSetChanged;
     public static event Action CombatViewBreathingChanged;
     public static event Action AudioSettingsChanged;
+    public static event Action CombatFxEnabledChanged;
 
     private const string KeyBackgroundMusicEnabled = "topdog.audio_bgm_enabled";
     private const string KeyUiClickSoundEnabled = "topdog.audio_ui_click_enabled";
     private const string KeyMasterVolume = "topdog.audio_master_volume";
+    private const string KeyDefaultCommandRangeKm = "topdog.default_command_range_km";
+    private const string KeyCombatFxEnabled = "topdog.combat_fx_enabled";
 
     public const float DefaultMasterVolume = 0.1f;
     public const float MinMasterVolume = 0f;
     public const float MaxMasterVolume = 1f;
+
+    /// <summary>默认距离（km）；0=不限距，跨对局/启动经 PlayerPrefs 记忆。</summary>
+    public const float DefaultCommandRangeKmDefault = 0f;
 
     public static bool BackgroundMusicEnabled
     {
@@ -120,6 +128,53 @@ public static class ClientGameSettings
         if (!Mathf.Approximately(previous, clamped))
         {
             AudioSettingsChanged?.Invoke();
+        }
+    }
+
+    /// <summary>底栏默认距离（km），0–1000；0=不限距。</summary>
+    public static float DefaultCommandRangeKm
+    {
+        get
+        {
+            if (!PlayerPrefs.HasKey(KeyDefaultCommandRangeKm))
+            {
+                return DefaultCommandRangeKmDefault;
+            }
+
+            return Mathf.Clamp(
+                PlayerPrefs.GetFloat(KeyDefaultCommandRangeKm, DefaultCommandRangeKmDefault),
+                TacticalRangeScale.MinKm,
+                TacticalRangeScale.MaxKm);
+        }
+    }
+
+    public static void SetDefaultCommandRangeKm(float km, bool persist = true)
+    {
+        var clamped = Mathf.Clamp(km, TacticalRangeScale.MinKm, TacticalRangeScale.MaxKm);
+        if (persist)
+        {
+            PlayerPrefs.SetFloat(KeyDefaultCommandRangeKm, clamped);
+            PlayerPrefs.Save();
+        }
+
+        TacticalSelectionState.ApplyPersistedDefaultCommandRangeKm(clamped);
+    }
+
+    public static bool CombatFxEnabled =>
+        PlayerPrefs.GetInt(KeyCombatFxEnabled, 1) != 0;
+
+    public static void SetCombatFxEnabled(bool enabled, bool persist = true)
+    {
+        var previous = CombatFxEnabled;
+        if (persist)
+        {
+            PlayerPrefs.SetInt(KeyCombatFxEnabled, enabled ? 1 : 0);
+            PlayerPrefs.Save();
+        }
+
+        if (previous != enabled)
+        {
+            CombatFxEnabledChanged?.Invoke();
         }
     }
 

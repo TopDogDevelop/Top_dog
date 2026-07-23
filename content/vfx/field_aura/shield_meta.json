@@ -1,0 +1,44 @@
+{
+  "materials": [
+    "FX_DisturbWeaknessField_Active_ForceField",
+    "FX_DisturbWeaknessField_Active_Glow",
+    "FX_DisturbWeaknessField_Active_Spot"
+  ],
+  "textures": [
+    {
+      "slot": "_MainTex",
+      "material": "FX_DisturbWeaknessField_Active_ForceField",
+      "texture": "T_FX_Tile_042"
+    },
+    {
+      "slot": "_AlphaTex",
+      "material": "FX_DisturbWeaknessField_Active_ForceField",
+      "texture": "T_FX_Tile_042"
+    },
+    {
+      "slot": "_DistortTex",
+      "material": "FX_DisturbWeaknessField_Active_ForceField",
+      "texture": "T_FX_Tile_009"
+    },
+    {
+      "slot": "_MainTex",
+      "material": "FX_DisturbWeaknessField_Active_Glow",
+      "texture": "T_FX_glow_004"
+    },
+    {
+      "slot": "_MainTex",
+      "material": "FX_DisturbWeaknessField_Active_Spot",
+      "texture": "T_FX_Atlas_13"
+    }
+  ],
+  "tintHdr": [
+    9.82758617401123,
+    8.75,
+    10.0
+  ],
+  "tintDisplay": [
+    0.9921485687454837,
+    0.9402760572844477,
+    1.0
+  ]
+}

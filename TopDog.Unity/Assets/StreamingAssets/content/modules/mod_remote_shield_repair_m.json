@@ -5,9 +5,7 @@
   "moduleSize": "MEDIUM",
   "moduleSubtype": "remote_repair",
   "repairLayer": "shield",
-  "repairPerSalvo": 500,
-  "repairCycleSec": 5,
-  "repairRangeM": 10000,
-  "attackRangeM": 10000,
-  "repairFalloffPctPerKm": 15
+  "repairPerSalvo": 250, "repairCycleSec": 10,
+  "repairRangeM": 25000, "attackRangeM": 25000,
+  "repairFalloffPctPerKm": 15, "starCoinValue": 1000
 }

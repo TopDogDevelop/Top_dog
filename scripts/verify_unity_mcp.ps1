@@ -1,5 +1,5 @@
 $ErrorActionPreference = "Continue"
-$project = "e:\game_dev\top_dog_unity\TopDog.Unity"
+$project = "H:\game_dev\top_dog_unity\TopDog.Unity"
 $mcpJson = Join-Path $env:USERPROFILE ".cursor\mcp.json"
 $editorCandidates = @(
     "C:\Program Files\Unity\Hub\Editor\6000.3.19f1\Editor\Unity.exe",
@@ -10,7 +10,7 @@ $endpoint = "http://localhost:8080/"
 
 Write-Host "=== Unity Community MCP preflight ===" -ForegroundColor Cyan
 
-$wrongProject = "e:\game_dev\top_dog_unity"
+$wrongProject = "H:\game_dev\top_dog_unity"
 if (Test-Path $project) { Write-Host "[OK] project: $project" -ForegroundColor Green }
 else { Write-Host "[FAIL] project path missing" -ForegroundColor Red }
 

@@ -1,0 +1,7 @@
+{
+  "moduleId": "mod_group_structure_repair_s", "displayName": "结构群回·小型",
+  "displayNameEn": "Small Group Structure Repair", "slotCategory": "ATTACK",
+  "moduleKind": "group_repair", "moduleSize": "SMALL", "starCoinValue": 100,
+  "requiredHullLicenses": ["group_repair"], "logicId": "logic_group_repair",
+  "params": {"shape": "SPHERE", "radiusM": 10000, "layer": "structure", "amount": 5, "cycleSec": 10}
+}

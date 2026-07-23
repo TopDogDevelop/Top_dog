@@ -1,0 +1,7 @@
+{
+  "logicId": "logic_interdiction_field_fixed",
+  "blocks": [
+    { "type": "CREATE_FIXED_INTERDICTION_SOURCE" }
+  ],
+  "paramSchema": ["radiusM", "durationSec"]
+}

@@ -1,0 +1,7 @@
+{
+  "moduleId": "mod_group_armor_repair_l", "displayName": "甲群回·大型",
+  "displayNameEn": "Large Group Armor Repair", "slotCategory": "ATTACK",
+  "moduleKind": "group_repair", "moduleSize": "LARGE", "starCoinValue": 10000,
+  "requiredHullLicenses": ["group_repair"], "logicId": "logic_group_repair",
+  "params": {"shape": "SPHERE", "radiusM": 20000, "layer": "armor", "amount": 200, "cycleSec": 10}
+}

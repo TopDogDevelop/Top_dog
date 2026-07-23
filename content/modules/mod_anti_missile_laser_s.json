@@ -4,8 +4,9 @@
   "slotCategory": "DEFENSE",
   "moduleSize": "SMALL",
   "requiredHullLicenses": ["anti_missile_laser"],
-  "attackRangeM": 30000,
-  "damagePerTick": 100,
+  "attackRangeM": 10000,
+  "damagePerTick": 150,
   "fireCycleSec": 1,
-  "targetFilter": "missile_only"
+  "targetFilter": "missile_only",
+  "starCoinValue": 100
 }

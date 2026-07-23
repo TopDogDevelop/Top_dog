@@ -24,6 +24,7 @@ public static class BattlefieldWriteback
     // liketocoode34e
     public static string Apply(GameState state, BattlefieldState bf, CombatQueueEntry? entry)
     {
+        WriteBackShipInstances(state, bf);
         if (bf.winReason == "defend_no_attack_15m")
         {
             // li3etocoode345
@@ -45,6 +46,46 @@ public static class BattlefieldWriteback
             return "实时交战胜利 @ " + Label(bf);
         }
         return "实时交战僵持 @ " + Label(bf);
+    }
+
+    private static void WriteBackShipInstances(GameState state, BattlefieldState battlefield)
+    {
+        var instances = state.shipInstances
+            .Where(ship => !string.IsNullOrWhiteSpace(ship.shipInstanceId))
+            .ToDictionary(ship => ship.shipInstanceId, StringComparer.Ordinal);
+        foreach (var unit in battlefield.units)
+        {
+            if (unit.shipInstanceId != null
+                && instances.TryGetValue(unit.shipInstanceId, out var ship))
+            {
+                ship.fittedModules = new Dictionary<string, string>(
+                    unit.fittedModules, StringComparer.Ordinal);
+                ship.shieldHp = unit.shieldHp;
+                ship.armorHp = unit.armorHp;
+                ship.structureHp = unit.structureHp;
+                ship.destroyed = unit.IsDestroyed();
+            }
+            WriteBackCarriedPayloads(unit.carriedShipsBySlot.Values, instances);
+        }
+    }
+
+    private static void WriteBackCarriedPayloads(
+        IEnumerable<CarriedShipPayload> payloads,
+        IReadOnlyDictionary<string, ShipInstanceState> instances)
+    {
+        foreach (var payload in payloads)
+        {
+            if (instances.TryGetValue(payload.shipInstanceId, out var ship))
+            {
+                ship.fittedModules = new Dictionary<string, string>(
+                    payload.fittedModules, StringComparer.Ordinal);
+                ship.shieldHp = payload.shieldHp;
+                ship.armorHp = payload.armorHp;
+                ship.structureHp = payload.structureHp;
+                ship.destroyed = payload.destroyed;
+            }
+            WriteBackCarriedPayloads(payload.carriedShipsBySlot.Values, instances);
+        }
     }
 
     private static void StripRandomFriendlies(GameState state, CombatQueueEntry? entry, int count)

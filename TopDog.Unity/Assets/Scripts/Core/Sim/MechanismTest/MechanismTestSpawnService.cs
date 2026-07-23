@@ -46,6 +46,7 @@ public static class MechanismTestSpawnService
             anchorAu = belt.anchorAu,
             subLocation = belt.name,
         };
+        MechanismTestOpeningState.ApplyToBattlefield(bf, scenario);
         state.battlefields.Add(bf);
 
         var halfSep = scenario.spawnSeparationM * 0.5f;

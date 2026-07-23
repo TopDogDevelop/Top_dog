@@ -33,7 +33,7 @@ public static class LogisticsAutoTargetingService
 
     public static void Tick(BattlefieldState bf, BattlefieldUnit producer, ModuleRegistry modules)
     {
-        if (producer.IsDestroyed() || producer.isBuilding || producer.parentUnitId != null
+        if (producer.IsDestroyed() || producer.isBuilding || producer.IsTemplateCarriedUnit()
             || BattlefieldSceneProxyService.IsSceneProxy(producer))
         {
             return;
@@ -141,14 +141,16 @@ public static class LogisticsAutoTargetingService
     public static BattlefieldUnit? FindNearestProtectionAlly(
         BattlefieldState bf,
         BattlefieldUnit producer,
-        ModuleRegistry modules)
+        ModuleRegistry modules,
+        bool includeSelf = false)
     {
         BattlefieldUnit? best = null;
         var bestDist = float.MaxValue;
         foreach (var ally in bf.units)
         {
-            if (ally.IsDestroyed() || ally.side != producer.side || ReferenceEquals(ally, producer)
-                || ally.isBuilding || ally.parentUnitId != null
+            if (ally.IsDestroyed() || ally.side != producer.side
+                || (!includeSelf && ReferenceEquals(ally, producer))
+                || ally.isBuilding || ally.IsTemplateCarriedUnit()
                 || BattlefieldSceneProxyService.IsSceneProxy(ally))
             {
                 continue;
@@ -159,7 +161,9 @@ public static class LogisticsAutoTargetingService
                 continue;
             }
 
-            var dist = FieldAuraService.DistanceM(producer, ally);
+            var dist = ReferenceEquals(ally, producer)
+                ? 0f
+                : FieldAuraService.DistanceM(producer, ally);
             if (dist < bestDist)
             {
                 bestDist = dist;

@@ -377,7 +377,7 @@ public static class TraitActiveSkillService
 
         foreach (var u in bf.units)
         {
-            if (u.IsDestroyed() || u.parentUnitId != null)
+            if (u.IsDestroyed() || u.IsTemplateCarriedUnit())
             {
                 continue;
             }

@@ -3,7 +3,18 @@
   "displayName": "攻击编队 A",
   "displayNameEn": "Strike Wing A",
   "slotCategory": "LAUNCH_TUBE",
-  "moduleKind": "strike_wing",
+  "moduleKind": "carried_unit_bay",
   "moduleSize": "LARGE",
-  "starCoinValue": 1200
+  "starCoinValue": 12000,
+  "logicId": "logic_carried_unit_bay",
+  "params": {
+    "carriedHullId": "hull_strike_craft_a",
+    "payloadMode": "TEMPLATE_SPAWN",
+    "carriedCapacity": 1,
+    "launchBatchSize": 1,
+    "deploySec": 0,
+    "recoverSec": 5,
+    "recoverRangeM": 1000,
+    "onParentDestroyed": "DESPAWN"
+  }
 }

@@ -4,9 +4,10 @@
   "displayNameEn": "Small Missile",
   "slotCategory": "LAUNCH_TUBE",
   "moduleSize": "SMALL",
-  "missileStructureHp": 80,
+  "missileStructureHp": 100,
   "missileFlightSpeedMps": 10000,
-  "missileFlightMaxSec": 45,
+  "missileFlightMaxSec": 30,
   "missileAoeBaseDamage": 200,
-  "missileAoeZeroRadiusM": 8000
+  "missileAoeZeroRadiusM": 5000,
+  "starCoinValue": 100
 }

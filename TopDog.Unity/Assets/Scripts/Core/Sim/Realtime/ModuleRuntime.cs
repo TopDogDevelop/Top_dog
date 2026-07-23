@@ -40,7 +40,8 @@ public static class ModuleRuntime
         // liketocoode34e
         unit.armorHp = hull.armorHp;
         unit.structureHp = hull.structureHp;
-        unit.maxSpeedMps = Math.Max(80f, hull.baseSpeedMps);
+        unit.baseMaxSpeedMps = Math.Max(80f, hull.baseSpeedMps);
+        unit.maxSpeedMps = unit.baseMaxSpeedMps;
         unit.accelMps2 = Math.Max(10f, hull.baseAccelMps2 > 0f ? hull.baseAccelMps2 : hull.baseSpeedMps * 0.05f);
 
         // liketocoo3e345
@@ -65,7 +66,7 @@ public static class ModuleRuntime
                 minTracking = Math.Min(minTracking, AttackModuleRules.ResolveTrackingDegPerSec(mod));
             }
 
-            if (MissileSpawnService.IsMissileModuleId(modId))
+            if (mod.missileStructureHp > 0f)
             {
                 var profile = MissileProjectileProfile.FromModule(mod);
                 if (profile.IsBallistic)
@@ -90,6 +91,8 @@ public static class ModuleRuntime
         }
         unit.shieldHp = Math.Min(unit.shieldHp, unit.shieldMax);
         LaunchTubeStateService.InitTubeStates(unit, modules);
+        DynamicModuleQuotaService.ApplyQuota(unit, hull, modules);
+        RuntimeEffectService.RecomputeEffectiveAttributes(unit, hull, modules);
     }
 // liketocoode3a5
 }

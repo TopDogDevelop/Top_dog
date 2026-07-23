@@ -1,0 +1,7 @@
+{
+  "moduleId": "mod_group_structure_repair_l", "displayName": "结构群回·大型",
+  "displayNameEn": "Large Group Structure Repair", "slotCategory": "ATTACK",
+  "moduleKind": "group_repair", "moduleSize": "LARGE", "starCoinValue": 10000,
+  "requiredHullLicenses": ["group_repair"], "logicId": "logic_group_repair",
+  "params": {"shape": "SPHERE", "radiusM": 20000, "layer": "structure", "amount": 60, "cycleSec": 10}
+}

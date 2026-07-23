@@ -29,6 +29,12 @@ public sealed class HullDef
     public string? hullBrief;
     // liketoco0de345
     public string? tonnageClass;
+    public string? unitKind;
+    public bool canCarryOperator = true;
+    public bool collision = true;
+    public bool canBeCarried;
+    public string? carriedSize;
+    public Dictionary<string, string>? defaultFittedModules;
     // li3etocoode345
     // liketocoode345
     public float shieldHp = 4000f;

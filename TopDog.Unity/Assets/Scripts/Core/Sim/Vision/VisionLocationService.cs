@@ -1,6 +1,7 @@
 using System.Linq;
 using TopDog.AgentDiag;
 using TopDog.Sim.Building;
+using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
 using TopDog.Sim.Possession;
 using TopDog.Sim.Realtime;
@@ -11,7 +12,7 @@ using TopDog.Sim.State;
  * 权威: docs/TACTICAL_RIGHT_RAIL_SCENE_PROXY.md §2 · docs/LEGION_SKIRMISH.md §4 · docs/VISION.md
  * 本文件: VisionLocationService.cs — 可观察战场数据源与锚点团员判定
  * 【机制要点】
- * · ListBattlefieldVisionGroups：遍历战场 → 锚点团员 → 空战场隐藏；**有存活敌舰的实时交战场不列入**（无法切视角）
+ * · ListBattlefieldVisionGroups：遍历战场 → 锚点团员 → 空战场隐藏；实时交战场可正常观察/切换
  * · ListDescentEntries：groups 扁平化（兼容旧调用）
  * · IsVisionEligibleMember：trait_direct_possess | trait_intel_officer（含 identity 兜底）
  * · IsHostileRealtimeCombatBattlefield：存活敌舰 → 非「可切换」列表
@@ -42,6 +43,23 @@ public static class VisionLocationService
     public static bool IsVisionEligibleMember(MemberState member, GameState? state = null) =>
 
         HasPossessTrait(member, state) || HasTacticalLinkTrait(member, state);
+
+    /// <summary>可观察战场罗列全部带词条的本地团员；视野锚点能力仍由 IsVisionEligibleMember 单独判定。</summary>
+    public static bool IsObservableRosterMember(MemberState member, GameState? state = null)
+    {
+        if (member.traitIds.Count > 0)
+        {
+            return true;
+        }
+        if (state == null)
+        {
+            return false;
+        }
+        var code = Member.IdentityCodes.Of(member);
+        return !string.IsNullOrWhiteSpace(code)
+               && state.identities.TryGetValue(code, out var identity)
+               && identity.traitIds.Count > 0;
+    }
 
 
 
@@ -118,8 +136,7 @@ public static class VisionLocationService
     }
 
     /// <summary>
-    /// 有存活敌舰的战场视为「实时交战场景」：不进可观察/可切换列表，禁止切视角进入。
-    /// 导航详测等仅友舰场景可列、可切。
+    /// 判断战场是否仍有存活敌舰；仅供战斗状态诊断，不用于阻止观察或切换。
     /// </summary>
     public static bool IsHostileRealtimeCombatBattlefield(BattlefieldState? bf)
     {
@@ -156,8 +173,7 @@ public static class VisionLocationService
 
         foreach (var bf in state.battlefields)
         {
-            var includeDespiteFinished = BattlefieldSystem.ShouldTickBattlefield(state, bf);
-            if ((bf.finished && !includeDespiteFinished) || bf.battlefieldId == null)
+            if (bf.finished || bf.battlefieldId == null)
             {
                 continue;
             }
@@ -236,7 +252,7 @@ public static class VisionLocationService
                 continue;
             }
 
-            if (IsVisionEligibleMember(member, state))
+            if (IsObservableRosterMember(member, state))
             {
                 eligibleCount++;
                 if (IsLocalLegionMember(state, member))
@@ -276,7 +292,7 @@ public static class VisionLocationService
         added = 0;
         foreach (var member in state.members)
         {
-            if (member.memberId == null || !IsVisionEligibleMember(member, state))
+            if (member.memberId == null || !IsObservableRosterMember(member, state))
             {
                 continue;
             }
@@ -339,6 +355,7 @@ public static class VisionLocationService
 
             if (!inTransitOnly)
             {
+                memberBf ??= ResolveMemberDesignatedBattlefield(state, member);
                 memberBf ??= ResolveLegionFortressBattlefield(state, member.legionId);
                 memberBf ??= ResolveLegionSpawnBattlefield(state, member.legionId);
                 memberBf ??= ResolveActiveBattlefield(state);
@@ -391,7 +408,7 @@ public static class VisionLocationService
         foreach (var member in state.members)
         {
             if (member.memberId == null
-                || !IsVisionEligibleMember(member, state)
+                || !IsObservableRosterMember(member, state)
                 || !IsLocalLegionMember(state, member))
             {
                 continue;
@@ -525,21 +542,40 @@ public static class VisionLocationService
     }
 
     private static bool IsLocalLegionMember(GameState state, MemberState member)
-    {
-        if (member.legionId == null)
-        {
-            return false;
-        }
+        => LegionQuery.IsLocalMember(state, member);
 
-        foreach (var legion in state.legions)
+    private static BattlefieldState? ResolveMemberDesignatedBattlefield(
+        GameState state,
+        MemberState member)
+    {
+        var systemId = member.opsDeploySystemId ?? member.currentSolarSystemId;
+        var regionId = member.opsDeployEventRegionId;
+        var subLocation = member.opsDeploySubLocation;
+        BattlefieldState? systemFallback = null;
+        foreach (var battlefield in state.battlefields)
         {
-            if (legion.isLocal && member.legionId.Equals(legion.legionId, StringComparison.Ordinal))
+            if (battlefield.finished || battlefield.battlefieldId == null)
             {
-                return true;
+                continue;
+            }
+            if (!string.IsNullOrWhiteSpace(systemId)
+                && !systemId.Equals(battlefield.systemId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+            systemFallback ??= battlefield;
+            if (!string.IsNullOrWhiteSpace(regionId)
+                && regionId.Equals(battlefield.eventRegionId, StringComparison.Ordinal))
+            {
+                return battlefield;
+            }
+            if (!string.IsNullOrWhiteSpace(subLocation)
+                && subLocation.Equals(battlefield.subLocation, StringComparison.Ordinal))
+            {
+                return battlefield;
             }
         }
-
-        return false;
+        return systemFallback;
     }
 
     private static BattlefieldState? ResolveLegionFortressBattlefield(GameState state, string? legionId)
@@ -568,7 +604,9 @@ public static class VisionLocationService
 
         foreach (var bf in state.battlefields)
         {
-            if (fortressRegion.Equals(bf.eventRegionId, StringComparison.Ordinal))
+            if (!bf.finished
+                && bf.battlefieldId != null
+                && fortressRegion.Equals(bf.eventRegionId, StringComparison.Ordinal))
             {
                 return bf;
             }
@@ -590,7 +628,7 @@ public static class VisionLocationService
             return;
         }
 
-        var dedupe = bf.battlefieldId + "|" + member.memberId + "|" + (inTransit ? "t" : "f");
+        var dedupe = "member|" + member.memberId;
         if (!seen.Add(dedupe))
         {
             return;
@@ -639,7 +677,9 @@ public static class VisionLocationService
 
         {
 
-            if (!IsVisionEligibleMember(member, state) || member.memberId == null)
+            if (!IsObservableRosterMember(member, state)
+                || member.memberId == null
+                || !IsLocalLegionMember(state, member))
 
             {
 
@@ -667,7 +707,7 @@ public static class VisionLocationService
 
         {
 
-            return "无可切换团员（需可附身或情报员词条）";
+            return "无可观察团员（本地军团暂无带词条团员）";
 
         }
 
@@ -675,7 +715,7 @@ public static class VisionLocationService
 
         if (anchorWithPresence == 0)
         {
-            return "无可切换团员（锚点团员须已上场，且在场或跃迁途中）";
+            return "无可观察团员（带词条团员暂无可用战场地点）";
         }
 
         return "无可切换团员（当前无可用战场单位）";
@@ -861,20 +901,9 @@ public static class VisionLocationService
 
         }
 
-        if (inTransit)
-        {
-            var transitMemberKey = "transit-member|" + u.memberId;
-            if (!seen.Add(transitMemberKey))
-            {
-                return;
-            }
-        }
-
-
-
         var member = FindMember(state, u.memberId);
 
-        if (member == null || !IsVisionEligibleMember(member, state))
+        if (member == null || !IsObservableRosterMember(member, state))
 
         {
 
@@ -884,7 +913,7 @@ public static class VisionLocationService
 
 
 
-        var dedupe = bf.battlefieldId + "|" + u.memberId + "|" + (inTransit ? "t" : "f");
+        var dedupe = "member|" + u.memberId;
 
         if (!seen.Add(dedupe))
 

@@ -499,6 +499,8 @@ public static class BattlefieldSpawner
         }
         var u = BaseUnit(DisplayName(m), m.equippedHullId!, hull, UnitSide.ENEMY, arrival, rng);
         u.memberId = m.memberId;
+        u.shipInstanceId = m.equippedShipInstanceId;
+        AttachCarriedShipInstances(state, u);
         u.legionId = m.legionId;
         u.fittedModules = new Dictionary<string, string>(MemberFittingService.Fittings(state, m));
         TraitGrantedModuleService.ApplyForMember(m, u, modules);
@@ -523,6 +525,8 @@ public static class BattlefieldSpawner
         }
         var u = BaseUnit(DisplayName(m), m.equippedHullId!, hull, UnitSide.FRIENDLY, arrival, rng);
         u.memberId = m.memberId;
+        u.shipInstanceId = m.equippedShipInstanceId;
+        AttachCarriedShipInstances(state, u);
         u.legionId = m.legionId;
         u.fittedModules = new Dictionary<string, string>(MemberFittingService.Fittings(state, m));
         TraitGrantedModuleService.ApplyForMember(m, u, modules);
@@ -650,6 +654,61 @@ public static class BattlefieldSpawner
         !string.IsNullOrWhiteSpace(m.name) ? m.name!
         : !string.IsNullOrWhiteSpace(m.accountName) ? m.accountName!
         : m.memberId ?? "?";
+
+    private static void AttachCarriedShipInstances(GameState state, BattlefieldUnit unit)
+    {
+        if (string.IsNullOrWhiteSpace(unit.shipInstanceId))
+        {
+            return;
+        }
+        unit.carriedShipsBySlot = BuildCarriedPayloads(
+            state,
+            unit.shipInstanceId,
+            new HashSet<string>(StringComparer.Ordinal),
+            depth: 0);
+    }
+
+    private static Dictionary<string, CarriedShipPayload> BuildCarriedPayloads(
+        GameState state,
+        string carrierShipInstanceId,
+        HashSet<string> path,
+        int depth)
+    {
+        var result = new Dictionary<string, CarriedShipPayload>(StringComparer.Ordinal);
+        if (depth >= CarriedUnitDeploymentService.MaxCarryDepth || !path.Add(carrierShipInstanceId))
+        {
+            return result;
+        }
+        foreach (var ship in state.shipInstances
+                     .Where(ship => !ship.destroyed
+                                    && carrierShipInstanceId.Equals(
+                                        ship.carrierShipInstanceId,
+                                        StringComparison.Ordinal)
+                                    && !string.IsNullOrWhiteSpace(ship.carrierBaySlot))
+                     .OrderBy(ship => ship.shipInstanceId, StringComparer.Ordinal))
+        {
+            if (result.ContainsKey(ship.carrierBaySlot!))
+            {
+                continue;
+            }
+            result[ship.carrierBaySlot!] = new CarriedShipPayload
+            {
+                shipInstanceId = ship.shipInstanceId,
+                hullId = ship.hullId,
+                operatorMemberId = ship.operatorMemberId,
+                fittedModules = new Dictionary<string, string>(ship.fittedModules, StringComparer.Ordinal),
+                carriedShipsBySlot = BuildCarriedPayloads(
+                    state,
+                    ship.shipInstanceId,
+                    new HashSet<string>(path, StringComparer.Ordinal),
+                    depth + 1),
+                shieldHp = ship.shieldHp,
+                armorHp = ship.armorHp,
+                structureHp = ship.structureHp,
+            };
+        }
+        return result;
+    }
 
     private static MemberState? FindMember(GameState state, string id) =>
         LegionPlayerRegistry.FindMember(state, id);

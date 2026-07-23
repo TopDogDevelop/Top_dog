@@ -6,5 +6,7 @@
   "slotCategory": "PASSIVE",
   "moduleKind": "stat_plugin",
   "moduleSize": "SMALL",
-  "speedBonusPctWhenEnabled": 10
+  "speedBonusPctWhenEnabled": 0.10,
+  "appliesToPropulsion": true,
+  "starCoinValue": 300
 }

@@ -1,0 +1,16 @@
+{
+  "hullId": "hull_omni_support_cruiser",
+  "displayName": "全能级支援型",
+  "displayNameEn": "Omni-class Support Cruiser",
+  "hullBrief": "入门级的战术万金油。",
+  "tonnageClass": "CRUISER",
+  "shieldHp": 2200, "armorHp": 1800, "structureHp": 2000,
+  "baseSpeedMps": 800, "baseAccelMps2": 500, "warpSpeedAups": 0.5,
+  "attackSlots": 2, "functionSlots": 3, "defenseSlots": 3, "passiveSlots": 1,
+  "defaultSlotSize": "SMALL", "simultaneousEnableLimit": 0, "starCoinValue": 5000,
+  "hullLicenses": ["group_repair"],
+  "slotLayout": [
+    {"slotId": "atk_0", "slotSize": "MEDIUM"},
+    {"slotId": "atk_1", "slotSize": "LARGE"}
+  ]
+}

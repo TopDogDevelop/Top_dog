@@ -7,5 +7,7 @@
   "moduleSubtype": "aura_field_shield",
   "moduleSize": "MEDIUM",
   "requiredHullLicenses": ["shield_fleet"],
-  "fieldRadiusKm": 10
+  "fieldRadiusKm": 25,
+  "fieldCollapseCooldownSec": 30,
+  "starCoinValue": 1000
 }

@@ -5,8 +5,7 @@
   "moduleSize": "LARGE",
   "moduleSubtype": "remote_repair",
   "repairLayer": "armor",
-  "repairPerSalvo": 1000,
-  "repairCycleSec": 10,
-  "repairRangeM": 40000,
-  "attackRangeM": 40000
+  "repairPerSalvo": 2500, "repairCycleSec": 15,
+  "repairRangeM": 50000, "attackRangeM": 50000,
+  "starCoinValue": 10000
 }

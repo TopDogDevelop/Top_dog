@@ -9,6 +9,9 @@
  * ══
  */
 
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 namespace TopDog.Content.Modules;
 
 // liketoc0de345
@@ -33,6 +36,12 @@ public sealed class ModuleDef
     public string? moduleKind;
     // liketoco0de345
     public string? moduleSize;
+    /// <summary>共用逻辑定义 ID；装备数值写入 params。</summary>
+    public string? logicId;
+    public Dictionary<string, JsonElement>? @params;
+    /// <summary>加载时解析，不参与 JSON 序列化。</summary>
+    [JsonIgnore]
+    public ModuleLogicDef? resolvedLogic;
     // li3etocoode345
     // liketocoode345
     public float damagePerTick;
@@ -40,6 +49,8 @@ public sealed class ModuleDef
     /// <summary>攻击模块开火周期（秒）；缺省 10s。</summary>
     public float fireCycleSec = 10f;
     public float shieldRegenPerSec;
+    /// <summary>甲回折算用：每秒甲回复；与 repairPerSalvo 二选一（DEFENSE regen_passive 优先 repairPerSalvo）。</summary>
+    public float armorRegenPerSec;
     /// <summary>盾回一轮周期（秒）；缺省 10s。</summary>
     public float repairCycleSec = 10f;
     public float shieldResistPct;
@@ -77,9 +88,14 @@ public sealed class ModuleDef
 
     /// <summary>装配所需船体许可（JSON snake_en）。</summary>
     public string[]? requiredHullLicenses;
+    /// <summary>同组模块互斥；空值表示不参与互斥。</summary>
+    public string? mutualExclusionGroup;
+    /// <summary>单船最大装配数；0 表示不限制。</summary>
+    public int maxPerHull;
     public string? moduleFamily;
     public string? moduleSubtype;
     public float fieldRadiusKm;
+    public float fieldCollapseCooldownSec;
     public string? damageMitigationKind;
     public float flatDamageReduction;
     public float blockShieldPctOfMax;
@@ -99,6 +115,14 @@ public sealed class ModuleDef
     public float markDurationSec;
     public float incomingDamageMult;
     public float outgoingRepairMult;
+    public string? carriedHullId;
+    public string? payloadMode;
+    public int carriedCapacity;
+    public int launchBatchSize;
+    public float deploySec;
+    public float recoverSec;
+    public float recoverRangeM;
+    public string? onParentDestroyed;
 
     /// <summary>来自词条：开战前不可配装，进局后由词条逻辑写入舰船。</summary>
     public bool fromTrait;

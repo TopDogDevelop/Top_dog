@@ -1,0 +1,12 @@
+{
+  "hullId": "hull_omni_light_interdictor",
+  "displayName": "全能级轻化拦截型",
+  "displayNameEn": "Omni-class Light Interdictor",
+  "hullBrief": "入门级的战术万金油。",
+  "tonnageClass": "DESTROYER",
+  "shieldHp": 1200, "armorHp": 1100, "structureHp": 900,
+  "baseSpeedMps": 1500, "baseAccelMps2": 900, "warpSpeedAups": 1.0,
+  "attackSlots": 1, "functionSlots": 3, "defenseSlots": 2, "passiveSlots": 1,
+  "defaultSlotSize": "SMALL", "simultaneousEnableLimit": 0, "starCoinValue": 2400,
+  "hullLicenses": ["interdiction_field_generator"]
+}

@@ -1,0 +1,8 @@
+{
+  "logicId": "logic_area_energy_pulse",
+  "blocks": [
+    { "type": "AOE_QUERY" },
+    { "type": "APPLY_QUOTA_EFFECT" }
+  ],
+  "paramSchema": ["shape", "radiusM", "quotaDelta", "cycleSec", "durationSec"]
+}

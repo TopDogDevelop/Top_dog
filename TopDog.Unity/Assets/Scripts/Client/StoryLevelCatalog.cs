@@ -59,9 +59,7 @@ public static class StoryLevelCatalog
                 {
                     Id = scenario.scenarioId,
                     Title = "机制详测 · " + scenario.displayName,
-                    Subtitle = "nav_rally".Equals(scenario.mapMode, StringComparison.Ordinal)
-                        ? "10 星座星图 · 导航集结验收"
-                        : "单矿带 20km · 直进实时战",
+                    Subtitle = MechanismMapModeSubtitle(scenario.mapMode),
                     ListOrder = scenario.scenarioOrder,
                     ListOrderLabel = scenario.scenarioOrder > 0
                         ? $"#{scenario.scenarioOrder:D2}"
@@ -89,4 +87,14 @@ public static class StoryLevelCatalog
         entry = null!;
         return false;
     }
+
+    /// <summary>列表副标题仅反映开场 mapMode 布置，不做运行时特判。</summary>
+    private static string MechanismMapModeSubtitle(string? mapMode) =>
+        mapMode switch
+        {
+            "nav_rally" => "10 星座星图 · 导航集结验收",
+            "intra_scene_warp" => "同场景跃迁布置 · 直进实时战",
+            "stress_10k_icons" => "密度布置 · 直进实时战",
+            _ => "单矿带 · 直进实时战",
+        };
 }

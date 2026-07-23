@@ -1,0 +1,6 @@
+{
+  "moduleId": "mod_propulsion_xl", "displayName": "推进器 XL",
+  "displayNameEn": "Propulsion XL", "slotCategory": "FUNCTION", "moduleSize": "EXTRA_LARGE",
+  "speedBonusMps": 0, "speedBonusPctWhenEnabled": 1.0,
+  "appliesToPropulsion": true, "starCoinValue": 100000
+}

@@ -1,7 +1,7 @@
 param(
     [string]$UnityExe = "",
-    [string]$Project = "e:\game_dev\top_dog_unity\TopDog.Unity",
-    [string]$OutDir = "e:\game_dev\top_dog_unity\builds\android"
+    [string]$Project = "H:\game_dev\top_dog_unity\TopDog.Unity",
+    [string]$OutDir = "H:\game_dev\top_dog_unity\builds\android"
 )
 
 $ErrorActionPreference = "Stop"

@@ -93,7 +93,7 @@ public sealed class StarMapHostController : MonoBehaviour, IViewportCameraComman
         _host = host;
         _onSystemPicked = onSystemPicked;
         _onEventRegionPicked = onEventRegionPicked;
-        _host.pickingMode = PickingMode.Ignore;
+        _host.pickingMode = PickingMode.Position;
         if (!_host.ClassListContains("art-viewport-host"))
         {
             _host.AddToClassList("art-viewport-host");
@@ -107,7 +107,7 @@ public sealed class StarMapHostController : MonoBehaviour, IViewportCameraComman
             _host.Add(_markerLayer);
         }
         _mapViewport = _markerLayer;
-        _markerLayer.pickingMode = PickingMode.Position;
+        _markerLayer.pickingMode = PickingMode.Ignore;
 
         EnsureInputOverlay();
         EnsureBridgeOverlay();
@@ -118,6 +118,11 @@ public sealed class StarMapHostController : MonoBehaviour, IViewportCameraComman
 
         EnsureWorldObjects();
         _inputOverlay?.SetOrbitCamera(_orbit);
+        if (_inputOverlay != null)
+        {
+            _inputOverlay.OnSurfaceTap = OnViewportSurfaceTap;
+        }
+
         if (_map != null)
         {
             _bridges?.SetMap(null);
@@ -434,10 +439,12 @@ public sealed class StarMapHostController : MonoBehaviour, IViewportCameraComman
         if (_viewMode == ViewMode.SystemInterior)
         {
             RebuildInteriorMarkers();
+            ArrangeOverlayZOrder();
             return;
         }
         if (_map?.Project.systems == null)
         {
+            ArrangeOverlayZOrder();
             return;
         }
         foreach (var sys in _map.Project.systems)
@@ -448,6 +455,8 @@ public sealed class StarMapHostController : MonoBehaviour, IViewportCameraComman
             }
             AddSystemMarker(sys);
         }
+
+        ArrangeOverlayZOrder();
     }
 
     private void RebuildInteriorMarkers()
@@ -1190,21 +1199,26 @@ public sealed class StarMapHostController : MonoBehaviour, IViewportCameraComman
 
         _host.Q<VisualElement>("art-viewport-bg")?.SendToBack();
 
-        if (_inputOverlay != null && _bridgeOverlay != null)
-        {
-            _inputOverlay.PlaceBehind(_bridgeOverlay);
-        }
-        else
-        {
-            _inputOverlay?.SendToBack();
-        }
-
         if (_bridgeOverlay != null && _markerLayer != null)
         {
             _bridgeOverlay.PlaceBehind(_markerLayer);
         }
 
+        // Markers visual only; input overlay above them (same as CombatRealtimeController).
         _markerLayer?.BringToFront();
+        if (_markerLayer != null)
+        {
+            _markerLayer.pickingMode = PickingMode.Ignore;
+            _markerLayer.Query<Button>().ForEach(btn => btn.pickingMode = PickingMode.Ignore);
+        }
+
+        _inputOverlay?.BringToFront();
+        if (_inputOverlay != null)
+        {
+            _inputOverlay.pickingMode = PickingMode.Position;
+            _inputOverlay.OnSurfaceTap = OnViewportSurfaceTap;
+        }
+
         _host.Q<VisualElement>("star-map-mode-bar")?.BringToFront();
         _host.Q<Label>("lbl-dispatch-target")?.BringToFront();
 
@@ -1222,6 +1236,26 @@ public sealed class StarMapHostController : MonoBehaviour, IViewportCameraComman
             controls.pickingMode = PickingMode.Position;
             controls.BringToFront();
             controls.Query<Button>().ForEach(btn => btn.pickingMode = PickingMode.Position);
+        }
+    }
+
+    private void OnViewportSurfaceTap(Vector2 overlayLocal)
+    {
+        if (_inputOverlay == null || _markerLayer == null)
+        {
+            return;
+        }
+
+        var panelPos = _inputOverlay.LocalToWorld(overlayLocal);
+        foreach (var (btn, handler) in _markerClickHandlers)
+        {
+            if (btn == null || !btn.worldBound.Contains(panelPos))
+            {
+                continue;
+            }
+
+            handler.Invoke();
+            return;
         }
     }
 

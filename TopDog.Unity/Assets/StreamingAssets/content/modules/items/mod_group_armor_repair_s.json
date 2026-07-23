@@ -1,0 +1,7 @@
+{
+  "moduleId": "mod_group_armor_repair_s", "displayName": "甲群回·小型",
+  "displayNameEn": "Small Group Armor Repair", "slotCategory": "ATTACK",
+  "moduleKind": "group_repair", "moduleSize": "SMALL", "starCoinValue": 100,
+  "requiredHullLicenses": ["group_repair"], "logicId": "logic_group_repair",
+  "params": {"shape": "SPHERE", "radiusM": 10000, "layer": "armor", "amount": 20, "cycleSec": 10}
+}

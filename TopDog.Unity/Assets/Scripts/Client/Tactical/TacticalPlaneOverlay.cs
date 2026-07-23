@@ -155,6 +155,12 @@ public sealed class TacticalPlaneOverlay : VisualElement
             DrawWorldCircle(painter, w, h, fx, fy, fz, km * MetersPerKm);
         }
 
+        // 密舰队：跳过万级高度垂线（每帧全量投影会卡死主线程）
+        if (BattlefieldScalePolicy.IsDense(_bf))
+        {
+            return;
+        }
+
         painter.strokeColor = new Color(0.6f, 0.85f, 1f, 0.45f);
         foreach (var u in _bf.units)
         {

@@ -1,0 +1,16 @@
+{
+  "scenarioId": "mt_stress_10k_icons",
+  "displayName": "万图标同屏压力",
+  "scenarioOrder": 11,
+  "seed": 10099,
+  "mapMode": "stress_10k_icons",
+  "stressUnitCount": 2000,
+  "factionCount": 4,
+  "scatterRadiusM": 100000,
+  "maxLiveMissiles": 200,
+  "disableAutoVictory": true,
+  "entityBudget": 1500,
+  "tickBudgetMs": 16,
+  "minTimeDilation": 0.1,
+  "legions": []
+}

@@ -78,6 +78,47 @@ public sealed class RemoteRepairAutoTargetingTests
     }
 
     [Test]
+    public void ArmorRegen_Passive_AddsArmorOnCycle_WithoutTarget()
+    {
+        var modules = ModuleRegistry.LoadDefault();
+        var ships = ShipRegistry.LoadDefault();
+        var state = new GameState { combatRealtimeActive = true };
+        var bf = new BattlefieldState { battlefieldId = "bf1", timeSec = 0f };
+        state.battlefields.Add(bf);
+
+        var unit = new BattlefieldUnit
+        {
+            unitId = "holder",
+            side = UnitSide.FRIENDLY,
+            alive = true,
+            arrivalAtSec = 0f,
+            armorHp = 100f,
+            armorMax = 5000f,
+            shieldHp = 100f,
+            shieldMax = 100f,
+            fittedModules = { ["def_1"] = "mod_armor_regen_s" },
+        };
+        bf.units.Add(unit);
+        ModuleRuntime.ApplyToUnit(unit, ships.FindHull("hull_cruiser_greywolf_guard")!, modules);
+        unit.armorHp = 100f;
+        unit.armorMax = Math.Max(unit.armorMax, 5000f);
+
+        Assert.That(unit.armorSalvoRepair, Is.EqualTo(500f).Within(0.1f));
+        Assert.That(unit.armorRepairCycleSec, Is.EqualTo(20f).Within(0.01f));
+        Assert.That(unit.targetUnitId, Is.Null);
+
+        unit.armorRepairCooldownSec = 0f;
+        for (var i = 0; i < 5; i++)
+        {
+            BattlefieldSystem.Tick(state, modules, ships, 1f);
+        }
+
+        Assert.That(unit.armorHp, Is.EqualTo(600f).Within(0.1f),
+            "甲回：启用后固定周期加固定甲，无需瞄准/targetUnitId");
+        Assert.That(unit.targetUnitId, Is.Null);
+    }
+
+    [Test]
     public void FieldHolder_WithoutFieldActive_IsNotAutoRepaired()
     {
         var modules = ModuleRegistry.LoadDefault();

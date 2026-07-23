@@ -4,5 +4,6 @@
   "displayNameEn": "Shield Resist L",
   "slotCategory": "DEFENSE",
   "moduleSize": "LARGE",
-  "shieldResistPct": 18
+  "shieldResistPct": 18,
+  "starCoinValue": 10000
 }

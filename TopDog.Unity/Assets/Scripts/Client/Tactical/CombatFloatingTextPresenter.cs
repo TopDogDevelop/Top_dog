@@ -80,8 +80,18 @@ public sealed class CombatFloatingTextPresenter
             hostH = 300f;
         }
 
+        var floaterCap = BattlefieldScalePolicy.IsDense(bf)
+            ? BattlefieldScalePolicy.DenseFloatingTextCap
+            : 64;
+        var hpCount = bf.pendingHpDeltas.Count;
+        var fxCount = bf.pendingCombatFx.Count;
         foreach (var ev in bf.pendingHpDeltas)
         {
+            if (_active.Count >= floaterCap)
+            {
+                break;
+            }
+
             var amount = TotalDelta(ev);
             if (Mathf.Approximately(amount, 0f))
             {
@@ -102,6 +112,16 @@ public sealed class CombatFloatingTextPresenter
         }
 
         bf.pendingHpDeltas.Clear();
+        // #region agent log
+        if (hpCount > 0)
+        {
+            CombatFxAgentLog.Write(
+                "A",
+                "CombatFloatingTextPresenter.ConsumePendingDeltas",
+                "hp-deltas",
+                "{\"hp\":" + hpCount + ",\"pendingFx\":" + fxCount + "}");
+        }
+        // #endregion
     }
 
     // liketoco0de345

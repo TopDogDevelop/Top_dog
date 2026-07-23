@@ -7,7 +7,7 @@ using TopDog.Sim.State;
  * 本文件: RemoteRepairAutoTargetingService.cs — 无玩家指令时自动维修最近场域持有舰
  * 【机制要点】
  * · 仅装配 remote_repair 的舰参与
- * · 目标：最近已开启 fleet_protection_field（盾融/甲连）友舰
+ * · 目标：最近已开启 fleet_protection_field（盾融/甲连）友舰；含自身（孤舰场域+小甲回）
  * · 维持 pendingRepairRounds ≥ 1，由 RemoteRepairSalvoService 按射程执行
  * · 不覆盖玩家舰队指令（SuppressForPlayerOrder）；玩家 OrderRepairTarget 优先
  * 【关联】RemoteRepairSalvoService · LogisticsAutoTargetingService · BattlefieldSystem
@@ -39,7 +39,7 @@ public static class RemoteRepairAutoTargetingService
 
     public static void Tick(BattlefieldState bf, BattlefieldUnit healer, ModuleRegistry modules)
     {
-        if (healer.IsDestroyed() || healer.isBuilding || healer.parentUnitId != null
+        if (healer.IsDestroyed() || healer.isBuilding || healer.IsTemplateCarriedUnit()
             || BattlefieldSceneProxyService.IsSceneProxy(healer))
         {
             return;
@@ -81,7 +81,9 @@ public static class RemoteRepairAutoTargetingService
             }
         }
 
-        var ally = LogisticsAutoTargetingService.FindNearestProtectionAlly(bf, healer, modules);
+        // 含自身：场域持有舰独装小甲回时，排除自我会导致永远无目标
+        var ally = LogisticsAutoTargetingService.FindNearestProtectionAlly(
+            bf, healer, modules, includeSelf: true);
         if (ally?.unitId == null)
         {
             if (healer.remoteRepairAutoActive)
@@ -100,6 +102,23 @@ public static class RemoteRepairAutoTargetingService
         CombatTelemetryLog.Log(
             "repair.auto-aim",
             $"{healer.unitId}→{ally.unitId} rounds={healer.pendingRepairRounds}");
+
+        // #region agent log
+        try
+        {
+            var path = System.IO.Path.Combine(@"h:\", "debug-85a1e0.log");
+            var line = "{\"sessionId\":\"85a1e0\",\"runId\":\"post-fix\",\"hypothesisId\":\"I\",\"location\":\"RemoteRepairAutoTargetingService.Tick\",\"message\":\"auto-aim\",\"data\":{"
+                       + "\"healer\":\"" + (healer.unitId ?? "") + "\""
+                       + ",\"target\":\"" + (ally.unitId ?? "") + "\""
+                       + ",\"self\":" + (ReferenceEquals(ally, healer) ? "true" : "false")
+                       + ",\"rounds\":" + healer.pendingRepairRounds
+                       + "},\"timestamp\":" + System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + "}\n";
+            System.IO.File.AppendAllText(path, line);
+        }
+        catch
+        {
+        }
+        // #endregion
     }
 
     private static void EnsureRepairQueued(BattlefieldUnit healer)

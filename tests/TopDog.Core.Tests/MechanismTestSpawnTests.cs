@@ -83,7 +83,7 @@ public sealed class MechanismTestSpawnTests
     [Test]
     public void Catalog_LoadsAllScenarios()
     {
-        Assert.That(MechanismTestCatalog.ListAll(), Has.Count.EqualTo(10));
+        Assert.That(MechanismTestCatalog.ListAll(), Has.Count.EqualTo(11));
     }
 
     [Test]

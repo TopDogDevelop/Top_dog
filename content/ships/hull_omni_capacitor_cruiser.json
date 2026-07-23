@@ -1,0 +1,13 @@
+{
+  "hullId": "hull_omni_capacitor_cruiser",
+  "displayName": "全能级电容战型",
+  "displayNameEn": "Omni-class Energy Warfare Cruiser",
+  "hullBrief": "入门级的战术万金油。",
+  "tonnageClass": "CRUISER",
+  "shieldHp": 1800, "armorHp": 1800, "structureHp": 2400,
+  "baseSpeedMps": 900, "baseAccelMps2": 600, "warpSpeedAups": 0.5,
+  "attackSlots": 1, "functionSlots": 3, "defenseSlots": 3, "passiveSlots": 1,
+  "defaultSlotSize": "SMALL", "simultaneousEnableLimit": 0, "starCoinValue": 4200,
+  "hullLicenses": ["area_energy_drain"],
+  "slotLayout": [{"slotId": "fn_0", "slotSize": "LARGE"}]
+}

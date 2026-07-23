@@ -1,16 +1,18 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
+using System.Threading;
 using TopDog.Sim.State;
 
 /*
  * ══ 设计手册嵌入 ══
- * 权威: docs/COMBAT_DIAGNOSTICS.md §会话全量导出
+ * 权威: docs/COMBAT_DIAGNOSTICS.md §会话全量导出 · .cursor/rules/topdog-log-nonblocking.mdc
  * 本文件: CombatTelemetrySessionExport.cs — 实时交战全量 telemetry 落盘
  * 【机制要点】
  * · Begin：战役 ChooseRealtime / 约战 / 机制详测 共用 CombatRealtimeLinkService.Begin
  * · 捕获 Begin 前已写入的 combat.fit（spawn 早于握手）
  * · LatestPath 始终覆盖；ArchiveDir 留时间戳副本
- * · 环形缓冲仍 256（UI）；会话缓冲 + 文件为全量
+ * · **落盘异步**：主线程只入队，后台写盘；禁止 AutoFlush 逐行阻塞 Tick
  * 【关联】CombatTelemetryLog · CombatRealtimeLinkService
  * ══
  */
@@ -37,10 +39,15 @@ public static class CombatTelemetrySessionExport
 
     private static readonly object Gate = new();
     private static readonly List<string> SessionEntries = new();
+    private static readonly ConcurrentQueue<string> DiskQueue = new();
+    private static readonly AutoResetEvent DiskSignal = new(false);
     private static StreamWriter? _writer;
     private static string? _archivePath;
     private static string _sessionId = "";
     private static string _modeLabel = "";
+    private static Thread? _diskThread;
+    private static volatile bool _diskThreadRun;
+    private static int _diskIoPaused;
 
     public static void Begin(GameState state)
     {
@@ -80,8 +87,9 @@ public static class CombatTelemetrySessionExport
                     new FileStream(LatestPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite),
                     Encoding.UTF8)
                 {
-                    AutoFlush = true,
+                    AutoFlush = false,
                 };
+                EnsureDiskThread();
 
                 WriteLineUnlocked($"--- combat.session.begin id={_sessionId} mode={_modeLabel} ---");
                 WriteLineUnlocked(
@@ -146,24 +154,34 @@ public static class CombatTelemetrySessionExport
                 return;
             }
 
-            WriteLineUnlocked(line);
+            // 主线程：只进内存；磁盘由后台线程消化
+            if (SessionEntries.Count >= MaxSessionEntries)
+            {
+                if (SessionEntries.Count == MaxSessionEntries)
+                {
+                    var warn = $"[combat.export] truncated at {MaxSessionEntries} lines";
+                    SessionEntries.Add(warn);
+                    DiskQueue.Enqueue(warn);
+                    DiskSignal.Set();
+                }
+
+                return;
+            }
+
+            SessionEntries.Add(line);
+            SessionLineCount = SessionEntries.Count;
+            // 与 SessionEntries 同锁入队，避免 End 漏刷尚未 Enqueue 的行
+            DiskQueue.Enqueue(line);
         }
+
+        DiskSignal.Set();
     }
 
-    /// <summary>仅刷盘，不结束会话（UI 重建时用）。</summary>
+    /// <summary>请求刷盘（不阻塞；后台尽快 Flush）。</summary>
     public static void Flush()
     {
-        lock (Gate)
-        {
-            try
-            {
-                _writer?.Flush();
-            }
-            catch
-            {
-                // ignore
-            }
-        }
+        DiskQueue.Enqueue("__FLUSH__");
+        DiskSignal.Set();
     }
 
     /// <summary>结束会话并写摘要；返回 LatestPath（失败则 null）。</summary>
@@ -213,6 +231,116 @@ public static class CombatTelemetrySessionExport
         }
     }
 
+    private static void EnsureDiskThread()
+    {
+        if (_diskThreadRun && _diskThread is { IsAlive: true })
+        {
+            return;
+        }
+
+        _diskThreadRun = true;
+        _diskThread = new Thread(DiskWriterLoop)
+        {
+            IsBackground = true,
+            Name = "TopDog.CombatTelemetryWriter",
+        };
+        _diskThread.Start();
+    }
+
+    private static void DiskWriterLoop()
+    {
+        var sinceFlush = 0;
+        while (_diskThreadRun || !DiskQueue.IsEmpty)
+        {
+            DiskSignal.WaitOne(250);
+            if (Volatile.Read(ref _diskIoPaused) != 0)
+            {
+                continue;
+            }
+
+            while (Volatile.Read(ref _diskIoPaused) == 0 && DiskQueue.TryDequeue(out var line))
+            {
+                if (line == "__FLUSH__")
+                {
+                    try
+                    {
+                        lock (Gate)
+                        {
+                            _writer?.Flush();
+                        }
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+
+                    sinceFlush = 0;
+                    continue;
+                }
+
+                try
+                {
+                    lock (Gate)
+                    {
+                        if (_writer == null)
+                        {
+                            break;
+                        }
+
+                        _writer.WriteLine(line);
+                    }
+
+                    sinceFlush++;
+                    if (sinceFlush >= 64)
+                    {
+                        lock (Gate)
+                        {
+                            _writer?.Flush();
+                        }
+
+                        sinceFlush = 0;
+                    }
+                }
+                catch
+                {
+                    // 丢日志，不回传游戏线程
+                }
+            }
+        }
+
+        try
+        {
+            lock (Gate)
+            {
+                _writer?.Flush();
+            }
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
+    private static void DrainDiskQueueForEndUnlocked()
+    {
+        while (DiskQueue.TryDequeue(out var line))
+        {
+            if (line == "__FLUSH__")
+            {
+                continue;
+            }
+
+            try
+            {
+                _writer?.WriteLine(line);
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+    }
+
     private static string? EndUnlocked(string reason)
     {
         if (!IsActive && _writer == null)
@@ -220,9 +348,13 @@ public static class CombatTelemetrySessionExport
             return LastExportPath;
         }
 
+        Interlocked.Increment(ref _diskIoPaused);
         try
         {
+            // 暂停后台写，独占 Drain，避免后台 dequeue 后 writer 已 Dispose
+            Thread.Sleep(1);
             WriteSummaryUnlocked(reason);
+            DrainDiskQueueForEndUnlocked();
             _writer?.Flush();
             _writer?.Dispose();
             _writer = null;
@@ -243,6 +375,7 @@ public static class CombatTelemetrySessionExport
         {
             IsActive = false;
             _writer = null;
+            Interlocked.Decrement(ref _diskIoPaused);
         }
 
         return LastExportPath;
@@ -256,14 +389,8 @@ public static class CombatTelemetrySessionExport
             {
                 var warn = $"[combat.export] truncated at {MaxSessionEntries} lines";
                 SessionEntries.Add(warn);
-                try
-                {
-                    _writer?.WriteLine(warn);
-                }
-                catch
-                {
-                    // ignore
-                }
+                DiskQueue.Enqueue(warn);
+                DiskSignal.Set();
             }
 
             return;
@@ -271,14 +398,8 @@ public static class CombatTelemetrySessionExport
 
         SessionEntries.Add(line);
         SessionLineCount = SessionEntries.Count;
-        try
-        {
-            _writer?.WriteLine(line);
-        }
-        catch
-        {
-            // ignore
-        }
+        DiskQueue.Enqueue(line);
+        DiskSignal.Set();
     }
 
     private static void WriteSummaryUnlocked(string reason)

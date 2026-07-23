@@ -22,8 +22,21 @@ public sealed class MechanismTestScenarioDef
     public int scenarioOrder;
     public int seed;
     public float spawnSeparationM = 20_000f;
-    /// <summary>nav_rally / intra_scene_warp；默认单矿带对阵。</summary>
+    /// <summary>nav_rally / intra_scene_warp / stress_10k_icons；默认单矿带对阵。</summary>
     public string? mapMode;
+    /// <summary>scatter fill 单位总数（如 stress_10k_icons 开场舰队规模）。</summary>
+    public int stressUnitCount;
+    public int factionCount;
+    public float scatterRadiusM;
+    public int maxLiveMissiles;
+    /// <summary>开场：不因歼敌自动结束（任意机制测可配）。</summary>
+    public bool disableAutoVictory;
+    /// <summary>开场 TiDi 实体预算；0=用 BattlefieldState 默认。</summary>
+    public int entityBudget;
+    /// <summary>开场 tick 毫秒预算；≤0=用默认。</summary>
+    public float tickBudgetMs;
+    /// <summary>开场最小时间膨胀；≤0=用默认。</summary>
+    public float minTimeDilation;
     public List<MechanismTestLegionDef> legions = new();
 }
 

@@ -15,17 +15,13 @@ using UnityEngine.UIElements;
 
 /*
  * ══ 设计手册嵌入 ══
- * 权威: docs/TACTICAL_RIGHT_RAIL_SCENE_PROXY.md §2 · docs/TACTICAL_VIEW.md §3
+ * 权威: docs/TACTICAL_RIGHT_RAIL_SCENE_PROXY.md §2 · docs/TACTICAL_VIEW.md §3.2
  * 本文件: TacticalRightRail.cs — 右栏双模式切换
  * 【机制要点】
- * · 模式 B（默认）物体总览 `object-overview-scroll`：当前战场单位 + 「其他场景」（按 AU 距离罗列）
- * · 模式 A `vision-rail-scroll`：ListBattlefieldVisionGroups（排除有存活敌舰的实时交战场）
- * · 底栏 `btn-rail-mode-toggle` 在两种 ScrollView 间互斥
- * 【实现逻辑】
- * · RefreshBattlefields：按战场组渲染；空/交战场不显示；点击 ActivateDescentEntry（交战场拒绝切入）
- * · RefreshObjects：scene proxy 行显示 AU；不写 tacticalCameraUnitId
- * · BuildObjectRow：ObjectOverviewCompact 单行 + 虚线行分隔；距离 RefreshObjectDistancesOnly
- * 【关联】TacticalSelectionState · PossessionService · TacticalIconCatalog · VisionLocationService
+ * · 模式 B：逻辑表无上限；DOM 用固定高度虚拟窗（spacer）浏览全部；步进只填可见窗
+ * · 顶部可点吨位图标过滤器；选中只改高亮不整表重建
+ * · 模式 A：ListBattlefieldVisionGroups
+ * 【关联】TacticalSelectionState · TacticalIconCatalog · VisionLocationService
  * ══
  */
 
@@ -50,6 +46,31 @@ public sealed class TacticalRightRail
     private string _lastObjectOverviewKey = "";
     private string _lastBattlefieldRailKey = "";
     private float _nextRailForceRefresh;
+
+    /// <summary>重表现帧向虚拟窗追加的行数（逻辑无上限；DOM 不超过 Visible）。</summary>
+    public const int ObjectOverviewStepRows = 12;
+
+    /// <summary>同时挂在树上的舰船行上限（虚拟滚动窗）。</summary>
+    public const int ObjectOverviewVisibleShipRows = 48;
+
+    private const float ObjectOverviewRowHeightPx = 28f;
+    private const float ObjectOverviewDistanceIntervalSec = 0.75f;
+
+    private string? _tonnageFilter;
+    private int _shipWindowStart;
+    private int _shipRowsBuiltInWindow;
+    private bool _overviewBuilding;
+    private bool _scrollHooked;
+    private bool _scrollRelayoutGuard;
+    private float _nextDistanceRefresh;
+    private readonly List<BattlefieldUnit> _orderedShips = new(256);
+    private readonly List<int> _filteredShipIndices = new(256);
+    private VisualElement? _filterBar;
+    private VisualElement? _listHost;
+    private Label? _shipGroupHeader;
+    private VisualElement? _spacerTop;
+    private VisualElement? _shipRowsHost;
+    private VisualElement? _spacerBottom;
 
     public TacticalRightRail(
         VisualElement root,
@@ -107,10 +128,50 @@ public sealed class TacticalRightRail
         RefreshToggleLabel();
     }
 
+    /// <summary>交互帧：仅高亮 / 节流距离；禁止追加行、禁止 Clear。</summary>
+    public void RefreshInteractionOnly(GameState state)
+    {
+        RefreshToggleLabel();
+        var bf = FindActiveBattlefield(state);
+        if (bf == null)
+        {
+            return;
+        }
+
+        RefreshSelectionHighlight();
+        if (_shipRowsHost != null
+            && _shipRowsHost.childCount > 0
+            && Time.unscaledTime >= _nextDistanceRefresh)
+        {
+            _nextDistanceRefresh = Time.unscaledTime + ObjectOverviewDistanceIntervalSec;
+            UpdateObjectRowDistances(state, bf);
+        }
+    }
+
+    /// <summary>重表现帧：推进虚拟窗步进填充（密舰队用）。</summary>
+    public void RefreshHeavyStep(GameState state)
+    {
+        var bf = FindActiveBattlefield(state);
+        if (bf == null)
+        {
+            return;
+        }
+
+        if (_overviewBuilding)
+        {
+            AppendOverviewShipSteps(state, bf);
+        }
+    }
+
     public void InvalidateCaches()
     {
         _lastObjectOverviewKey = "";
         _lastBattlefieldRailKey = "";
+        _overviewBuilding = false;
+        _shipWindowStart = 0;
+        _shipRowsBuiltInWindow = 0;
+        _orderedShips.Clear();
+        _filteredShipIndices.Clear();
     }
 
     public void RefreshSelectionHighlight()
@@ -246,10 +307,18 @@ public sealed class TacticalRightRail
         {
             tags.Add("视角");
         }
+        if (!entry.CanPossess && !entry.CanTacticalLink)
+        {
+            tags.Add("词条");
+        }
 
         if (entry.InTransit)
         {
             tags.Add("跃迁中");
+        }
+        else if (entry.UnitId == null)
+        {
+            tags.Add("指定地点");
         }
 
         var labelText = entry.MemberName;
@@ -312,17 +381,10 @@ public sealed class TacticalRightRail
             }
         }
 
-        if (VisionLocationService.IsHostileRealtimeCombatBattlefield(targetBf)
-            && (state.activeBattlefieldId == null
-                || !entry.BattlefieldId.Equals(state.activeBattlefieldId, StringComparison.Ordinal)))
-        {
-            return;
-        }
-
         PossessionService.SwitchBattlefield(state, entry.BattlefieldId);
         TacticalSelectionState.ClearOnBattlefieldSwitch();
 
-        if (entry.CanPossess && !entry.InTransit)
+        if (entry.CanPossess && !entry.InTransit && entry.UnitId != null)
         {
             PossessionService.Possess(state, entry.MemberId);
             _refreshCombatUi?.Invoke();
@@ -346,29 +408,64 @@ public sealed class TacticalRightRail
         {
             return;
         }
+
         var bf = FindActiveBattlefield(state);
         if (bf == null)
         {
             if (_lastObjectOverviewKey != "_empty")
             {
                 _objectContent.Clear();
+                _filterBar = null;
+                _listHost = null;
                 _objectContent.Add(MakeHint("无活跃战场"));
                 _lastObjectOverviewKey = "_empty";
+                _overviewBuilding = false;
             }
+
             return;
         }
 
         var key = BuildObjectOverviewKey(bf, state);
-        if (key == _lastObjectOverviewKey && _objectContent.childCount > 0)
+        if (key != _lastObjectOverviewKey || _listHost == null)
         {
-            UpdateObjectRowSelection();
-            UpdateObjectRowDistances(state, bf);
+            BeginObjectOverview(state, bf, key);
+        }
+
+        if (_overviewBuilding)
+        {
+            AppendOverviewShipSteps(state, bf);
             return;
         }
 
-        _lastObjectOverviewKey = key;
-        _objectContent.Clear();
+        UpdateObjectRowSelection();
+        if (Time.unscaledTime >= _nextDistanceRefresh)
+        {
+            _nextDistanceRefresh = Time.unscaledTime + ObjectOverviewDistanceIntervalSec;
+            UpdateObjectRowDistances(state, bf);
+        }
+    }
 
+    private void BeginObjectOverview(GameState state, BattlefieldState bf, string key)
+    {
+        _lastObjectOverviewKey = key;
+        _objectContent!.Clear();
+        _orderedShips.Clear();
+        _filteredShipIndices.Clear();
+        _shipWindowStart = 0;
+        _shipRowsBuiltInWindow = 0;
+        _overviewBuilding = true;
+        _shipGroupHeader = null;
+        _spacerTop = null;
+        _shipRowsHost = null;
+        _spacerBottom = null;
+
+        RebuildFilterBar(state, bf);
+
+        _listHost = new VisualElement { name = "object-overview-list" };
+        _listHost.AddToClassList("rtcombat-rail-object-list");
+        _objectContent.Add(_listHost);
+
+        // ① 全部其他场景边缘占位（通常很少，一次建完）
         var sceneProxies = bf.units
             .Where(u => BattlefieldSceneProxyService.IsSceneProxy(u) && !u.IsDestroyed())
             .OrderBy(u => BattlefieldSceneProxyService.ResolveDistanceAu(state, bf, u))
@@ -379,123 +476,552 @@ public sealed class TacticalRightRail
             : new List<TacticalOffSceneLink>();
         if (sceneProxies.Count > 0 || offSceneLinks.Count > 0)
         {
-            _objectContent.Add(MakeGroupHeader("其他场景"));
+            _listHost.Add(MakeGroupHeader("其他场景"));
             foreach (var u in sceneProxies)
             {
-                _objectContent.Add(BuildSceneProxyRow(state, bf, u));
+                _listHost.Add(BuildSceneProxyRow(state, bf, u));
             }
 
             foreach (var link in offSceneLinks)
             {
-                _objectContent.Add(BuildOffSceneLinkRow(state, link));
+                _listHost.Add(BuildOffSceneLinkRow(state, link));
             }
         }
 
-        var inbound = bf.units
-            .Where(u => !u.IsDestroyed() && VisionGate.IsWarpInbound(u, bf.timeSec))
-            .OrderBy(u => u.displayName ?? u.unitId)
-            .ToList();
-        if (inbound.Count > 0)
+        // ② 舰船按距焦距升序（含跃迁中；不按吨位分组）
+        var shipScratch = new List<(BattlefieldUnit u, float dist)>(bf.units.Count);
+        foreach (var u in bf.units)
         {
-            _objectContent.Add(MakeGroupHeader("跃迁中"));
-            foreach (var u in inbound)
-            {
-                _objectContent.Add(BuildObjectRow(state, u, bf, indent: false, warp: true));
-            }
-        }
-
-        var transitInbound = state.tacticalWarpInTransit
-            .Where(e => e.unit.side == UnitSide.FRIENDLY
-                && !e.unit.IsDestroyed()
-                && bf.battlefieldId != null
-                && bf.battlefieldId.Equals(e.toBattlefieldId, StringComparison.Ordinal))
-            .Select(e => e.unit)
-            .OrderBy(u => u.displayName ?? u.unitId)
-            .ToList();
-        if (transitInbound.Count > 0)
-        {
-            if (inbound.Count == 0)
-            {
-                _objectContent.Add(MakeGroupHeader("跃迁中"));
-            }
-
-            foreach (var u in transitInbound)
-            {
-                _objectContent.Add(BuildObjectRow(state, u, bf, indent: false, warp: true));
-            }
-        }
-
-        var units = bf.units
-            .Where(u => !u.IsDestroyed() && u.Arrived(bf.timeSec))
-            .OrderBy(u => u.side == UnitSide.ENEMY ? 0 : u.side == UnitSide.FRIENDLY ? 1 : 2)
-            .ThenBy(u => u.parentUnitId != null ? 1 : 0)
-            .ThenBy(u => u.displayName ?? u.unitId)
-            .ToList();
-
-        var strikeWings = units
-            .Where(u => "STRIKE_CRAFT".Equals(u.tonnageClass, System.StringComparison.Ordinal))
-            .ToList();
-        if (strikeWings.Count > 0)
-        {
-            _objectContent.Add(MakeGroupHeader("舰载机"));
-            foreach (var u in strikeWings)
-            {
-                _objectContent.Add(BuildObjectRow(state, u, bf, indent: u.parentUnitId != null, warp: false));
-            }
-        }
-
-        var missiles = units
-            .Where(u => "MISSILE".Equals(u.tonnageClass, System.StringComparison.Ordinal))
-            .ToList();
-        if (missiles.Count > 0)
-        {
-            _objectContent.Add(MakeGroupHeader("导弹"));
-            foreach (var u in missiles)
-            {
-                _objectContent.Add(BuildObjectRow(state, u, bf, indent: u.parentUnitId != null, warp: false));
-            }
-        }
-
-        var boardWings = units
-            .Where(u => "BOARD_SUMMON_WING".Equals(u.tonnageClass, System.StringComparison.Ordinal))
-            .ToList();
-        if (boardWings.Count > 0)
-        {
-            _objectContent.Add(MakeGroupHeader("董事会增援"));
-            foreach (var u in boardWings)
-            {
-                _objectContent.Add(BuildObjectRow(state, u, bf, indent: u.parentUnitId != null, warp: false));
-            }
-        }
-
-        var groups = new Dictionary<string, List<BattlefieldUnit>>();
-        foreach (var u in units)
-        {
-            if (IsDedicatedWing(u.tonnageClass) || BattlefieldSceneProxyService.IsSceneProxy(u))
+            if (u == null || u.IsDestroyed() || BattlefieldSceneProxyService.IsSceneProxy(u))
             {
                 continue;
             }
-            var groupKey = JumpBridgeUnitService.IsJumpBridgeBuilding(u)
-                ? JumpBridgeUnitService.TonnageClass
-                : u.isBuilding
-                    ? "BUILDING"
-                    : (u.tonnageClass ?? "UNKNOWN");
-            if (!groups.TryGetValue(groupKey, out var list))
+
+            var warp = VisionGate.IsWarpInbound(u, bf.timeSec);
+            var dist = warp ? ResolveDistanceToFocusM(state, bf, u) : ResolveDistanceToFocusM(state, bf, u);
+            if (dist < 0f)
             {
-                list = new List<BattlefieldUnit>();
-                groups[groupKey] = list;
+                dist = float.MaxValue * 0.5f;
             }
-            list.Add(u);
+
+            shipScratch.Add((u, dist));
         }
 
-        foreach (var kv in groups.OrderBy(g => g.Key == "BUILDING" ? 1 : 0).ThenBy(g => g.Key))
+        if (bf.battlefieldId != null)
         {
-            _objectContent.Add(MakeGroupHeader(TacticalIconCatalog.GroupLabel(kv.Key)));
-            foreach (var u in kv.Value)
+            foreach (var entry in state.tacticalWarpInTransit)
             {
-                _objectContent.Add(BuildObjectRow(state, u, bf, indent: u.parentUnitId != null, warp: false));
+                if (entry.unit == null || entry.unit.IsDestroyed()
+                    || !bf.battlefieldId.Equals(entry.toBattlefieldId, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (entry.unit.side != UnitSide.FRIENDLY)
+                {
+                    continue;
+                }
+
+                var already = false;
+                foreach (var s in shipScratch)
+                {
+                    if (s.u.unitId != null && s.u.unitId.Equals(entry.unit.unitId, StringComparison.Ordinal))
+                    {
+                        already = true;
+                        break;
+                    }
+                }
+
+                if (!already)
+                {
+                    shipScratch.Add((entry.unit, float.MaxValue * 0.25f));
+                }
             }
         }
+
+        static int CompareShip(
+            (BattlefieldUnit u, float dist) a,
+            (BattlefieldUnit u, float dist) b)
+        {
+            var c = a.dist.CompareTo(b.dist);
+            if (c != 0)
+            {
+                return c;
+            }
+
+            return string.Compare(a.u.displayName ?? a.u.unitId, b.u.displayName ?? b.u.unitId,
+                StringComparison.Ordinal);
+        }
+
+        try
+        {
+            var entriesById = shipScratch
+                .Where(entry => entry.u.unitId != null)
+                .ToDictionary(entry => entry.u.unitId!, StringComparer.Ordinal);
+            var childrenByParent = shipScratch
+                .Where(entry => entry.u.parentUnitId != null
+                                && entriesById.ContainsKey(entry.u.parentUnitId))
+                .GroupBy(entry => entry.u.parentUnitId!, StringComparer.Ordinal)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.OrderBy(entry => entry, Comparer<(BattlefieldUnit u, float dist)>.Create(CompareShip))
+                        .ToList(),
+                    StringComparer.Ordinal);
+            var roots = shipScratch
+                .Where(entry => entry.u.parentUnitId == null
+                                || !entriesById.ContainsKey(entry.u.parentUnitId))
+                .OrderBy(entry => entry, Comparer<(BattlefieldUnit u, float dist)>.Create(CompareShip))
+                .ToList();
+            var appended = new HashSet<string>(StringComparer.Ordinal);
+            void AppendTree((BattlefieldUnit u, float dist) entry)
+            {
+                if (entry.u.unitId == null || !appended.Add(entry.u.unitId))
+                {
+                    return;
+                }
+                _orderedShips.Add(entry.u);
+                if (childrenByParent.TryGetValue(entry.u.unitId, out var children))
+                {
+                    foreach (var child in children)
+                    {
+                        AppendTree(child);
+                    }
+                }
+            }
+            foreach (var root in roots)
+            {
+                AppendTree(root);
+            }
+            foreach (var entry in shipScratch.OrderBy(entry => entry, Comparer<(BattlefieldUnit u, float dist)>.Create(CompareShip)))
+            {
+                AppendTree(entry);
+            }
+
+            RebuildFilteredShipIndices();
+            // #region agent log
+            AgentSessionDebugLog.WriteDebugSession(
+                "F2-F3",
+                "TacticalRightRail.cs:BeginObjectOverview",
+                "object overview rebuilt",
+                new
+                {
+                    ordered = _orderedShips.Count,
+                    filtered = _filteredShipIndices.Count,
+                    tonnageFilter = _tonnageFilter,
+                    scratch = shipScratch.Count,
+                    roots = roots.Count,
+                });
+            // #endregion
+        }
+        catch (Exception ex)
+        {
+            // #region agent log
+            AgentSessionDebugLog.WriteDebugSession(
+                "F2",
+                "TacticalRightRail.cs:BeginObjectOverview:exception",
+                "object overview rebuild failed",
+                new
+                {
+                    error = ex.GetType().Name,
+                    message = ex.Message,
+                    tonnageFilter = _tonnageFilter,
+                    scratch = shipScratch.Count,
+                    ordered = _orderedShips.Count,
+                });
+            // #endregion
+            throw;
+        }
+
+        _shipWindowStart = 0;
+        _shipRowsBuiltInWindow = 0;
+        EnsureVirtualShipStructure();
+        UpdateShipGroupHeader();
+        UpdateVirtualSpacers();
+        HookObjectScroll();
+        AppendOverviewShipSteps(state, bf);
+    }
+
+    private void RebuildFilteredShipIndices()
+    {
+        _filteredShipIndices.Clear();
+        var visibleIds = new HashSet<string>(StringComparer.Ordinal);
+        Dictionary<string, BattlefieldUnit> byId;
+        try
+        {
+            byId = _orderedShips
+                .Where(unit => unit.unitId != null)
+                .ToDictionary(unit => unit.unitId!, StringComparer.Ordinal);
+        }
+        catch (Exception ex)
+        {
+            // #region agent log
+            AgentSessionDebugLog.WriteDebugSession(
+                "F2",
+                "TacticalRightRail.cs:RebuildFilteredShipIndices:byId",
+                "filter index dict failed",
+                new
+                {
+                    error = ex.GetType().Name,
+                    message = ex.Message,
+                    ordered = _orderedShips.Count,
+                    tonnageFilter = _tonnageFilter,
+                });
+            // #endregion
+            throw;
+        }
+
+        foreach (var unit in _orderedShips)
+        {
+            if (_tonnageFilter != null
+                && string.Equals(NormalizeFilterTonnage(unit), _tonnageFilter, StringComparison.Ordinal)
+                && unit.unitId != null)
+            {
+                visibleIds.Add(unit.unitId);
+                var parentId = unit.parentUnitId;
+                while (parentId != null && byId.TryGetValue(parentId, out var parent))
+                {
+                    if (!visibleIds.Add(parentId))
+                    {
+                        break;
+                    }
+                    parentId = parent.parentUnitId;
+                }
+            }
+        }
+        for (var i = 0; i < _orderedShips.Count; i++)
+        {
+            var u = _orderedShips[i];
+            if (_tonnageFilter == null
+                || u.unitId != null && visibleIds.Contains(u.unitId))
+            {
+                _filteredShipIndices.Add(i);
+            }
+        }
+    }
+
+    private void EnsureVirtualShipStructure()
+    {
+        if (_listHost == null)
+        {
+            return;
+        }
+
+        _shipGroupHeader = MakeGroupHeader("舰船");
+        _listHost.Add(_shipGroupHeader);
+
+        _spacerTop = new VisualElement { name = "object-overview-spacer-top" };
+        _spacerTop.pickingMode = PickingMode.Ignore;
+        _listHost.Add(_spacerTop);
+
+        _shipRowsHost = new VisualElement { name = "object-overview-ship-rows" };
+        _shipRowsHost.AddToClassList("rtcombat-rail-object-list");
+        _listHost.Add(_shipRowsHost);
+
+        _spacerBottom = new VisualElement { name = "object-overview-spacer-bottom" };
+        _spacerBottom.pickingMode = PickingMode.Ignore;
+        _listHost.Add(_spacerBottom);
+    }
+
+    private void UpdateShipGroupHeader()
+    {
+        if (_shipGroupHeader == null)
+        {
+            return;
+        }
+
+        var n = _filteredShipIndices.Count;
+        _shipGroupHeader.text = _tonnageFilter == null
+            ? $"舰船（按距离 · {n}）"
+            : $"舰船（{TacticalIconCatalog.GroupLabel(_tonnageFilter)} · {n}）";
+    }
+
+    private void UpdateVirtualSpacers()
+    {
+        if (_spacerTop == null || _spacerBottom == null)
+        {
+            return;
+        }
+
+        var total = _filteredShipIndices.Count;
+        var visible = Math.Min(ObjectOverviewVisibleShipRows, Math.Max(0, total - _shipWindowStart));
+        _spacerTop.style.height = _shipWindowStart * ObjectOverviewRowHeightPx;
+        _spacerBottom.style.height = Math.Max(0, total - _shipWindowStart - visible)
+            * ObjectOverviewRowHeightPx;
+    }
+
+    private void HookObjectScroll()
+    {
+        if (_scrollHooked || _objectScroll == null)
+        {
+            return;
+        }
+
+        _objectScroll.verticalScroller.valueChanged += OnObjectScrollChanged;
+        _scrollHooked = true;
+    }
+
+    private void OnObjectScrollChanged(float value)
+    {
+        if (_scrollRelayoutGuard || _filteredShipIndices.Count <= ObjectOverviewVisibleShipRows)
+        {
+            return;
+        }
+
+        var maxStart = Math.Max(0, _filteredShipIndices.Count - ObjectOverviewVisibleShipRows);
+        var start = Mathf.Clamp(
+            Mathf.FloorToInt(value / ObjectOverviewRowHeightPx),
+            0,
+            maxStart);
+        if (start == _shipWindowStart)
+        {
+            return;
+        }
+
+        var core = GameAppHost.Instance?.Core;
+        var state = core?.State;
+        var bf = state != null ? FindActiveBattlefield(state) : null;
+        if (state == null || bf == null)
+        {
+            return;
+        }
+
+        _scrollRelayoutGuard = true;
+        try
+        {
+            _shipWindowStart = start;
+            _shipRowsBuiltInWindow = 0;
+            _overviewBuilding = true;
+            _shipRowsHost?.Clear();
+            UpdateVirtualSpacers();
+            AppendOverviewShipSteps(state, bf, forceFillWindow: true);
+        }
+        finally
+        {
+            _scrollRelayoutGuard = false;
+        }
+    }
+
+    private void AppendOverviewShipSteps(
+        GameState state,
+        BattlefieldState bf,
+        bool forceFillWindow = false)
+    {
+        if (_shipRowsHost == null)
+        {
+            _overviewBuilding = false;
+            return;
+        }
+
+        var targetVisible = Math.Min(
+            ObjectOverviewVisibleShipRows,
+            Math.Max(0, _filteredShipIndices.Count - _shipWindowStart));
+        var budget = forceFillWindow ? targetVisible : ObjectOverviewStepRows;
+        var added = 0;
+        while (_shipRowsBuiltInWindow < targetVisible && added < budget)
+        {
+            var filteredIdx = _shipWindowStart + _shipRowsBuiltInWindow;
+            if (filteredIdx < 0 || filteredIdx >= _filteredShipIndices.Count)
+            {
+                break;
+            }
+
+            var u = _orderedShips[_filteredShipIndices[filteredIdx]];
+            var warp = VisionGate.IsWarpInbound(u, bf.timeSec);
+            _shipRowsHost.Add(BuildObjectRow(
+                state,
+                u,
+                bf,
+                indent: u.parentUnitId != null,
+                warp: warp));
+            _shipRowsBuiltInWindow++;
+            added++;
+        }
+
+        UpdateVirtualSpacers();
+        if (_shipRowsBuiltInWindow >= targetVisible)
+        {
+            _overviewBuilding = false;
+            UpdateObjectRowSelection();
+        }
+    }
+
+    private void RebuildFilterBar(GameState state, BattlefieldState bf)
+    {
+        _filterBar = new VisualElement { name = "object-overview-filter" };
+        _filterBar.AddToClassList("rtcombat-rail-filter-bar");
+
+        var allBtn = new Button(() => SetTonnageFilter(null)) { text = "全部" };
+        allBtn.AddToClassList("rtcombat-rail-filter-btn");
+        allBtn.AddToClassList("rtcombat-rail-filter-all");
+        if (_tonnageFilter == null)
+        {
+            allBtn.AddToClassList("rtcombat-rail-filter-btn-active");
+        }
+
+        _filterBar.Add(allBtn);
+
+        var tonnages = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var u in bf.units)
+        {
+            if (u == null || u.IsDestroyed() || BattlefieldSceneProxyService.IsSceneProxy(u))
+            {
+                continue;
+            }
+
+            tonnages.Add(NormalizeFilterTonnage(u));
+        }
+
+        foreach (var tc in tonnages)
+        {
+            var tonnage = tc;
+            var btn = new Button(() => SetTonnageFilter(tonnage));
+            btn.userData = tonnage;
+            btn.AddToClassList("rtcombat-rail-filter-btn");
+            btn.tooltip = TacticalIconCatalog.GroupLabel(tonnage);
+            if (string.Equals(_tonnageFilter, tonnage, StringComparison.Ordinal))
+            {
+                btn.AddToClassList("rtcombat-rail-filter-btn-active");
+            }
+
+            var tex = TacticalIconCatalog.ResolveShipIcon(tonnage);
+            if (tex != null)
+            {
+                btn.style.backgroundImage = new StyleBackground(tex);
+                btn.style.unityBackgroundScaleMode = ScaleMode.ScaleToFit;
+                btn.text = "";
+            }
+            else
+            {
+                btn.text = tonnage.Length <= 3 ? tonnage : tonnage[..2];
+            }
+
+            _filterBar.Add(btn);
+        }
+
+        _objectContent!.Add(_filterBar);
+        // #region agent log
+        AgentSessionDebugLog.WriteDebugSession(
+            "F5",
+            "TacticalRightRail.cs:RebuildFilterBar",
+            "filter bar rebuilt",
+            new
+            {
+                buttonCount = _filterBar.childCount,
+                tonnages = tonnages.ToArray(),
+                activeFilter = _tonnageFilter,
+                railMode = TacticalSelectionState.RightRailMode.ToString(),
+            });
+        // #endregion
+    }
+
+    private void SetTonnageFilter(string? tonnage)
+    {
+        var previous = _tonnageFilter;
+        if (tonnage != null && string.Equals(_tonnageFilter, tonnage, StringComparison.Ordinal))
+        {
+            _tonnageFilter = null;
+        }
+        else
+        {
+            _tonnageFilter = tonnage;
+        }
+
+        var core = GameAppHost.Instance?.Core;
+        var state = core?.State;
+        var bf = state != null ? FindActiveBattlefield(state) : null;
+        if (state == null || bf == null || _listHost == null)
+        {
+            // #region agent log
+            AgentSessionDebugLog.WriteDebugSession(
+                "F1",
+                "TacticalRightRail.cs:SetTonnageFilter:early-return",
+                "filter click aborted",
+                new
+                {
+                    requested = tonnage,
+                    previous,
+                    applied = _tonnageFilter,
+                    hasState = state != null,
+                    hasBf = bf != null,
+                    hasListHost = _listHost != null,
+                    hasRowsHost = _shipRowsHost != null,
+                    ordered = _orderedShips.Count,
+                    railMode = TacticalSelectionState.RightRailMode.ToString(),
+                });
+            // #endregion
+            return;
+        }
+
+        RebuildFilteredShipIndices();
+        _shipWindowStart = 0;
+        _shipRowsBuiltInWindow = 0;
+        _shipRowsHost?.Clear();
+        UpdateShipGroupHeader();
+        UpdateVirtualSpacers();
+        _overviewBuilding = true;
+        RefreshFilterBarActiveStyles();
+        AppendOverviewShipSteps(state, bf, forceFillWindow: true);
+        // #region agent log
+        AgentSessionDebugLog.WriteDebugSession(
+            "F1-F4",
+            "TacticalRightRail.cs:SetTonnageFilter",
+            "filter applied",
+            new
+            {
+                requested = tonnage,
+                previous,
+                applied = _tonnageFilter,
+                ordered = _orderedShips.Count,
+                filtered = _filteredShipIndices.Count,
+                rowsBuilt = _shipRowsBuiltInWindow,
+                rowsHostChildren = _shipRowsHost?.childCount ?? -1,
+                overviewBuilding = _overviewBuilding,
+                header = _shipGroupHeader?.text,
+            });
+        // #endregion
+    }
+
+    private void RefreshFilterBarActiveStyles()
+    {
+        if (_filterBar == null)
+        {
+            return;
+        }
+
+        foreach (var child in _filterBar.Children())
+        {
+            if (child is not Button btn)
+            {
+                continue;
+            }
+
+            btn.RemoveFromClassList("rtcombat-rail-filter-btn-active");
+            if (_tonnageFilter == null && btn.ClassListContains("rtcombat-rail-filter-all"))
+            {
+                btn.AddToClassList("rtcombat-rail-filter-btn-active");
+            }
+            else if (_tonnageFilter != null
+                     && btn.userData is string tc
+                     && string.Equals(tc, _tonnageFilter, StringComparison.Ordinal))
+            {
+                btn.AddToClassList("rtcombat-rail-filter-btn-active");
+            }
+        }
+    }
+
+    private static string NormalizeFilterTonnage(BattlefieldUnit u)
+    {
+        if (JumpBridgeUnitService.IsJumpBridgeBuilding(u))
+        {
+            return JumpBridgeUnitService.TonnageClass;
+        }
+
+        if (u.isBuilding)
+        {
+            return "BUILDING";
+        }
+
+        return u.tonnageClass ?? "UNKNOWN";
     }
 
     // liketoco0de345
@@ -515,6 +1041,12 @@ public sealed class TacticalRightRail
             row.AddToClassList("rtcombat-rail-item-active");
         }
 
+        // 舰载机/无人机：子单位缩进，便于与母舰区分
+        if (!string.IsNullOrEmpty(u.parentUnitId) || IsDedicatedWing(u.tonnageClass))
+        {
+            row.AddToClassList("rtcombat-rail-object-indent");
+        }
+
         var iconHost = BuildRailIconHost(ResolveRowIcon(u));
         row.Add(iconHost);
 
@@ -525,12 +1057,19 @@ public sealed class TacticalRightRail
 
         var uid = u.unitId;
         var ships = ShipRegistry.LoadDefault();
-        var line = DisplayLabels.ObjectOverviewCompact(
-            state,
-            u,
-            ships,
-            warp ? -1f : ResolveDistanceToFocusM(state, bf, u),
-            warp);
+        var wingLine = WingRowLabel(u, bf);
+        var line = wingLine != null
+            ? FormatWingOverviewLine(
+                u,
+                wingLine,
+                warp,
+                warp ? -1f : ResolveDistanceToFocusM(state, bf, u))
+            : DisplayLabels.ObjectOverviewCompact(
+                state,
+                u,
+                ships,
+                warp ? -1f : ResolveDistanceToFocusM(state, bf, u),
+                warp);
         var name = new Label(line);
         name.pickingMode = PickingMode.Ignore;
         name.AddToClassList("rtcombat-rail-name");
@@ -588,13 +1127,15 @@ public sealed class TacticalRightRail
 
     private void UpdateObjectRowDistances(GameState state, BattlefieldState bf)
     {
-        if (_objectContent == null)
+        // 仅刷新虚拟窗内舰船行（≤ Visible）；其他场景占位改文案成本低，并入同循环
+        var host = _shipRowsHost ?? _listHost ?? _objectContent;
+        if (host == null)
         {
             return;
         }
 
         var ships = ShipRegistry.LoadDefault();
-        foreach (var child in _objectContent.Children())
+        foreach (var child in host.Children())
         {
             if (child.userData is not string unitId)
             {
@@ -625,14 +1166,41 @@ public sealed class TacticalRightRail
 
                 var inTransit = VisionGate.IsWarpInbound(unit, bf.timeSec)
                     || unit.warpPhase == TacticalWarpPhase.InTransit;
-                nameLabel.text = DisplayLabels.ObjectOverviewCompact(
-                    state,
-                    unit,
-                    ships,
-                    inTransit ? -1f : ResolveDistanceToFocusM(state, bf, unit),
-                    inTransit);
+                var wingLine = WingRowLabel(unit, bf);
+                nameLabel.text = wingLine != null
+                    ? FormatWingOverviewLine(
+                        unit,
+                        wingLine,
+                        inTransit,
+                        inTransit ? -1f : ResolveDistanceToFocusM(state, bf, unit))
+                    : DisplayLabels.ObjectOverviewCompact(
+                        state,
+                        unit,
+                        ships,
+                        inTransit ? -1f : ResolveDistanceToFocusM(state, bf, unit),
+                        inTransit);
             }
         }
+    }
+
+    private static string FormatWingOverviewLine(
+        BattlefieldUnit u,
+        string wingLine,
+        bool warp,
+        float distanceM)
+    {
+        var kind = "STRIKE_CRAFT".Equals(u.tonnageClass, StringComparison.Ordinal)
+            ? "舰载机"
+            : "DRONE".Equals(u.tonnageClass, StringComparison.Ordinal)
+                || "SHUTTLE".Equals(u.tonnageClass, StringComparison.Ordinal)
+                ? "无人机"
+                : TacticalIconCatalog.GroupLabel(u.tonnageClass ?? "UNKNOWN");
+        if (warp)
+        {
+            return kind + " · " + wingLine + " · 跃迁在途";
+        }
+
+        return kind + " · " + wingLine + " · " + DisplayLabels.ObjectOverviewDistanceLine(distanceM);
     }
 
     private static BattlefieldUnit? FindOverviewUnit(GameState state, BattlefieldState bf, string unitId)
@@ -797,68 +1365,115 @@ public sealed class TacticalRightRail
 
     private static string BuildObjectOverviewKey(BattlefieldState bf, GameState state)
     {
-        var parts = new List<string> { bf.battlefieldId ?? "?", "p" + bf.units.Count(u => BattlefieldSceneProxyService.IsSceneProxy(u)) };
-        parts.Add("l" + BattlefieldSceneProxyService.ListOffSceneLinks(state, bf).Count);
-        foreach (var u in bf.units.OrderBy(x => x.unitId, StringComparer.Ordinal))
+        // 粗粒度：场上艘数变化才重启步进；不含选中 / 过滤器（过滤只重建舰船段）
+        var alive = 0;
+        var dead = 0;
+        var proxies = 0;
+        foreach (var u in bf.units)
         {
-            if (u.unitId == null)
+            if (BattlefieldSceneProxyService.IsSceneProxy(u))
             {
-                continue;
-            }
-            var arrived = u.Arrived(bf.timeSec) ? "a" : "w";
-            var warp = u.warpPhase.ToString();
-            parts.Add(u.unitId + ":" + arrived + ":" + warp + ":" + (u.IsDestroyed() ? "x" : "o"));
-        }
+                if (!u.IsDestroyed())
+                {
+                    proxies++;
+                }
 
-        foreach (var entry in state.tacticalWarpInTransit.OrderBy(e => e.unit.unitId, StringComparer.Ordinal))
-        {
-            if (entry.unit.unitId == null)
-            {
                 continue;
             }
 
-            parts.Add("t:" + entry.unit.unitId + "@" + entry.toBattlefieldId);
+            if (u.IsDestroyed())
+            {
+                dead++;
+            }
+            else
+            {
+                alive++;
+            }
         }
 
-        return string.Join("|", parts);
+        var links = BattlefieldSceneProxyService.ListOffSceneLinks(state, bf).Count;
+        var transit = 0;
+        foreach (var e in state.tacticalWarpInTransit)
+        {
+            if (bf.battlefieldId != null
+                && bf.battlefieldId.Equals(e.toBattlefieldId, StringComparison.Ordinal))
+            {
+                transit++;
+            }
+        }
+
+        // 含舰载机/无人机计数：放出后 alive 若被其它死亡对消也可能漏刷，故单独记账
+        var strike = 0;
+        var drones = 0;
+        foreach (var u in bf.units)
+        {
+            if (u == null || u.IsDestroyed())
+            {
+                continue;
+            }
+
+            if ("STRIKE_CRAFT".Equals(u.tonnageClass, StringComparison.Ordinal))
+            {
+                strike++;
+            }
+            else if ("DRONE".Equals(u.tonnageClass, StringComparison.Ordinal)
+                     || "SHUTTLE".Equals(u.tonnageClass, StringComparison.Ordinal))
+            {
+                drones++;
+            }
+        }
+
+        return (bf.battlefieldId ?? "?") + "|a" + alive + "|d" + dead + "|p" + proxies
+            + "|l" + links + "|t" + transit + "|n" + bf.units.Count
+            + "|s" + strike + "|r" + drones;
     }
 
     private void UpdateObjectRowSelection()
     {
-        if (_objectContent == null)
-        {
-            return;
-        }
         var selected = TacticalSelectionState.SelectedTargetUnitId;
-        foreach (var child in _objectContent.Children())
+        void Paint(VisualElement? host)
         {
-            if (child.userData is not string uid)
+            if (host == null)
             {
-                continue;
+                return;
             }
-            if (uid.Equals(selected, System.StringComparison.Ordinal))
+
+            foreach (var child in host.Children())
             {
-                child.AddToClassList("rtcombat-rail-item-active");
-            }
-            else
-            {
-                child.RemoveFromClassList("rtcombat-rail-item-active");
+                if (child.userData is not string uid)
+                {
+                    continue;
+                }
+
+                if (uid.Equals(selected, StringComparison.Ordinal))
+                {
+                    child.AddToClassList("rtcombat-rail-item-active");
+                }
+                else
+                {
+                    child.RemoveFromClassList("rtcombat-rail-item-active");
+                }
             }
         }
+
+        Paint(_shipRowsHost);
+        Paint(_listHost);
     }
 
     // lik3tocoode345
 
     private static bool IsDedicatedWing(string? tonnageClass) =>
-        "STRIKE_CRAFT".Equals(tonnageClass, System.StringComparison.Ordinal)
-        || "BOARD_SUMMON_WING".Equals(tonnageClass, System.StringComparison.Ordinal)
-        || "MISSILE".Equals(tonnageClass, System.StringComparison.Ordinal);
+        "STRIKE_CRAFT".Equals(tonnageClass, StringComparison.Ordinal)
+        || "DRONE".Equals(tonnageClass, StringComparison.Ordinal)
+        || "SHUTTLE".Equals(tonnageClass, StringComparison.Ordinal)
+        || "BOARD_SUMMON_WING".Equals(tonnageClass, StringComparison.Ordinal)
+        || "MISSILE".Equals(tonnageClass, StringComparison.Ordinal);
 
     // lik3tocoode345
 
     private static string? WingRowLabel(BattlefieldUnit u, BattlefieldState bf)
     {
-        if (!IsDedicatedWing(u.tonnageClass))
+        if (u.parentUnitId == null && !IsDedicatedWing(u.tonnageClass))
         {
             return null;
         }
@@ -873,15 +1488,27 @@ public sealed class TacticalRightRail
         {
             return u.memberId != null ? "团员 " + u.memberId : "";
         }
-        foreach (var p in bf.units)
+        var byId = bf.units
+            .Where(unit => unit.unitId != null)
+            .ToDictionary(unit => unit.unitId!, StringComparer.Ordinal);
+        var chain = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var parentId = u.parentUnitId;
+        string? rootMemberId = null;
+        while (parentId != null && seen.Add(parentId))
         {
-            if (u.parentUnitId.Equals(p.unitId, System.StringComparison.Ordinal))
+            if (!byId.TryGetValue(parentId, out var parent))
             {
-                var who = p.displayName ?? p.unitId ?? u.parentUnitId;
-                return "归属 " + who + (p.memberId != null ? " · " + p.memberId : "");
+                chain.Add(parentId);
+                break;
             }
+            chain.Add(parent.displayName ?? parent.unitId ?? parentId);
+            rootMemberId = parent.memberId ?? rootMemberId;
+            parentId = parent.parentUnitId;
         }
-        return "归属 " + u.parentUnitId;
+        chain.Reverse();
+        return "归属 " + string.Join(" › ", chain)
+               + (rootMemberId != null ? " · " + rootMemberId : "");
     }
 
     private static BattlefieldState? FindActiveBattlefield(GameState state)

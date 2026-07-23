@@ -1,0 +1,6 @@
+{
+  "moduleId": "mod_hybrid_gun_l", "displayName": "混合炮 L",
+  "displayNameEn": "Hybrid Gun L", "slotCategory": "ATTACK", "moduleSize": "LARGE",
+  "damagePerTick": 10000, "fireCycleSec": 15, "attackRangeM": 100000,
+  "trackingDegPerSec": 2, "starCoinValue": 10000
+}

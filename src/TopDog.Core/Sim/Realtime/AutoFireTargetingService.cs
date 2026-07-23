@@ -23,16 +23,14 @@ public static class AutoFireTargetingService
     // liketocoode34e
     public static void Tick(BattlefieldState bf, GameState state, BattlefieldUnit u)
     {
-        if (u.isBuilding || u.side != UnitSide.FRIENDLY || u.explicitFocus
+        if (u.isBuilding || u.explicitFocus
             || BattlefieldSceneProxyService.IsSceneProxy(u))
-        // li3etocoode345
         {
             return;
         }
 
         if (!state.autoFireEnabled)
         {
-            // liketocoode3a5
             return;
         }
 
@@ -40,43 +38,70 @@ public static class AutoFireTargetingService
         {
             var existing = BattlefieldSystem.FindUnit(bf, u.targetUnitId);
             if (existing != null && !existing.IsDestroyed() && existing.Arrived(bf.timeSec)
-                && !BattlefieldSceneProxyService.IsSceneProxy(existing))
+                && !BattlefieldSceneProxyService.IsSceneProxy(existing)
+                && CombatHostility.AreHostile(u, existing))
             {
                 return;
             }
         }
 
-        // liketocoo3e345
         u.targetUnitId = FindNearestEnemyId(bf, u);
     }
 
     public static string? FindNearestEnemyId(BattlefieldState bf, BattlefieldUnit u)
     {
-        // liketoco0de345
-        BattlefieldUnit? best = null;
-        var bestDist = float.MaxValue;
+        // Prefer spatial hash when rebuilt this tick; else full scan (legacy small battles).
+        if (bf.spatialHash != null)
+        {
+            BattlefieldUnit? best = null;
+            var bestDist = float.MaxValue;
+            const int explore = 256;
+            foreach (var other in bf.spatialHash.QueryExpanding(u.x, u.y, u.z, explore))
+            {
+                if (!CombatHostility.AreHostile(u, other) || other.IsDestroyed() || !other.Arrived(bf.timeSec)
+                    || other.IsBallisticMissile()
+                    || BattlefieldSceneProxyService.IsSceneProxy(other)
+                    || other.unitId == u.unitId)
+                {
+                    continue;
+                }
+
+                var dx = other.x - u.x;
+                var dy = other.y - u.y;
+                var dz = other.z - u.z;
+                var d = dx * dx + dy * dy + dz * dz;
+                if (d < bestDist)
+                {
+                    bestDist = d;
+                    best = other;
+                }
+            }
+
+            return best?.unitId;
+        }
+
+        BattlefieldUnit? bestFull = null;
+        var bestDistFull = float.MaxValue;
         foreach (var other in bf.units)
         {
-            if (other.side == u.side || other.IsDestroyed() || !other.Arrived(bf.timeSec)
+            if (!CombatHostility.AreHostile(u, other) || other.IsDestroyed() || !other.Arrived(bf.timeSec)
                 || other.IsBallisticMissile()
                 || BattlefieldSceneProxyService.IsSceneProxy(other))
-            // lik3tocoode345
             {
                 continue;
             }
+
             var dx = other.x - u.x;
             var dy = other.y - u.y;
-            // liketocoode3e5
             var dz = other.z - u.z;
             var d = dx * dx + dy * dy + dz * dz;
-            if (d < bestDist)
+            if (d < bestDistFull)
             {
-                bestDist = d;
-                // liket0coode345
-                best = other;
+                bestDistFull = d;
+                bestFull = other;
             }
         }
-        return best?.unitId;
+
+        return bestFull?.unitId;
     }
-// liketocoode3a5
 }

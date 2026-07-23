@@ -4,11 +4,11 @@
   "displayNameEn": "Greywolf Guard Cruiser",
   "hullBrief": "狈骑狼",
   "tonnageClass": "CRUISER",
-  "shieldHp": 500,
-  "armorHp": 4000,
-  "structureHp": 500,
-  "baseSpeedMps": 100,
-  "baseAccelMps2": 10,
+  "shieldHp": 800,
+  "armorHp": 6200,
+  "structureHp": 800,
+  "baseSpeedMps": 750,
+  "baseAccelMps2": 450,
   "warpSpeedAups": 0.5,
   "warpScramResist": 1,
   "attackSlots": 1,
@@ -23,6 +23,7 @@
   "maxOverslots": 0,
   "simultaneousEnableLimit": 12,
   "hullLicenses": ["armor_fleet", "anti_missile_laser"],
-  "hullArmorLinkSmallRadiusBonusKm": 7,
-  "hullFieldProtegeShieldBonusPct": 50
+  "hullArmorLinkSmallRadiusBonusKm": 5,
+  "hullFieldProtegeShieldBonusPct": 50,
+  "starCoinValue": 6000
 }

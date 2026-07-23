@@ -13,6 +13,7 @@ using TopDog.Sim.Legion;
 using TopDog.Sim.Member;
 using TopDog.Sim.Order;
 using TopDog.Sim.Possession;
+using TopDog.Sim.Persist;
 using TopDog.Sim.Realtime;
 using TopDog.Sim.Banter;
 using TopDog.Sim.Exchange;
@@ -82,6 +83,7 @@ public sealed class SimulationCore
         _ships = ships;
         _traits = traits ?? TraitCatalog.Empty();
         _modules = modules ?? ModuleRegistry.Empty();
+        ModuleIdSaveMigration.Apply(state, _modules);
         _commandParser = new CommandParser();
         _graph = graph;
         _ctx = new BrickContext(state, _bus, _clock, _ships, _modules, _traits, _commandParser);

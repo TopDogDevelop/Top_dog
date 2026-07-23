@@ -137,7 +137,7 @@ public static class BoardSummonWingService
 
         foreach (var u in bf.units)
         {
-            if (u.isBuilding || u.parentUnitId != null || u.IsDestroyed())
+            if (u.isBuilding || u.IsTemplateCarriedUnit() || u.IsDestroyed())
             {
                 continue;
             }
@@ -318,7 +318,7 @@ public static class BoardSummonWingService
             if (selected != null
                 && !selected.IsDestroyed()
                 && selected.side == UnitSide.FRIENDLY
-                && selected.parentUnitId == null
+                && !selected.IsTemplateCarriedUnit()
                 && !selected.isBuilding)
             {
                 return selected;
@@ -329,7 +329,7 @@ public static class BoardSummonWingService
         var candidates = new List<BattlefieldUnit>();
         foreach (var u in bf.units)
         {
-            if (u.IsDestroyed() || u.isBuilding || u.parentUnitId != null || u.side != UnitSide.FRIENDLY)
+            if (u.IsDestroyed() || u.isBuilding || u.IsTemplateCarriedUnit() || u.side != UnitSide.FRIENDLY)
             {
                 continue;
             }

@@ -1,0 +1,9 @@
+{
+  "logicId": "logic_group_repair",
+  "blocks": [
+    { "type": "AOE_QUERY" },
+    { "type": "FILTER_SIDE" },
+    { "type": "APPLY_LAYER_REPAIR" }
+  ],
+  "paramSchema": ["shape", "radiusM", "layer", "amount", "cycleSec"]
+}

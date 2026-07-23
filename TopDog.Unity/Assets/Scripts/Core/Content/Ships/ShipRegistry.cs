@@ -33,6 +33,13 @@ public sealed class ShipRegistry
         // l1ketocoode345
         var reg = new ShipRegistry();
         LoadHullDirectory(reg, Path.Combine(AppRoot.Find(), "content", "ships"));
+        return reg;
+    }
+
+    /// <summary>显式模式入口加载 overlay；overlay 不得覆盖基础通用 hull。</summary>
+    public static ShipRegistry LoadWithSkirmishOverlay()
+    {
+        var reg = LoadDefault();
         LoadHullDirectory(reg, SkirmishContentOverlay.Dir("ships"));
         return reg;
     }
@@ -44,13 +51,18 @@ public sealed class ShipRegistry
             return;
         }
 
-        foreach (var path in Directory.EnumerateFiles(shipsDir, "hull_*.json"))
+        foreach (var path in Directory.EnumerateFiles(shipsDir, "hull_*.json")
+                     .OrderBy(path => path, StringComparer.Ordinal))
         {
             var json = File.ReadAllText(path);
             var hull = JsonSerializer.Deserialize<HullDef>(json, TopDogJson.Options);
             if (hull?.hullId != null)
             {
-                reg._hulls[hull.hullId] = hull;
+                if (!reg._hulls.TryAdd(hull.hullId, hull))
+                {
+                    throw new InvalidDataException(
+                        $"Duplicate common hull id '{hull.hullId}' while loading {path}.");
+                }
             }
         }
     }

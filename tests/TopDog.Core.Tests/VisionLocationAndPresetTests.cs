@@ -129,6 +129,46 @@ public sealed class VisionLocationServiceTests
     }
 
     [Test]
+    public void ListDescentEntries_IncludesObservableRealtimeBattlefieldWithEnemy()
+    {
+        var state = new GameState { combatRealtimeActive = true, activeBattlefieldId = "bf-a" };
+        state.members.Add(new MemberState
+        {
+            memberId = "m-anchor",
+            name = "观察锚点",
+            traitIds = { VisionLocationService.TraitTacticalLink },
+        });
+        var battlefield = new BattlefieldState
+        {
+            battlefieldId = "bf-a",
+            timeSec = 1f,
+            units =
+            {
+                new BattlefieldUnit
+                {
+                    unitId = "friendly",
+                    memberId = "m-anchor",
+                    side = UnitSide.FRIENDLY,
+                    alive = true,
+                    arrivalAtSec = 0f,
+                },
+                new BattlefieldUnit
+                {
+                    unitId = "enemy",
+                    side = UnitSide.ENEMY,
+                    alive = true,
+                    arrivalAtSec = 0f,
+                },
+            },
+        };
+        state.battlefields.Add(battlefield);
+
+        var entries = VisionLocationService.ListDescentEntries(state);
+
+        Assert.That(entries.Exists(entry => entry.MemberId == "m-anchor"), Is.True);
+    }
+
+    [Test]
     public void SkirmishBootstrap_TemplateRowTraitsAppearInDescentList()
     {
         var lobby = new SkirmishLobbyState { scale = 10, seed = 42 };

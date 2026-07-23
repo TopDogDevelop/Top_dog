@@ -1,0 +1,15 @@
+{
+  "moduleId": "mod_command_armor_plated_s",
+  "displayName": "装甲增幅波·披甲",
+  "displayNameEn": "Command Wave: Plated",
+  "slotCategory": "FUNCTION",
+  "moduleKind": "command_wave",
+  "moduleSize": "SMALL",
+  "starCoinValue": 100,
+  "requiredHullLicenses": ["command_wave_armor"],
+  "logicId": "logic_command_wave",
+  "params": {
+    "shape": "SPHERE", "radiusM": 20000, "stat": "armorResist",
+    "operation": "ADD_RESIST", "value": 0.15, "stackKey": "mod_command_armor_plated_s"
+  }
+}

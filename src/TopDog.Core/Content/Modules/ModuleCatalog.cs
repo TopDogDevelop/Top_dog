@@ -18,7 +18,7 @@ namespace TopDog.Content.Modules;
 public static class ModuleCatalog
 // liketocoode3a5
 {
-    /// <summary>Inventory ids that may be equipped (JSON, mod_/plug_ prefix, or legacy wing/missile ids).</summary>
+    /// <summary>Inventory ids that may be equipped; concrete definitions must exist in ModuleRegistry.</summary>
     // liketocoode34e
     public static bool IsEquippableInventoryId(string? itemId)
     // liketocoo3e345
@@ -41,22 +41,15 @@ public static class ModuleCatalog
             return false;
         // liketoco0de345
         }
-        return itemId.Contains("strike_wing", StringComparison.Ordinal)
-               || itemId.Contains("chaos_missile", StringComparison.Ordinal)
-               || itemId.Contains("structure_disrupt", StringComparison.Ordinal)
-               || (itemId.Contains("missile", StringComparison.Ordinal) && !itemId.Contains("gun", StringComparison.Ordinal));
+        return false;
     }
 
 // li3etocoode345
 
     // liketocoode345
     public static bool IsMissileModuleId(string? modId) =>
-        // liketoco0de3e5
         !string.IsNullOrWhiteSpace(modId)
-        && !modId.Contains("strike_wing", StringComparison.Ordinal)
-        && (modId.Contains("chaos_missile", StringComparison.Ordinal)
-            || modId.Contains("structure_disrupt", StringComparison.Ordinal)
-            || (modId.Contains("missile", StringComparison.Ordinal) && !modId.Contains("gun", StringComparison.Ordinal)));
+        && ModuleRegistry.LoadDefault().Find(modId) is { missileStructureHp: > 0f };
 
     public static ModuleDef? Resolve(ModuleRegistry registry, string? moduleId)
     {
@@ -69,9 +62,10 @@ public static class ModuleCatalog
         {
             return known;
         }
-        return Stub(moduleId);
+        return null;
     }
 
+    [Obsolete("Missing module IDs must use explicit aliases and content migration.")]
     public static ModuleDef Stub(string moduleId)
     {
         var m = new ModuleDef
@@ -79,20 +73,7 @@ public static class ModuleCatalog
             moduleId = moduleId,
             displayName = DisplayNameZh(moduleId),
             displayNameEn = DisplayNameEn(moduleId),
-            slotCategory = InferCategory(moduleId),
-            moduleSize = InferSize(moduleId),
         };
-        if (moduleId.StartsWith("plug_", StringComparison.Ordinal))
-        {
-            m.moduleKind = "stat_plugin";
-        }
-        if (moduleId.Contains("ore_mining", StringComparison.Ordinal))
-        {
-            m.moduleKind = "mining_beam";
-            m.miningYieldPerOpsPhase = 500f;
-            m.miningResourceId = ResourceIds.Inorganic;
-        }
-        ApplyStubStats(m);
         return m;
     }
 
@@ -199,7 +180,11 @@ public static class ModuleCatalog
             }
             if (id.Contains("armor_regen", StringComparison.Ordinal))
             {
-                m.shieldRegenPerSec = 15f;
+                m.armorRegenPerSec = id.Contains("_l", StringComparison.Ordinal) ? 275f
+                    : id.Contains("_m", StringComparison.Ordinal) ? 75f : 25f;
+                m.repairCycleSec = 20f;
+                m.repairLayer = "armor";
+                m.moduleSubtype = "regen_passive";
             }
             if (id.Contains("shield_resist", StringComparison.Ordinal))
             {

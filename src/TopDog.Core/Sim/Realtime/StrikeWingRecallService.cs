@@ -18,27 +18,30 @@ public static class StrikeWingRecallService
     {
         foreach (var u in bf.units.ToList())
         {
-            if (u.IsDestroyed() || u.isBuilding || u.parentUnitId != null || u.unitId == null)
+            if (u.IsDestroyed() || u.isBuilding || u.IsTemplateCarriedUnit() || u.unitId == null)
             {
                 continue;
             }
 
-            if (!IsCarrier(u))
+            if (!IsCarrier(u, modules))
             {
                 continue;
             }
 
             if (!CarrierWantsWingsDeployed(u) && !HasRecallingWings(bf, u.unitId))
             {
-                RecallWings(bf, u);
+                RecallWings(bf, u, modules);
             }
         }
     }
 
+    /// <summary>
+    /// 显式集火目标仍在 → 保持机群在场。运动态可为 FOCUS / APPROACH / STOP 等（人机集火后也会改交战带）。
+    /// </summary>
     internal static bool CarrierWantsWingsDeployed(BattlefieldUnit u) =>
-        u.explicitFocus && u.aiOrder == UnitAiOrder.FOCUS;
+        u.explicitFocus && !string.IsNullOrEmpty(u.targetUnitId);
 
-    internal static bool IsCarrier(BattlefieldUnit u)
+    internal static bool IsCarrier(BattlefieldUnit u, ModuleRegistry? modules = null)
     {
         if ("CARRIER".Equals(u.tonnageClass, StringComparison.OrdinalIgnoreCase)
             || "SUPERCARRIER".Equals(u.tonnageClass, StringComparison.OrdinalIgnoreCase))
@@ -46,10 +49,11 @@ public static class StrikeWingRecallService
             return true;
         }
 
+        modules ??= ModuleRegistry.LoadDefault();
         foreach (var modId in u.fittedModules.Values)
         {
-            if (!string.IsNullOrWhiteSpace(modId)
-                && modId.Contains("strike_wing", StringComparison.Ordinal))
+            if (modules.Resolve(modId) is { } module
+                && CarriedUnitDeploymentService.IsCarriedUnitBay(module))
             {
                 return true;
             }
@@ -91,7 +95,10 @@ public static class StrikeWingRecallService
         return false;
     }
 
-    private static void RecallWings(BattlefieldState bf, BattlefieldUnit carrier)
+    private static void RecallWings(
+        BattlefieldState bf,
+        BattlefieldUnit carrier,
+        ModuleRegistry modules)
     {
         var carrierUnitId = carrier.unitId;
         if (carrierUnitId == null)
@@ -103,12 +110,25 @@ public static class StrikeWingRecallService
         {
             var u = bf.units[i];
             if (carrierUnitId.Equals(u.parentUnitId, StringComparison.Ordinal)
-                && "STRIKE_CRAFT".Equals(u.tonnageClass, StringComparison.Ordinal))
+                && (!string.IsNullOrWhiteSpace(u.carriedSourceSlot)
+                    || "STRIKE_CRAFT".Equals(u.tonnageClass, StringComparison.Ordinal)
+                    || "DRONE".Equals(u.tonnageClass, StringComparison.Ordinal)))
             {
+                if (u.carriedSourceSlot != null
+                    && carrier.carriedShipsBySlot.TryGetValue(u.carriedSourceSlot, out var payload)
+                    && payload.shipInstanceId.Equals(u.shipInstanceId, StringComparison.Ordinal))
+                {
+                    payload.shieldHp = u.shieldHp;
+                    payload.armorHp = u.armorHp;
+                    payload.structureHp = u.structureHp;
+                    payload.destroyed = u.IsDestroyed();
+                    payload.fittedModules = new Dictionary<string, string>(
+                        u.fittedModules, StringComparer.Ordinal);
+                }
                 bf.units.RemoveAt(i);
             }
         }
 
-        LaunchTubeStateService.ResetStrikeWingTubesToInactive(carrier);
+        LaunchTubeStateService.ResetStrikeWingTubesToInactive(carrier, modules);
     }
 }

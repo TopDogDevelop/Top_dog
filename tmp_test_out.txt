@@ -1,0 +1,166 @@
+﻿e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\bin\Debug\net8.0\TopDog.Core.Tests.dll (.NETCoreApp,Version=v8.0)鐨勬祴璇曡繍琛?
+鎬诲叡 1 涓祴璇曟枃浠朵笌鎸囧畾妯″紡鐩稿尮閰嶃€?
+  宸茶烦杩?DumpVipRounds_ToFile [< 1 ms]
+  澶辫触 CollectorHull_UsesPerCategorySlotSizes [14 ms]
+  閿欒娑堟伅:
+     Assert.That(hull, Is.Not.Null)
+  Expected: not null
+  But was:  null
+
+  鍫嗘爤璺熻釜:
+     at TopDog.Core.Tests.FittingValidatorTests.CollectorHull_UsesPerCategorySlotSizes() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\FittingValidatorTests.cs:line 132
+
+1)    at TopDog.Core.Tests.FittingValidatorTests.CollectorHull_UsesPerCategorySlotSizes() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\FittingValidatorTests.cs:line 132
+
+
+  澶辫触 CollectorHull_EnableCapMatchesSimultaneousLimit [2 ms]
+  閿欒娑堟伅:
+     Assert.That(hull, Is.Not.Null)
+  Expected: not null
+  But was:  null
+
+  鍫嗘爤璺熻釜:
+     at TopDog.Core.Tests.MiningSettlementTests.CollectorHull_EnableCapMatchesSimultaneousLimit() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\MiningSettlementTests.cs:line 90
+
+1)    at TopDog.Core.Tests.MiningSettlementTests.CollectorHull_EnableCapMatchesSimultaneousLimit() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\MiningSettlementTests.cs:line 90
+
+
+  澶辫触 SettleOperationPhase_GrantsInorganicToMiningMember [10 ms]
+  閿欒娑堟伅:
+     Assert.That(state.legionStock.GetValueOrDefault(ResourceIds.Inorganic, 0), Is.EqualTo(1000))
+  Expected: 1000
+  But was:  0
+
+  鍫嗘爤璺熻釜:
+     at TopDog.Core.Tests.MiningSettlementTests.SettleOperationPhase_GrantsInorganicToMiningMember() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\MiningSettlementTests.cs:line 40
+
+1)    at TopDog.Core.Tests.MiningSettlementTests.SettleOperationPhase_GrantsInorganicToMiningMember() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\MiningSettlementTests.cs:line 40
+
+
+  澶辫触 DiscordSource_ReducesBelonging_ForFiveMembers [2 ms]
+  閿欒娑堟伅:
+     Assert.That(totalBelonging, Is.EqualTo(5 * 4 - 5))
+  Expected: 15
+  But was:  20
+
+  鍫嗘爤璺熻釜:
+     at TopDog.Core.Tests.TraitMechanismTests.DiscordSource_ReducesBelonging_ForFiveMembers() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\TraitMechanismTests.cs:line 79
+
+1)    at TopDog.Core.Tests.TraitMechanismTests.DiscordSource_ReducesBelonging_ForFiveMembers() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\TraitMechanismTests.cs:line 79
+
+
+  澶辫触 DuckSource_SpreadsDuckSauce_InLegion [1 ms]
+  閿欒娑堟伅:
+     Assert.That(state.identities["10001002"].traitIds, Does.Contain("trait_duck_sauce"))
+  Expected: some item equal to "trait_duck_sauce"
+  But was:  <empty>
+
+  鍫嗘爤璺熻釜:
+     at TopDog.Core.Tests.TraitMechanismTests.DuckSource_SpreadsDuckSauce_InLegion() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\TraitMechanismTests.cs:line 40
+
+1)    at TopDog.Core.Tests.TraitMechanismTests.DuckSource_SpreadsDuckSauce_InLegion() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\TraitMechanismTests.cs:line 40
+
+
+  澶辫触 MechanismCatalog_LoadsSheepLineBatch [< 1 ms]
+  閿欒娑堟伅:
+     Assert.That(cat.Find("devotion"), Is.Not.Null)
+  Expected: not null
+  But was:  null
+
+  鍫嗘爤璺熻釜:
+     at TopDog.Core.Tests.TraitMechanismTests.MechanismCatalog_LoadsSheepLineBatch() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\TraitMechanismTests.cs:line 142
+
+1)    at TopDog.Core.Tests.TraitMechanismTests.MechanismCatalog_LoadsSheepLineBatch() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\TraitMechanismTests.cs:line 142
+
+
+  澶辫触 SheepLineTraits_AreGlobal_NotRecruitPool [1 ms]
+  閿欒娑堟伅:
+     Assert.That(cat.IsInRecruitPool("trait_devotion"), Is.False)
+  Expected: False
+  But was:  True
+
+  鍫嗘爤璺熻釜:
+     at TopDog.Core.Tests.TraitRecruitPoolTests.SheepLineTraits_AreGlobal_NotRecruitPool() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\TraitRecruitPoolTests.cs:line 12
+
+1)    at TopDog.Core.Tests.TraitRecruitPoolTests.SheepLineTraits_AreGlobal_NotRecruitPool() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\TraitRecruitPoolTests.cs:line 12
+
+
+  澶辫触 TemplateVipInvest_Loads38Members_WithTierStatsAndTraits [1 ms]
+  閿欒娑堟伅:
+     Assert.That(sheep.traitIds, Does.Contain("trait_board_favor"))
+  Expected: some item equal to "trait_board_favor"
+  But was:  < "trait_direct_possess", "trait_board_summon", "trait_planning_support", "trait_multibox" >
+
+  鍫嗘爤璺熻釜:
+     at TopDog.Core.Tests.VipInvestTemplateTests.TemplateVipInvest_Loads38Members_WithTierStatsAndTraits() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\VipInvestTemplateTests.cs:line 19
+
+1)    at TopDog.Core.Tests.VipInvestTemplateTests.TemplateVipInvest_Loads38Members_WithTierStatsAndTraits() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\VipInvestTemplateTests.cs:line 19
+
+
+  澶辫触 TickResolvesWhenOneSideEliminated [5 s]
+  閿欒娑堟伅:
+     Assert.That(bf.finished, Is.True)
+  Expected: True
+  But was:  False
+
+  鍫嗘爤璺熻釜:
+     at TopDog.Tests.BattlefieldSystemTests.TickResolvesWhenOneSideEliminated() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\BattlefieldSystemTests.cs:line 46
+
+1)    at TopDog.Tests.BattlefieldSystemTests.TickResolvesWhenOneSideEliminated() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\BattlefieldSystemTests.cs:line 46
+
+
+  澶辫触 LobbyListsOnlyPlayableLegionTemplates [2 ms]
+  閿欒娑堟伅:
+     Assert.That(lobbyTemplates.Select(t => t.templateId), Is.EquivalentTo(new[]
+        {
+            "template_1",
+            "template_vip_invest",
+        }))
+  Expected: equivalent to < "template_1", "template_vip_invest" >
+  But was:  < "template_vip_invest", "template_1", "template_2" >
+  Extra (1): < "template_2" >
+
+  鍫嗘爤璺熻釜:
+     at TopDog.Tests.CampaignBootstrapTemplateTests.LobbyListsOnlyPlayableLegionTemplates() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\CampaignBootstrapTemplateTests.cs:line 153
+
+1)    at TopDog.Tests.CampaignBootstrapTemplateTests.LobbyListsOnlyPlayableLegionTemplates() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\CampaignBootstrapTemplateTests.cs:line 153
+
+
+  澶辫触 SandboxCampaignSeedsPineappleInLegionStock [10 ms]
+  閿欒娑堟伅:
+     Assert.That(core.State.legionStock.GetValueOrDefault("hull_frigate_pineapple"), Is.EqualTo(1))
+  Expected: 1
+  But was:  0
+
+  鍫嗘爤璺熻釜:
+     at TopDog.Tests.CampaignBootstrapTemplateTests.SandboxCampaignSeedsPineappleInLegionStock() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\CampaignBootstrapTemplateTests.cs:line 139
+
+1)    at TopDog.Tests.CampaignBootstrapTemplateTests.SandboxCampaignSeedsPineappleInLegionStock() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\CampaignBootstrapTemplateTests.cs:line 139
+
+
+  澶辫触 Template1LoadsPresetMembersIntoCustomCampaign [16 ms]
+  閿欒娑堟伅:
+     Assert.That(sheep.traitIds, Does.Contain("trait_board_favor"))
+  Expected: some item equal to "trait_board_favor"
+  But was:  < "trait_direct_possess", "trait_board_summon", "trait_planning_support", "trait_multibox" >
+
+  鍫嗘爤璺熻釜:
+     at TopDog.Tests.CampaignBootstrapTemplateTests.Template1LoadsPresetMembersIntoCustomCampaign() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\CampaignBootstrapTemplateTests.cs:line 65
+
+1)    at TopDog.Tests.CampaignBootstrapTemplateTests.Template1LoadsPresetMembersIntoCustomCampaign() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\CampaignBootstrapTemplateTests.cs:line 65
+
+
+  澶辫触 MechanismCatalogLoadsNoop [< 1 ms]
+  閿欒娑堟伅:
+     Assert.That(cat.Find("mech_test_noop"), Is.Not.Null)
+  Expected: not null
+  But was:  null
+
+  鍫嗘爤璺熻釜:
+     at TopDog.Tests.ContentPipelineTests.MechanismCatalogLoadsNoop() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\ContentPipelineTests.cs:line 153
+
+1)    at TopDog.Tests.ContentPipelineTests.MechanismCatalogLoadsNoop() in e:\game_dev\top_dog_unity\tests\TopDog.Core.Tests\ContentPipelineTests.cs:line 153
+
+
+
+澶辫触!  - 澶辫触:    13锛岄€氳繃:   455锛屽凡璺宠繃:     0锛屾€昏:   468锛屾寔缁椂闂? 22 s - TopDog.Core.Tests.dll (net8.0)

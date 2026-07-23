@@ -27,6 +27,8 @@ public static class StrikeWingOrderService
 
     public static bool IsDroneWing(BattlefieldUnit? u) =>
         IsStrikeCraft(u)
+        || (u != null && "DRONE".Equals(u.tonnageClass, StringComparison.Ordinal))
+        || (u != null && "SHUTTLE".Equals(u.tonnageClass, StringComparison.Ordinal))
         || (u != null && BoardSummonWingService.WingTonnageClass.Equals(u.tonnageClass, StringComparison.Ordinal));
 
     public static string OrderFocusWings(
@@ -142,11 +144,11 @@ public static class StrikeWingOrderService
     {
         if (selectedFriendlyUnitIds != null && selectedFriendlyUnitIds.Count > 0)
         {
+            // 选中 ID = 下令方舰队（不按 UnitSide.FRIENDLY；人机敌方同路径）
             foreach (var u in bf.units)
             {
                 if (u.unitId != null
                     && selectedFriendlyUnitIds.Contains(u.unitId)
-                    && u.side == UnitSide.FRIENDLY
                     && !u.IsDestroyed()
                     && IsDroneWing(u))
                 {

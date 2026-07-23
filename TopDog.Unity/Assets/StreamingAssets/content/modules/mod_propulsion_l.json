@@ -1,0 +1,6 @@
+{
+  "moduleId": "mod_propulsion_l", "displayName": "推进器 L",
+  "displayNameEn": "Propulsion L", "slotCategory": "FUNCTION", "moduleSize": "LARGE",
+  "speedBonusMps": 0, "speedBonusPctWhenEnabled": 3.0,
+  "appliesToPropulsion": true, "starCoinValue": 10000
+}

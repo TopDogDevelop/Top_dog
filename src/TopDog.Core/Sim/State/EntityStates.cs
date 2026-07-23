@@ -46,6 +46,8 @@ public sealed class MemberState
     public int accountBuildScore;
     public string? currentSolarSystemId;
     public string? equippedHullId;
+    /// <summary>Authoritative owned ship instance; equippedHullId remains a legacy compatibility projection.</summary>
+    public string? equippedShipInstanceId;
     public string assignedTask = "待命";
     public string? formationId;
     public Dictionary<string, int> tonnageSpec = new();
@@ -72,6 +74,21 @@ public sealed class MemberState
     /// <summary>当前潜伏目标军团。</summary>
     public string? infiltrationLegionId;
     public MemberRosterVisibility rosterVisibility = MemberRosterVisibility.Home;
+}
+
+public sealed class ShipInstanceState
+{
+    public string shipInstanceId = "";
+    public string hullId = "";
+    public string? ownerMemberId;
+    public string? operatorMemberId;
+    public string? carrierShipInstanceId;
+    public string? carrierBaySlot;
+    public Dictionary<string, string> fittedModules = new(StringComparer.Ordinal);
+    public float shieldHp = -1f;
+    public float armorHp = -1f;
+    public float structureHp = -1f;
+    public bool destroyed;
 }
 
 public sealed class FormationState

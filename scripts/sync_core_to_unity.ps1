@@ -48,3 +48,15 @@ foreach ($junk in @("obj", "bin")) {
 }
 
 Write-Host "Done. $(Get-ChildItem $DestRoot -Recurse -Filter '*.cs' | Measure-Object | Select-Object -ExpandProperty Count) files."
+
+$contentSource = Join-Path $RepoRoot "content"
+$contentDest = Join-Path $RepoRoot "TopDog.Unity\Assets\StreamingAssets\content"
+if (Test-Path $contentSource) {
+    Write-Host "Sync authoritative content -> Unity StreamingAssets"
+    if (Test-Path $contentDest) {
+        Remove-Item -Recurse -Force $contentDest
+    }
+    New-Item -ItemType Directory -Force -Path (Split-Path $contentDest -Parent) | Out-Null
+    Copy-Item -Recurse -Force $contentSource $contentDest
+    Write-Host "Content sync done (overlay retained as explicit mode data; not applied over base)."
+}

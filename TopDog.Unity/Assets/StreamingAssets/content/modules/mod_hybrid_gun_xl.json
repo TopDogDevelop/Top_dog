@@ -4,9 +4,9 @@
   "displayNameEn": "Hybrid Gun XL",
   "slotCategory": "ATTACK",
   "moduleSize": "EXTRA_LARGE",
-  "starCoinValue": 49999,
-  "damagePerTick": 6000,
-  "fireCycleSec": 15,
-  "attackRangeM": 100000,
+  "starCoinValue": 100000,
+  "damagePerTick": 18000,
+  "fireCycleSec": 20,
+  "attackRangeM": 250000,
   "trackingDegPerSec": 0.5
 }

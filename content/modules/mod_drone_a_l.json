@@ -3,7 +3,18 @@
   "displayName": "攻击无人机 A",
   "displayNameEn": "Attack Drone A",
   "slotCategory": "LAUNCH_TUBE",
-  "moduleKind": "drone",
+  "moduleKind": "carried_unit_bay",
   "moduleSize": "LARGE",
-  "starCoinValue": 1200
+  "starCoinValue": 8000,
+  "logicId": "logic_carried_unit_bay",
+  "params": {
+    "carriedHullId": "hull_drone_a",
+    "payloadMode": "TEMPLATE_SPAWN",
+    "carriedCapacity": 1,
+    "launchBatchSize": 1,
+    "deploySec": 0,
+    "recoverSec": 5,
+    "recoverRangeM": 1000,
+    "onParentDestroyed": "DESPAWN"
+  }
 }

@@ -3,16 +3,16 @@ namespace TopDog.Sim.Realtime;
 /*
  * ══ 设计手册嵌入 ══
  * 权威: docs/TACTICAL_WARP_AND_ORDERS.md §3.2 刻度盘
- * 本文件: TacticalRangeScale — 1–200 km / 200–1000 km 非线性映射
- * 【机制要点】t∈[0,0.5]→1–200km；t∈(0.5,1]→200–1000km；Client 拖动释放回调 km
+ * 本文件: TacticalRangeScale — 0–200 km / 200–1000 km 非线性映射
+ * 【机制要点】t∈[0,0.5]→0–200km；t∈(0.5,1]→200–1000km；0km=不限距；Client 松手提交
  * 【关联】TacticalCommandRangeDial · FleetOrderService（可选 rangeKm）
  * ══
  */
 
-/// <summary>战术指令刻度盘：1–200 km（半圈）· 200–1000 km（半圈）。</summary>
+/// <summary>战术指令刻度盘：0–200 km（半圈）· 200–1000 km（半圈）；0=不限距。</summary>
 public static class TacticalRangeScale
 {
-    public const float MinKm = 1f;
+    public const float MinKm = 0f;
     public const float MidKm = 200f;
     public const float MaxKm = 1000f;
 

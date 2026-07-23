@@ -27,6 +27,7 @@ public sealed class CombatViewSettingsBinder
     public const string BgSetDropdownName = "dropdown-combat-bg-set";
     public const string BreathingSliderName = "slider-combat-breathing";
     public const string BreathingValueLabelName = "lbl-combat-breathing-value";
+    public const string CombatFxToggleName = "toggle-combat-fx";
 
     private Slider? _fovSlider;
     private Label? _fovLabel;
@@ -35,6 +36,7 @@ public sealed class CombatViewSettingsBinder
     private Slider? _breathingSlider;
     private Label? _breathingLabel;
     private DropdownField? _bgSetDropdown;
+    private Toggle? _combatFxToggle;
     private readonly List<string> _bgSetIds = new();
     private readonly List<string> _bgSetLabels = new();
 
@@ -42,6 +44,7 @@ public sealed class CombatViewSettingsBinder
     {
         container.Add(BuildFovRow());
         container.Add(BuildBreathingRow());
+        container.Add(BuildCombatFxRow());
         container.Add(BuildBackgroundSetRow());
         container.Add(BuildBackgroundResRow());
     }
@@ -55,11 +58,23 @@ public sealed class CombatViewSettingsBinder
         _breathingSlider = container.Q<Slider>(BreathingSliderName);
         _breathingLabel = container.Q<Label>(BreathingValueLabelName);
         _bgSetDropdown = container.Q<DropdownField>(BgSetDropdownName);
+        _combatFxToggle = container.Q<Toggle>(CombatFxToggleName);
         EnsureBackgroundSetChoices();
         LoadFromSaved();
         WireSlider(_fovSlider, _fovLabel, FormatFov);
         WireSlider(_bgSlider, _bgLabel, FormatBackgroundRes);
         WireSlider(_breathingSlider, _breathingLabel, FormatBreathing);
+        if (_combatFxToggle != null)
+        {
+            _combatFxToggle.UnregisterValueChangedCallback(OnCombatFxToggleChanged);
+            _combatFxToggle.RegisterValueChangedCallback(OnCombatFxToggleChanged);
+        }
+    }
+
+    private void OnCombatFxToggleChanged(ChangeEvent<bool> evt)
+    {
+        // 开关立即写入 PlayerPrefs（有记忆），与音频 Toggle 一致
+        ClientGameSettings.SetCombatFxEnabled(evt.newValue, persist: true);
     }
 
     public void LoadFromSaved()
@@ -97,6 +112,11 @@ public sealed class CombatViewSettingsBinder
                 _breathingLabel.text = FormatBreathing(_breathingSlider.value);
             }
         }
+
+        if (_combatFxToggle != null)
+        {
+            _combatFxToggle.SetValueWithoutNotify(ClientGameSettings.CombatFxEnabled);
+        }
     }
 
     public void ApplyPending()
@@ -131,6 +151,11 @@ public sealed class CombatViewSettingsBinder
             ClientGameSettings.SetCombatViewBreathingAmplitudePercent(Mathf.RoundToInt(_breathingSlider.value));
         }
 
+        if (_combatFxToggle != null)
+        {
+            ClientGameSettings.SetCombatFxEnabled(_combatFxToggle.value);
+        }
+
         RefreshCombatViewport();
     }
 
@@ -155,6 +180,23 @@ public sealed class CombatViewSettingsBinder
         ClientGameSettings.MinCombatViewBreathingPercent,
         ClientGameSettings.MaxCombatViewBreathingPercent,
         ClientGameSettings.DefaultCombatViewBreathingPercent);
+
+    private VisualElement BuildCombatFxRow()
+    {
+        var row = new VisualElement();
+        row.AddToClassList("settings-row");
+        var titleLabel = new Label("实时交战特效");
+        titleLabel.AddToClassList("settings-label");
+        row.Add(titleLabel);
+        var toggle = new Toggle
+        {
+            name = CombatFxToggleName,
+            value = ClientGameSettings.CombatFxEnabled,
+        };
+        toggle.AddToClassList("settings-toggle");
+        row.Add(toggle);
+        return row;
+    }
 
     private VisualElement BuildBackgroundSetRow()
     {

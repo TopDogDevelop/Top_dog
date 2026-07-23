@@ -1,0 +1,12 @@
+{
+  "hullId": "hull_omni_interdictor_cruiser",
+  "displayName": "全能级拦截型",
+  "displayNameEn": "Omni-class Interdictor Cruiser",
+  "hullBrief": "入门级的战术万金油。",
+  "tonnageClass": "CRUISER",
+  "shieldHp": 1800, "armorHp": 2200, "structureHp": 1800,
+  "baseSpeedMps": 1100, "baseAccelMps2": 700, "warpSpeedAups": 0.5,
+  "attackSlots": 1, "functionSlots": 4, "defenseSlots": 3, "passiveSlots": 1,
+  "defaultSlotSize": "SMALL", "simultaneousEnableLimit": 0, "starCoinValue": 4800,
+  "hullLicenses": ["interdiction_field"]
+}

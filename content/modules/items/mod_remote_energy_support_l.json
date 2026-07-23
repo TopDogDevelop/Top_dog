@@ -1,0 +1,15 @@
+{
+  "moduleId": "mod_remote_energy_support_l",
+  "displayName": "远程能量支援",
+  "displayNameEn": "Remote Energy Support",
+  "slotCategory": "ATTACK",
+  "moduleKind": "remote_energy_support",
+  "moduleSize": "LARGE",
+  "starCoinValue": 10000,
+  "requiredHullLicenses": ["remote_energy_support"],
+  "logicId": "logic_remote_energy_support",
+  "params": {
+    "rangeM": 15000, "quotaDelta": 5, "cycleSec": 10,
+    "durationSec": 10, "stackKey": "mod_remote_energy_support_l"
+  }
+}

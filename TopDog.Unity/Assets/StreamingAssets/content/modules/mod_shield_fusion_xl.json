@@ -1,0 +1,13 @@
+{
+  "moduleId": "mod_shield_fusion_xl",
+  "displayName": "?????????",
+  "slotCategory": "FUNCTION",
+  "moduleKind": "shield_fusion_field",
+  "moduleFamily": "fleet_protection_field",
+  "moduleSubtype": "aura_field_shield",
+  "moduleSize": "EXTRA_LARGE",
+  "requiredHullLicenses": ["shield_fleet"],
+  "fieldRadiusKm": 100,
+  "fieldCollapseCooldownSec": 30,
+  "starCoinValue": 100000
+}

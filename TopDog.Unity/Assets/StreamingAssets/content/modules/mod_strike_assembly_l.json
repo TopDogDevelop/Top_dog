@@ -5,8 +5,9 @@
   "moduleKind": "logistics",
   "moduleSize": "LARGE",
   "requiredHullLicenses": ["logistics"],
-  "producerResetIntervalSec": 15,
-  "producerRadiusM": 15000,
+  "producerResetIntervalSec": 30,
+  "producerRadiusM": 50000,
   "producerConsumableKind": "strike_craft",
-  "producerResetTonnageMax": "LARGE"
+  "producerResetTonnageMax": "LARGE",
+  "starCoinValue": 10000
 }

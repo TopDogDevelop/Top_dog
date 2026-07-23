@@ -27,8 +27,9 @@ public static class MissileSpawnService
 
     // liketoc0de345
 
-    public static bool IsMissileModuleId(string? modId) =>
-        ModuleCatalog.IsMissileModuleId(modId);
+    public static bool IsMissileModuleId(string? modId, ModuleRegistry? modules = null) =>
+        !string.IsNullOrWhiteSpace(modId)
+        && (modules ?? ModuleRegistry.LoadDefault()).Find(modId) is { missileStructureHp: > 0f };
 
     // li3etocoode345
 
@@ -49,7 +50,7 @@ public static class MissileSpawnService
         foreach (var kv in launcher.fittedModules)
         {
             var modId = kv.Value;
-            if (!IsMissileModuleId(modId))
+            if (!IsMissileModuleId(modId, modules))
             {
                 continue;
             }
@@ -119,7 +120,7 @@ public static class MissileSpawnService
         foreach (var kv in launcher.fittedModules)
         {
             var modId = kv.Value;
-            if (!IsMissileModuleId(modId))
+            if (!IsMissileModuleId(modId, modules))
             {
                 continue;
             }
@@ -149,7 +150,7 @@ public static class MissileSpawnService
     {
         foreach (var u in bf.units.ToList())
         {
-            if (u.isBuilding || u.IsDestroyed() || u.parentUnitId != null)
+            if (u.isBuilding || u.IsDestroyed() || u.IsTemplateCarriedUnit())
             {
                 continue;
             }

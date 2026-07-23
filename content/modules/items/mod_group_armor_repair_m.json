@@ -1,0 +1,7 @@
+{
+  "moduleId": "mod_group_armor_repair_m", "displayName": "甲群回·中型",
+  "displayNameEn": "Medium Group Armor Repair", "slotCategory": "ATTACK",
+  "moduleKind": "group_repair", "moduleSize": "MEDIUM", "starCoinValue": 1000,
+  "requiredHullLicenses": ["group_repair"], "logicId": "logic_group_repair",
+  "params": {"shape": "SPHERE", "radiusM": 15000, "layer": "armor", "amount": 100, "cycleSec": 10}
+}

@@ -1,0 +1,15 @@
+{
+  "moduleId": "mod_command_energy_utility_s",
+  "displayName": "能量指挥波·效用",
+  "displayNameEn": "Command Wave: Utility",
+  "slotCategory": "FUNCTION",
+  "moduleKind": "command_wave",
+  "moduleSize": "SMALL",
+  "starCoinValue": 100,
+  "requiredHullLicenses": ["command_wave_energy"],
+  "logicId": "logic_command_wave",
+  "params": {
+    "shape": "SPHERE", "radiusM": 20000, "stat": "quota",
+    "operation": "ADD", "value": 1, "stackKey": "mod_command_energy_utility_s"
+  }
+}

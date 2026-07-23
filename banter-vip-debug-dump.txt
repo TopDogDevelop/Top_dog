@@ -1,0 +1,242 @@
+=== seed=0 group=idle_chat_06 usesSlots=True companion=4 ===
+  companion: 羊村晓部: 我在贸易中心，有人要带点啥回来吗？
+  companion: 榴蛋: 盾回模块 M[中] / Shield Regen M
+  companion: 小困包: 盾回模块 M[中] / Shield Regen M盾回模块 M[中] / Shield Regen M
+  companion: 羊村晓部: 行
+  [banter] weave cast order=1000100518>1000100402>1000100301 identities=10001005>10001004>10001003
+  [banter] round-start group=idle_chat_06 lines=4 t=0
+  [banter] plan seq=1 group=idle_chat_06 mid=1000100518 final=我在贸易中心，有人要带点啥回来吗？
+  [banter] plan seq=2 group=idle_chat_06 mid=1000100402 final=盾回模块 M[中] / Shield Regen M
+  [banter] plan seq=3 group=idle_chat_06 mid=1000100301 final=盾回模块 M[中] / Shield Regen M盾回模块 M[中] / Shield Regen M
+  [banter] plan seq=4 group=idle_chat_06 mid=1000100518 final=行
+  [banter] plan-done group=idle_chat_06 emits=4 span=9.8s
+  [banter] emit t=0 ch=idle mid=1000100518 text=我在贸易中心，有人要带点啥回来吗？
+  [banter] emit t=3.2 ch=idle mid=1000100402 text=盾回模块 M[中] / Shield Regen M
+  [banter] emit t=7.6 ch=idle mid=1000100301 text=盾回模块 M[中] / Shield Regen M盾回模块 M[中] / Shield Regen M
+  [banter] emit t=9.8 ch=idle mid=1000100518 text=行
+
+=== seed=1 group=idle_chat_01 usesSlots=True companion=5 ===
+  companion: 盖奶: 你这酱鸭！ [SHEEP]
+  companion: 深度追踪: 本地有白
+  companion: 羊村星猫: 你先回站
+  companion: 左手指天右手指地: 说地点啊！
+  companion: 深度追踪: 未知星系
+  [banter] weave cast order=1000100105>1000100507>1000100701 identities=10001001>10001005>10001007
+  [banter] round-start group=idle_chat_01 lines=4 t=0
+  [banter] weave opening slot=1 mid=1000100105 mode=exclusive-opt-out text=你这酱鸭！
+  [banter] weave backfill slot=1 mid=1000100601 name=深度追踪
+  [banter] plan seq=1 group=idle_chat_01 mid=1000100601 final=本地有白
+  [banter] plan seq=2 group=idle_chat_01 mid=1000100507 final=你先回站
+  [banter] plan seq=3 group=idle_chat_01 mid=1000100701 final=说地点啊！
+  [banter] plan seq=4 group=idle_chat_01 mid=1000100601 final=未知星系
+  [banter] plan-done group=idle_chat_01 emits=5 span=11.8s
+  [banter] emit t=0 ch=idle mid=1000100105 text=你这酱鸭！
+  [banter] emit t=2.8 ch=idle mid=1000100601 text=本地有白
+  [banter] emit t=5.6 ch=idle mid=1000100507 text=你先回站
+  [banter] emit t=8.6 ch=idle mid=1000100701 text=说地点啊！
+  [banter] emit t=11.8 ch=idle mid=1000100601 text=未知星系
+
+=== seed=2 group=idle_chat_07 usesSlots=True companion=6 ===
+  companion: 绵羊制造: 你这酱鸭！ [SHEEP]
+  companion: 狈头军师: 我要招点人。
+  companion: 羊村元芳: 你觉得登录模块[小] / Boarding Module S咋样
+  companion: 羊村林冲: 你觉得登录模块[小] / Boarding Module S咋样
+  companion: 多啦a梦: 我开铁棺级 · Iron Coffin Dread不喜欢带这个
+  companion: 大困包: 哦？
+  [banter] weave cast order=1000100502>1000100103>1000100801 identities=10001005>10001001>10001008
+  [banter] round-start group=idle_chat_07 lines=3 t=0
+  [banter] weave opening slot=2 mid=1000100103 mode=exclusive-opt-out text=你这酱鸭！
+  [banter] weave backfill slot=2 mid=1000100202 name=多啦a梦
+  [banter] weave opening slot=3 mid=1000100801 mode=exclusive-opt-out text=我要招点人。
+  [banter] weave backfill slot=3 mid=1000100302 name=大困包
+  [banter] plan seq=1 group=idle_chat_07 mid=1000100502 final=你觉得登录模块[小] / Boarding Module S咋样
+  [banter] plan seq=2 group=idle_chat_07 mid=1000100202 final=我开铁棺级 · Iron Coffin Dread不喜欢带这个
+  [banter] plan seq=3 group=idle_chat_07 mid=1000100302 final=哦？
+  [banter] plan-done group=idle_chat_07 emits=6 span=11.8s
+  [banter] emit t=0 ch=idle mid=1000100103 text=你这酱鸭！
+  [banter] emit t=0 ch=idle mid=1000100801 text=我要招点人。
+  [banter] emit t=4.2 ch=idle mid=1000100502 text=你觉得登录模块[小] / Boarding Module S咋样
+  [banter] emit t=4.6 ch=idle mid=1000100513 text=你觉得登录模块[小] / Boarding Module S咋样
+  [banter] emit t=9.4 ch=idle mid=1000100202 text=我开铁棺级 · Iron Coffin Dread不喜欢带这个
+  [banter] emit t=11.8 ch=idle mid=1000100302 text=哦？
+
+=== seed=3 group=idle_chat_02 usesSlots=True companion=4 ===
+  companion: 羊村酱鸭: 一群酱鸭！ [SHEEP]
+  companion: 羊村林冲: 最近海盗挺多啊，到处都是狗啃坟
+  companion: 左手指天右手指地: 好事，我靠打海盗爆了很多装备
+  companion: 不困包: 那很好了
+  [banter] weave cast order=1000100513>1000100701>1000100104 identities=10001005>10001007>10001001
+  [banter] round-start group=idle_chat_02 lines=3 t=0
+  [banter] weave opening slot=3 mid=1000100104 mode=exclusive-opt-out text=一群酱鸭！
+  [banter] weave backfill slot=3 mid=1000100303 name=不困包
+  [banter] plan seq=1 group=idle_chat_02 mid=1000100513 final=最近海盗挺多啊，到处都是狗啃坟
+  [banter] plan seq=2 group=idle_chat_02 mid=1000100701 final=好事，我靠打海盗爆了很多装备
+  [banter] plan seq=3 group=idle_chat_02 mid=1000100303 final=那很好了
+  [banter] plan-done group=idle_chat_02 emits=4 span=12.6s
+  [banter] emit t=0 ch=idle mid=1000100104 text=一群酱鸭！
+  [banter] emit t=5 ch=idle mid=1000100513 text=最近海盗挺多啊，到处都是狗啃坟
+  [banter] emit t=9.8 ch=idle mid=1000100701 text=好事，我靠打海盗爆了很多装备
+  [banter] emit t=12.6 ch=idle mid=1000100303 text=那很好了
+
+=== seed=4 group=idle_chat_07 usesSlots=True companion=4 ===
+  companion: 狈头军师: 我要招点人。
+  companion: 绵羊控股: 你觉得混合炮 XL[超大] / Hybrid Gun XL咋样 [SHEEP]
+  companion: 羊村星猫: 我开基础矛级 · Spear-class BC不喜欢带这个
+  companion: 多啦a梦: 哦？
+  [banter] weave cast order=1000100801>1000100507>1000100202 identities=10001008>10001005>10001002
+  [banter] round-start group=idle_chat_07 lines=3 t=0
+  [banter] weave opening slot=1 mid=1000100801 mode=exclusive-opt-out text=我要招点人。
+  [banter] weave backfill slot=1 mid=1000100102 name=绵羊控股
+  [banter] plan seq=1 group=idle_chat_07 mid=1000100102 final=你觉得混合炮 XL[超大] / Hybrid Gun XL咋样
+  [banter] plan seq=2 group=idle_chat_07 mid=1000100507 final=我开基础矛级 · Spear-class BC不喜欢带这个
+  [banter] plan seq=3 group=idle_chat_07 mid=1000100202 final=哦？
+  [banter] plan-done group=idle_chat_07 emits=4 span=11.4s
+  [banter] emit t=0 ch=idle mid=1000100801 text=我要招点人。
+  [banter] emit t=4.2 ch=idle mid=1000100102 text=你觉得混合炮 XL[超大] / Hybrid Gun XL咋样
+  [banter] emit t=9 ch=idle mid=1000100507 text=我开基础矛级 · Spear-class BC不喜欢带这个
+  [banter] emit t=11.4 ch=idle mid=1000100202 text=哦？
+
+=== seed=5 group=idle_chat_02 usesSlots=True companion=3 ===
+  companion: 不困包: 最近海盗挺多啊，到处都是狗啃坟
+  companion: 铁菊狗蛋: 好事，我靠打海盗爆了很多装备
+  companion: 羊村林冲: 那很好了
+  [banter] weave cast order=1000100303>1000100401>1000100513 identities=10001003>10001004>10001005
+  [banter] round-start group=idle_chat_02 lines=3 t=0
+  [banter] plan seq=1 group=idle_chat_02 mid=1000100303 final=最近海盗挺多啊，到处都是狗啃坟
+  [banter] plan seq=2 group=idle_chat_02 mid=1000100401 final=好事，我靠打海盗爆了很多装备
+  [banter] plan seq=3 group=idle_chat_02 mid=1000100513 final=那很好了
+  [banter] plan-done group=idle_chat_02 emits=3 span=7.6s
+  [banter] emit t=0 ch=idle mid=1000100303 text=最近海盗挺多啊，到处都是狗啃坟
+  [banter] emit t=4.8 ch=idle mid=1000100401 text=好事，我靠打海盗爆了很多装备
+  [banter] emit t=7.6 ch=idle mid=1000100513 text=那很好了
+
+=== seed=6 group=idle_chat_08 usesSlots=True companion=4 ===
+  companion: 羊村虎虎: 我发现了基础矛级 · Spear-class BC的隐藏玩法
+  companion: 狈头军师: 细嗦
+  companion: 深度追踪: 哦？
+  companion: 羊村虎虎: 只要带上攻击编队 A[大] / Strike Wing A，就强度极高
+  [banter] weave cast order=1000100508>1000100801>1000100601 identities=10001005>10001008>10001006
+  [banter] round-start group=idle_chat_08 lines=4 t=0
+  [banter] weave opening slot=2 mid=1000100801 mode=script-participant
+  [banter] plan seq=1 group=idle_chat_08 mid=1000100508 final=我发现了基础矛级 · Spear-class BC的隐藏玩法
+  [banter] plan seq=2 group=idle_chat_08 mid=1000100801 final=细嗦
+  [banter] plan seq=3 group=idle_chat_08 mid=1000100601 final=哦？
+  [banter] plan seq=4 group=idle_chat_08 mid=1000100508 final=只要带上攻击编队 A[大] / Strike Wing A，就强度极高
+  [banter] plan-done group=idle_chat_08 emits=4 span=10s
+  [banter] emit t=0 ch=idle mid=1000100508 text=我发现了基础矛级 · Spear-class BC的隐藏玩法
+  [banter] emit t=2.4 ch=idle mid=1000100801 text=细嗦
+  [banter] emit t=4.8 ch=idle mid=1000100601 text=哦？
+  [banter] emit t=10 ch=idle mid=1000100508 text=只要带上攻击编队 A[大] / Strike Wing A，就强度极高
+
+=== seed=7 group=idle_chat_03 usesSlots=True companion=5 ===
+  companion: 绵羊伸腿: 我不想吃鸭！ [SHEEP]
+  companion: 羊村78: 未知星系旗舰集结点缺个打捞，来个打捞带带
+  companion: 刀疤哥: 来辣！
+  companion: 铁菊狗蛋: 上次捞的东西你还没合同我
+  companion: 刀疤哥: 稍等，现在给你
+  [banter] weave cast order=1000100520>1000100304>1000100101 identities=10001005>10001003>10001001
+  [banter] round-start group=idle_chat_03 lines=4 t=0
+  [banter] weave opening slot=3 mid=1000100101 mode=exclusive-opt-out text=我不想吃鸭！
+  [banter] weave backfill slot=3 mid=1000100401 name=铁菊狗蛋
+  [banter] plan seq=1 group=idle_chat_03 mid=1000100520 final=未知星系旗舰集结点缺个打捞，来个打捞带带
+  [banter] plan seq=2 group=idle_chat_03 mid=1000100304 final=来辣！
+  [banter] plan seq=3 group=idle_chat_03 mid=1000100401 final=上次捞的东西你还没合同我
+  [banter] plan seq=4 group=idle_chat_03 mid=1000100304 final=稍等，现在给你
+  [banter] plan-done group=idle_chat_03 emits=5 span=16.8s
+  [banter] emit t=0 ch=idle mid=1000100101 text=我不想吃鸭！
+  [banter] emit t=6.4 ch=idle mid=1000100520 text=未知星系旗舰集结点缺个打捞，来个打捞带带
+  [banter] emit t=9 ch=idle mid=1000100304 text=来辣！
+  [banter] emit t=13.4 ch=idle mid=1000100401 text=上次捞的东西你还没合同我
+  [banter] emit t=16.8 ch=idle mid=1000100304 text=稍等，现在给你
+
+=== seed=8 group=idle_chat_08 usesSlots=True companion=6 ===
+  companion: 盖奶: 一群酱鸭！ [SHEEP]
+  companion: 迪亚多啦: 我发现了菠萝级 · Pineapple-class Frigate的隐藏玩法
+  companion: 多啦a梦: 我发现了菠萝级 · Pineapple-class Frigate的隐藏玩法
+  companion: 羊村星星: 细嗦
+  companion: 深度追踪: 哦？
+  companion: 迪亚多啦: 只要带上甲抗模块 L[大] / Armor Resist L，就强度极高
+  [banter] weave cast order=1000100201>1000100501>1000100105 identities=10001002>10001005>10001001
+  [banter] round-start group=idle_chat_08 lines=4 t=0
+  [banter] weave opening slot=3 mid=1000100105 mode=exclusive-opt-out text=一群酱鸭！
+  [banter] weave backfill slot=3 mid=1000100601 name=深度追踪
+  [banter] plan seq=1 group=idle_chat_08 mid=1000100201 final=我发现了菠萝级 · Pineapple-class Frigate的隐藏玩法
+  [banter] plan seq=2 group=idle_chat_08 mid=1000100501 final=细嗦
+  [banter] plan seq=3 group=idle_chat_08 mid=1000100601 final=哦？
+  [banter] plan seq=4 group=idle_chat_08 mid=1000100201 final=只要带上甲抗模块 L[大] / Armor Resist L，就强度极高
+  [banter] plan-done group=idle_chat_08 emits=6 span=15.4s
+  [banter] emit t=0 ch=idle mid=1000100105 text=一群酱鸭！
+  [banter] emit t=5 ch=idle mid=1000100201 text=我发现了菠萝级 · Pineapple-class Frigate的隐藏玩法
+  [banter] emit t=5.4 ch=idle mid=1000100202 text=我发现了菠萝级 · Pineapple-class Frigate的隐藏玩法
+  [banter] emit t=7.8 ch=idle mid=1000100501 text=细嗦
+  [banter] emit t=10.2 ch=idle mid=1000100601 text=哦？
+  [banter] emit t=15.4 ch=idle mid=1000100201 text=只要带上甲抗模块 L[大] / Armor Resist L，就强度极高
+
+=== seed=9 group=idle_chat_03 usesSlots=True companion=6 ===
+  companion: 绵羊控股: 一群酱鸭！ [SHEEP]
+  companion: 绵羊没腿: 一群酱鸭！ [SHEEP]
+  companion: 羊村教练: 未知星系旗舰集结点缺个打捞，来个打捞带带
+  companion: 多啦a梦: 来辣！
+  companion: 刀疤哥: 上次捞的东西你还没合同我
+  companion: 多啦a梦: 稍等，现在给你
+  [banter] weave cast order=1000100504>1000100102>1000100304 identities=10001005>10001001>10001003
+  [banter] round-start group=idle_chat_03 lines=4 t=0
+  [banter] weave opening slot=2 mid=1000100102 mode=exclusive-opt-out text=一群酱鸭！
+  [banter] weave backfill slot=2 mid=1000100202 name=多啦a梦
+  [banter] plan seq=1 group=idle_chat_03 mid=1000100504 final=未知星系旗舰集结点缺个打捞，来个打捞带带
+  [banter] plan seq=2 group=idle_chat_03 mid=1000100202 final=来辣！
+  [banter] plan seq=3 group=idle_chat_03 mid=1000100304 final=上次捞的东西你还没合同我
+  [banter] plan seq=4 group=idle_chat_03 mid=1000100202 final=稍等，现在给你
+  [banter] plan-done group=idle_chat_03 emits=6 span=17.2s
+  [banter] emit t=0 ch=idle mid=1000100102 text=一群酱鸭！
+  [banter] emit t=0.4 ch=idle mid=1000100106 text=一群酱鸭！
+  [banter] emit t=6.8 ch=idle mid=1000100504 text=未知星系旗舰集结点缺个打捞，来个打捞带带
+  [banter] emit t=9.4 ch=idle mid=1000100202 text=来辣！
+  [banter] emit t=13.8 ch=idle mid=1000100304 text=上次捞的东西你还没合同我
+  [banter] emit t=17.2 ch=idle mid=1000100202 text=稍等，现在给你
+
+=== seed=10 group=idle_p_01 usesSlots=False companion=4 ===
+  companion: 不困包: 教官提示：保持队列间距。
+  companion: 羊村78: 收到。
+  companion: 绵羊制造: 我不想吃鸭！ [SHEEP]
+  companion: 榴蛋: 明白。
+  [banter] round-start group=idle_p_01 lines=4 t=0
+  [banter] plan seq=1 group=idle_p_01 mid=1000100303 final=教官提示：保持队列间距。
+  [banter] plan seq=2 group=idle_p_01 mid=1000100520 final=收到。
+  [banter] plan seq=3 group=idle_p_01 mid=1000100103 final=我不想吃鸭！
+  [banter] plan seq=4 group=idle_p_01 mid=1000100402 final=明白。
+  [banter] plan-done group=idle_p_01 emits=4 span=9.2s
+  [banter] emit t=0 ch=idle mid=1000100303 text=教官提示：保持队列间距。
+  [banter] emit t=2.6 ch=idle mid=1000100520 text=收到。
+  [banter] emit t=6.6 ch=idle mid=1000100103 text=我不想吃鸭！
+  [banter] emit t=9.2 ch=idle mid=1000100402 text=明白。
+
+=== seed=11 group=idle_chat_04 usesSlots=True companion=9 ===
+  companion: 绵羊伸腿: 酱鸭！ [SHEEP]
+  companion: 绵羊控股: 酱鸭！ [SHEEP]
+  companion: 盖奶: 酱鸭！ [SHEEP]
+  companion: 大困包: 前几天路过的那个白，是个主播诶
+  companion: 羊村星猫: 这年头只有主播才天天这么积极单浪了
+  companion: 左手指地右手指天: 谁来着，我搜搜
+  companion: 小困包: 不记得了，等我刷到再说吧，喜欢玩单浪马
+  companion: 大困包: 不记得了，等我刷到再说吧，喜欢玩单浪马
+  companion: 不困包: 不记得了，等我刷到再说吧，喜欢玩单浪马
+  [banter] weave cast order=1000100102>1000100507>1000100702 identities=10001001>10001005>10001007
+  [banter] round-start group=idle_chat_04 lines=4 t=0
+  [banter] weave opening slot=1 mid=1000100102 mode=exclusive-opt-out text=酱鸭！
+  [banter] weave backfill slot=1 mid=1000100302 name=大困包
+  [banter] plan seq=1 group=idle_chat_04 mid=1000100302 final=前几天路过的那个白，是个主播诶
+  [banter] plan seq=2 group=idle_chat_04 mid=1000100507 final=这年头只有主播才天天这么积极单浪了
+  [banter] plan seq=3 group=idle_chat_04 mid=1000100702 final=谁来着，我搜搜
+  [banter] plan seq=4 group=idle_chat_04 mid=1000100302 final=不记得了，等我刷到再说吧，喜欢玩单浪马
+  [banter] plan-done group=idle_chat_04 emits=9 span=21.2s
+  [banter] emit t=0 ch=idle mid=1000100101 text=酱鸭！
+  [banter] emit t=0.4 ch=idle mid=1000100102 text=酱鸭！
+  [banter] emit t=0.8 ch=idle mid=1000100105 text=酱鸭！
+  [banter] emit t=5.8 ch=idle mid=1000100302 text=前几天路过的那个白，是个主播诶
+  [banter] emit t=11.2 ch=idle mid=1000100507 text=这年头只有主播才天天这么积极单浪了
+  [banter] emit t=14.6 ch=idle mid=1000100702 text=谁来着，我搜搜
+  [banter] emit t=20.4 ch=idle mid=1000100301 text=不记得了，等我刷到再说吧，喜欢玩单浪马
+  [banter] emit t=20.8 ch=idle mid=1000100302 text=不记得了，等我刷到再说吧，喜欢玩单浪马
+  [banter] emit t=21.2 ch=idle mid=1000100303 text=不记得了，等我刷到再说吧，喜欢玩单浪马
+

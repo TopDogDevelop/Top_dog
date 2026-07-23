@@ -20,8 +20,39 @@ public static class TacticalSelectionState
 
     private static readonly HashSet<string> SelectedFriendlyUnitIds = new();
 
-    /// <summary>底栏「默认距离」罗盘设定；接近/远离/环绕/跃迁单击时使用。</summary>
-    public static float? DefaultCommandRangeKm { get; set; }
+    /// <summary>底栏「默认距离」（km）；0=不限距。跨对局由 ClientGameSettings/PlayerPrefs 记忆。</summary>
+    public static float DefaultCommandRangeKm { get; private set; }
+
+    private static bool _defaultRangeLoaded;
+
+    /// <summary>下令用的有效默认距离（km）；0=不限距。</summary>
+    public static float EffectiveDefaultCommandRangeKm
+    {
+        get
+        {
+            EnsureDefaultCommandRangeLoaded();
+            return DefaultCommandRangeKm;
+        }
+    }
+
+    /// <summary>从 PlayerPrefs 载入（启动 / 底栏绑定）。</summary>
+    public static void EnsureDefaultCommandRangeLoaded()
+    {
+        if (_defaultRangeLoaded)
+        {
+            return;
+        }
+
+        DefaultCommandRangeKm = global::TopDog.Client.ClientGameSettings.DefaultCommandRangeKm;
+        _defaultRangeLoaded = true;
+    }
+
+    /// <summary>松手提交或外部写入已持久化值。</summary>
+    public static void ApplyPersistedDefaultCommandRangeKm(float km)
+    {
+        DefaultCommandRangeKm = Math.Clamp(km, TacticalRangeScale.MinKm, TacticalRangeScale.MaxKm);
+        _defaultRangeLoaded = true;
+    }
 
     /// <summary>无框选时命令范围（同步至 GameState.fleetCommandScope）。</summary>
     public static FleetCommandScope CommandScope { get; set; } = FleetCommandScope.AllInScene;

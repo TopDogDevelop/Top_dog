@@ -1,0 +1,13 @@
+{
+  "moduleId": "mod_armor_link_yl",
+  "displayName": "?????????",
+  "slotCategory": "FUNCTION",
+  "moduleKind": "armor_link_field",
+  "moduleFamily": "fleet_protection_field",
+  "moduleSubtype": "aura_field_armor",
+  "moduleSize": "YOULIANG",
+  "requiredHullLicenses": ["armor_fleet"],
+  "fieldRadiusKm": 250,
+  "fieldCollapseCooldownSec": 30,
+  "starCoinValue": 500000
+}

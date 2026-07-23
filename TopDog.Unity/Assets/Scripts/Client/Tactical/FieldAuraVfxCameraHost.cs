@@ -20,7 +20,8 @@ namespace TopDog.Client.Tactical;
 
 public sealed class FieldAuraVfxCameraHost : MonoBehaviour
 {
-    public const int FieldAuraLayer = 29;
+    /// <summary>兼容旧名；特效层见 <see cref="CombatFxCameraHost.CombatFxLayer"/>。</summary>
+    public const int FieldAuraLayer = CombatFxCameraHost.CombatFxLayer;
 
     public enum FieldAuraRenderMode
     {

@@ -1,0 +1,7 @@
+{
+  "moduleId": "mod_group_shield_repair_l", "displayName": "盾群回·大型",
+  "displayNameEn": "Large Group Shield Repair", "slotCategory": "ATTACK",
+  "moduleKind": "group_repair", "moduleSize": "LARGE", "starCoinValue": 10000,
+  "requiredHullLicenses": ["group_repair"], "logicId": "logic_group_repair",
+  "params": {"shape": "SPHERE", "radiusM": 20000, "layer": "shield", "amount": 200, "cycleSec": 10}
+}

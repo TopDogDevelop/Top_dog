@@ -1,3 +1,4 @@
+using System;
 using TopDog.Client.Gestures;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -6,8 +7,8 @@ using UnityEngine.UIElements;
  * 权威: docs/UI_TWO_LAYER.md · docs/STARMAP.md · docs/INPUT_PC_TOUCH_MAP.md
  * 本文件: StarMapViewportInputOverlay.cs — 战略星图指针输入 overlay
  * 【机制要点】
- * · PC：中键 orbit、右键 pan、滚轮 zoom
- * · 触摸：单指拖 orbit、捏合缩放
+ * · PC：中键 orbit、右键 pan、滚轮 zoom；左键轻触转发 OnSurfaceTap（marker 由上层 Ignore）
+ * · 触摸：单指拖 orbit、捏合缩放、轻触选中
  * 【关联】StarMapOrbitCamera · StarMapHostController · PointerActionMapper
  * ══
  */
@@ -28,6 +29,12 @@ public sealed class StarMapViewportInputOverlay : VisualElement
     private Vector2 _lastPointer;
     private readonly PointerActionMapper _touch = new();
     private bool _touchSession;
+    private Vector2 _touchDownPos;
+    private bool _leftAwaitTap;
+    private Vector2 _leftDownPos;
+
+    /// <summary>Tap at overlay-local position (selection when markers are Ignore for gesture pass-through).</summary>
+    public Action<Vector2>? OnSurfaceTap { get; set; }
 
     public StarMapViewportInputOverlay()
     {
@@ -54,7 +61,17 @@ public sealed class StarMapViewportInputOverlay : VisualElement
         if (PointerActionMapper.IsTouchPointer(evt))
         {
             _touchSession = true;
-            _touch.OnDown(evt.pointerId, (Vector2)evt.localPosition);
+            _touchDownPos = (Vector2)evt.localPosition;
+            _touch.OnDown(evt.pointerId, _touchDownPos);
+            this.CapturePointer(evt.pointerId);
+            evt.StopPropagation();
+            return;
+        }
+
+        if (evt.button == 0)
+        {
+            _leftAwaitTap = true;
+            _leftDownPos = (Vector2)evt.localPosition;
             this.CapturePointer(evt.pointerId);
             evt.StopPropagation();
             return;
@@ -128,6 +145,8 @@ public sealed class StarMapViewportInputOverlay : VisualElement
     {
         if (_touchSession && PointerActionMapper.IsTouchPointer(evt))
         {
+            var pos = (Vector2)evt.localPosition;
+            var wasDrag = _touch.IsOneFingerDragging || _touch.IsPinchMode || _touch.IsBoxMode;
             _touch.OnUp(evt.pointerId);
             if (this.HasPointerCapture(evt.pointerId))
             {
@@ -136,8 +155,32 @@ public sealed class StarMapViewportInputOverlay : VisualElement
 
             if (_touch.ActiveCount == 0)
             {
+                if (!wasDrag
+                    && (pos - _touchDownPos).magnitude < PointerActionMapper.DragSlopPx)
+                {
+                    OnSurfaceTap?.Invoke(pos);
+                }
+
                 _touch.Clear();
                 _touchSession = false;
+            }
+
+            evt.StopPropagation();
+            return;
+        }
+
+        if (evt.button == 0 && _leftAwaitTap)
+        {
+            _leftAwaitTap = false;
+            if (this.HasPointerCapture(evt.pointerId))
+            {
+                this.ReleasePointer(evt.pointerId);
+            }
+
+            var pos = (Vector2)evt.localPosition;
+            if ((pos - _leftDownPos).magnitude < PointerActionMapper.DragSlopPx)
+            {
+                OnSurfaceTap?.Invoke(pos);
             }
 
             evt.StopPropagation();

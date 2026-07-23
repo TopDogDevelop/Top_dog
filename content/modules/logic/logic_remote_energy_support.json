@@ -1,0 +1,8 @@
+{
+  "logicId": "logic_remote_energy_support",
+  "blocks": [
+    { "type": "FILTER_SINGLE_FRIENDLY_TARGET" },
+    { "type": "APPLY_QUOTA_EFFECT" }
+  ],
+  "paramSchema": ["rangeM", "quotaDelta", "cycleSec", "durationSec", "stackKey"]
+}

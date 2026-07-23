@@ -1,6 +1,6 @@
 param(
-    [string]$DevelopRoot = "e:\game_dev\top_dog_unity",
-    [string]$MainRoot = "e:\game_dev\top_dog-main"
+    [string]$DevelopRoot = "H:\game_dev\top_dog_unity",
+    [string]$MainRoot = "H:\game_dev\top_dog-main"
 )
 
 $ErrorActionPreference = "Stop"

@@ -30,7 +30,10 @@
           {
             "displayName": "羊村铁菊",
             "hullId": "hull_cruiser_greywolf_guard",
-            "fitted": { "fn_1": "mod_armor_link_s" }
+            "fitted": {
+              "fn_1": "mod_armor_link_s",
+              "def_1": "mod_armor_regen_s"
+            }
           },
           {
             "displayName": "羊村星猫",

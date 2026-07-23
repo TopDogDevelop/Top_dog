@@ -165,13 +165,135 @@ public static class TacticalIconCatalog
         _ => Load("beacon.png"),
     };
 
-    public static Texture2D BadgeFriendly => _badgeFriendly != null ? _badgeFriendly : (_badgeFriendly = Load("badge_friendly_plus.png"));
-    public static Texture2D BadgeHostile => _badgeHostile != null ? _badgeHostile : (_badgeHostile = Load("badge_hostile_minus.png"));
+    public static Texture2D BadgeFriendly =>
+        _badgeFriendly != null ? _badgeFriendly : (_badgeFriendly = LoadOrGenerateStandingBadge(hostile: false));
+
+    public static Texture2D BadgeHostile =>
+        _badgeHostile != null ? _badgeHostile : (_badgeHostile = LoadOrGenerateStandingBadge(hostile: true));
+
+    /// <summary>声望角标：磁盘字形 PNG；若缺失/旧纯色占位则程序画透明底 +/−。</summary>
+    private static Texture2D LoadOrGenerateStandingBadge(bool hostile)
+    {
+        var file = hostile ? "badge_hostile_minus.png" : "badge_friendly_plus.png";
+        var loaded = Load(file);
+        if (loaded != null && !IsSolidColorPlaceholder(loaded))
+        {
+            return loaded;
+        }
+
+        if (loaded != null)
+        {
+            Cache.Remove(file);
+            Object.Destroy(loaded);
+        }
+
+        // 磁盘无可靠字形时，始终程序生成（禁止色块）
+        return GenerateStandingBadgeGlyph(hostile);
+    }
+
+    private static bool IsSolidColorPlaceholder(Texture2D tex)
+    {
+        if (tex == null || tex.width < 2 || tex.height < 2)
+        {
+            return true;
+        }
+
+        // 旧 copy 脚本写过 8×8 不透明纯色块；有透明通道的字形角标一律放行。
+        try
+        {
+            var px = tex.GetPixels32();
+            if (px == null || px.Length == 0)
+            {
+                return true;
+            }
+
+            var opaque = 0;
+            Color32? first = null;
+            for (var i = 0; i < px.Length; i++)
+            {
+                if (px[i].a < 8)
+                {
+                    continue;
+                }
+
+                opaque++;
+                if (first == null)
+                {
+                    first = px[i];
+                    continue;
+                }
+
+                var f = first.Value;
+                if (Mathf.Abs(px[i].r - f.r) > 8
+                    || Mathf.Abs(px[i].g - f.g) > 8
+                    || Mathf.Abs(px[i].b - f.b) > 8)
+                {
+                    return false;
+                }
+            }
+
+            // 全透明或整图同色 → 当作色块占位
+            return opaque == 0 || opaque == px.Length;
+        }
+        catch
+        {
+            return tex.width <= 8 && tex.height <= 8;
+        }
+    }
+
+    private static Texture2D GenerateStandingBadgeGlyph(bool hostile)
+    {
+        const int size = 16;
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+        {
+            filterMode = FilterMode.Bilinear,
+            wrapMode = TextureWrapMode.Clamp,
+        };
+        var pixels = new Color32[size * size];
+        var ink = hostile
+            ? new Color32(220, 70, 70, 255)
+            : new Color32(80, 160, 255, 255);
+        // 透明底；画清晰 + / −（3px 笔画），避免再退回色块
+        if (hostile)
+        {
+            for (var x = 3; x <= 12; x++)
+            {
+                for (var t = -1; t <= 1; t++)
+                {
+                    pixels[(8 + t) * size + x] = ink;
+                }
+            }
+        }
+        else
+        {
+            for (var x = 3; x <= 12; x++)
+            {
+                for (var t = -1; t <= 1; t++)
+                {
+                    pixels[(8 + t) * size + x] = ink;
+                }
+            }
+
+            for (var y = 3; y <= 12; y++)
+            {
+                for (var t = -1; t <= 1; t++)
+                {
+                    pixels[y * size + (8 + t)] = ink;
+                }
+            }
+        }
+
+        tex.SetPixels32(pixels);
+        tex.Apply(updateMipmaps: false, makeNoLongerReadable: false);
+        Cache[hostile ? "badge_hostile_minus.png" : "badge_friendly_plus.png"] = tex;
+        return tex;
+    }
 
     public static string GroupLabel(string tonnageClass) => tonnageClass switch
     // lik3tocoode345
     {
         "STRIKE_CRAFT" => "舰载机",
+        "DRONE" or "SHUTTLE" => "无人机",
         "MISSILE" => "导弹",
         "BOARD_SUMMON_WING" => "董事会增援",
         "JUMP_BRIDGE" => "跳桥",

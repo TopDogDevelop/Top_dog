@@ -4,5 +4,9 @@
   "displayNameEn": "Hybrid Gun M",
   "slotCategory": "ATTACK",
   "moduleSize": "MEDIUM",
-  "damagePerTick": 85
+  "damagePerTick": 1200,
+  "fireCycleSec": 10,
+  "attackRangeM": 50000,
+  "trackingDegPerSec": 8,
+  "starCoinValue": 1000
 }

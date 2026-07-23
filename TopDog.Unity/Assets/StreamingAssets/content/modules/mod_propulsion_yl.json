@@ -1,0 +1,6 @@
+{
+  "moduleId": "mod_propulsion_yl", "displayName": "推进器 YL",
+  "displayNameEn": "Propulsion YL", "slotCategory": "FUNCTION", "moduleSize": "YOULIANG",
+  "speedBonusMps": 0, "speedBonusPctWhenEnabled": 1.0,
+  "appliesToPropulsion": true, "starCoinValue": 500000
+}

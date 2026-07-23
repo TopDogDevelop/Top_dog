@@ -46,12 +46,11 @@ public sealed class ContentPipelineTests
     }
 
     [Test]
-    public void ModuleCatalogStubResolvesUnknownId()
+    public void ModuleCatalogRejectsUnknownIdWithoutAlias()
     {
         var reg = ModuleRegistry.Empty();
         var stub = ModuleCatalog.Resolve(reg, "mod_hybrid_gun_xl");
-        Assert.That(stub, Is.Not.Null);
-        Assert.That(stub!.slotCategory, Is.EqualTo("ATTACK"));
+        Assert.That(stub, Is.Null);
     }
 
     [Test]

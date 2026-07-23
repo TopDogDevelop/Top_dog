@@ -10,7 +10,8 @@ using TopDog.Sim.State;
  * 【机制要点】
  * · 攻方 ENEMY 侧始终 tick；约战守方（建筑同侧且 AI 军团）也 tick
  * · 友方有激活场域（守卫模块）→ 各舰环绕最近守卫舰；否则 75% 射程环绕攻击目标
- * 【关联】FleetOrderService · FieldAuraService · BattlefieldSystem
+ * · 换集火目标时走 FleetOrderService.OrderFocus（同人类：放舰载机/无人机），禁止旁路只写 targetUnitId
+ * 【关联】FleetOrderService · FieldAuraService · BattlefieldSystem · StrikeWingSpawnService
  * ══
  */
 
@@ -131,15 +132,20 @@ public static class AiRealtimePlayerBrain
         state.aiRetargetCooldownSec[cdKey] = cd;
 
         var guards = CollectActiveFieldGuards(bf, side, modules, ships);
-        foreach (var u in bf.units)
+        // OrderFocus 会往 bf.units 追加舰载机，必须快照遍历
+        foreach (var u in bf.units.ToList())
         {
             if (u.side != side || u.IsDestroyed() || u.isBuilding || u.IsBallisticMissile()
                 || !u.Arrived(bf.timeSec) || BattlefieldSceneProxyService.IsSceneProxy(u)
                 || u.aiOrder == UnitAiOrder.MANUAL
-                || u.aiOrder == UnitAiOrder.RECALL)
+                || u.aiOrder == UnitAiOrder.RECALL
+                || u.IsTemplateCarriedUnit())
             {
                 continue;
             }
+
+            var previousTargetId = u.targetUnitId;
+            var hadExplicitFocus = u.explicitFocus;
 
             BattlefieldUnit? fireTarget = null;
             if (refreshTargets)
@@ -156,28 +162,57 @@ public static class AiRealtimePlayerBrain
                 fireTarget = FindNearestOpponent(bf, u);
             }
 
-            if (fireTarget != null)
+            if (fireTarget == null || fireTarget.unitId == null || u.unitId == null)
+            {
+                continue;
+            }
+
+            var focusChanged = refreshTargets
+                || !hadExplicitFocus
+                || previousTargetId == null
+                || !fireTarget.unitId.Equals(previousTargetId, StringComparison.Ordinal);
+
+            ApplyManeuverForFireTarget(u, fireTarget, bf, modules, ships, guards);
+
+            // 与人类同路径放飞机：仅航母/带管舰走 OrderFocus（避免千舰风暴卡到秒级 tick）
+            if (focusChanged && StrikeWingRecallService.IsCarrier(u))
+            {
+                FleetOrderService.OrderFocus(
+                    state,
+                    bf,
+                    fireTarget.unitId,
+                    new[] { u.unitId },
+                    modules);
+                ApplyManeuverForFireTarget(u, fireTarget, bf, modules, ships, guards);
+            }
+            else if (focusChanged)
             {
                 u.targetUnitId = fireTarget.unitId;
                 u.explicitFocus = true;
             }
+        }
+    }
 
-            if (guards.Count > 0 && !IsActiveFieldGuard(u, bf, modules))
+    private static void ApplyManeuverForFireTarget(
+        BattlefieldUnit u,
+        BattlefieldUnit fireTarget,
+        BattlefieldState bf,
+        ModuleRegistry modules,
+        ShipRegistry ships,
+        List<BattlefieldUnit> guards)
+    {
+        if (guards.Count > 0 && !IsActiveFieldGuard(u, bf, modules))
+        {
+            var guard = FindNearestUnit(u, guards);
+            if (guard != null)
             {
-                var guard = FindNearestUnit(u, guards);
-                if (guard != null)
-                {
-                    var orbitRadius = ResolveGuardOrbitRadiusM(guard, modules, ships);
-                    AssignOrbit(u, guard, orbitRadius, fireTarget);
-                    continue;
-                }
-            }
-
-            if (fireTarget != null)
-            {
-                AssignAttackStandoff(u, fireTarget);
+                var orbitRadius = ResolveGuardOrbitRadiusM(guard, modules, ships);
+                AssignOrbit(u, guard, orbitRadius, fireTarget);
+                return;
             }
         }
+
+        AssignAttackStandoff(u, fireTarget);
     }
 
     private static void AssignAttackStandoff(BattlefieldUnit u, BattlefieldUnit fireTarget)

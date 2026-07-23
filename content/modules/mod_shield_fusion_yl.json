@@ -1,0 +1,13 @@
+{
+  "moduleId": "mod_shield_fusion_yl",
+  "displayName": "?????????",
+  "slotCategory": "FUNCTION",
+  "moduleKind": "shield_fusion_field",
+  "moduleFamily": "fleet_protection_field",
+  "moduleSubtype": "aura_field_shield",
+  "moduleSize": "YOULIANG",
+  "requiredHullLicenses": ["shield_fleet"],
+  "fieldRadiusKm": 250,
+  "fieldCollapseCooldownSec": 30,
+  "starCoinValue": 500000
+}

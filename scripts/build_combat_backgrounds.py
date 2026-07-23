@@ -16,9 +16,9 @@ from pathlib import Path
 from PIL import Image
 
 SG_ROOT = next(
-    p for p in Path(r"e:/sg/decrypted").iterdir() if p.is_dir() and (p / "manifest.json").exists()
+    p for p in Path(r"H:/sg/decrypted").iterdir() if p.is_dir() and (p / "manifest.json").exists()
 )
-DEST = Path(r"e:/game_dev/top_dog_unity/TopDog.Unity/Assets/Art/CombatBackgrounds")
+DEST = Path(r"H:/game_dev/top_dog_unity/TopDog.Unity/Assets/Art/CombatBackgrounds")
 
 # SG export order: +X, +Y, +Z, -X, -Y, -Z → Unity CubemapFace PositiveX..NegativeZ
 # Runtime remaps (CombatBackgroundCatalog): U/O/R/S swap +Y/-Y sources; SpaceBoxPRO swap +X/-X.

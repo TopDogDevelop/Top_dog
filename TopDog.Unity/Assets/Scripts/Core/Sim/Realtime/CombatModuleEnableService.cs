@@ -24,10 +24,12 @@ public static class CombatModuleEnableService
     {
         if (enabled)
         {
+            unit.playerDisabledModuleSlots.Remove(slotKey);
             unit.disabledModuleSlots.Remove(slotKey);
         }
         else
         {
+            unit.playerDisabledModuleSlots.Add(slotKey);
             unit.disabledModuleSlots.Add(slotKey);
         }
     }
@@ -48,8 +50,12 @@ public static class CombatModuleEnableService
         return count;
     }
 
-    public static void ClearDisabledSlots(BattlefieldUnit unit) =>
+    public static void ClearDisabledSlots(BattlefieldUnit unit)
+    {
         unit.disabledModuleSlots.Clear();
+        unit.playerDisabledModuleSlots.Clear();
+        unit.quotaForcedDisabledSlots.Clear();
+    }
 
     /// <summary>登录接战态：关其它模块，尽量启用推进器（见 BOARDING_MODULE.md §3.3）。</summary>
     public static void ApplyBoardingEngageQuota(
@@ -108,6 +114,8 @@ public static class CombatModuleEnableService
         }
 
         unit.disabledModuleSlots.Clear();
+        unit.playerDisabledModuleSlots.Clear();
+        unit.quotaForcedDisabledSlots.Clear();
         foreach (var slotKey in unit.fittedModules.Keys)
         {
             if (!keep.Contains(slotKey))
@@ -132,6 +140,8 @@ public static class CombatModuleEnableService
         ModuleRegistry modules)
     {
         unit.disabledModuleSlots.Clear();
+        unit.playerDisabledModuleSlots.Clear();
+        unit.quotaForcedDisabledSlots.Clear();
         if (hull != null)
         {
             ApplyPropulsionSpeed(unit, hull, modules);
@@ -144,27 +154,6 @@ public static class CombatModuleEnableService
         HullDef hull,
         ModuleRegistry modules)
     {
-        var speed = hull.baseSpeedMps;
-        foreach (var kv in unit.fittedModules)
-        {
-            if (!IsSlotEnabled(unit, kv.Key))
-            {
-                continue;
-            }
-
-            var mod = modules.Resolve(kv.Value);
-            if (mod == null)
-            {
-                continue;
-            }
-
-            speed += mod.speedBonusMps;
-            if (mod.appliesToPropulsion && mod.speedBonusPctWhenEnabled > 0f)
-            {
-                speed += hull.baseSpeedMps * mod.speedBonusPctWhenEnabled;
-            }
-        }
-
-        unit.maxSpeedMps = Math.Max(80f, speed);
+        RuntimeEffectService.RecomputeEffectiveAttributes(unit, hull, modules);
     }
 }

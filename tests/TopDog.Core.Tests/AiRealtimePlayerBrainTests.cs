@@ -3,12 +3,52 @@ using TopDog.Content.Ships;
 using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 
-namespace TopDog.Tests;
+namespace TopDog.Core.Tests;
 
 public sealed class AiRealtimePlayerBrainTests
 {
     private static readonly ModuleRegistry Modules = ModuleRegistry.LoadDefault();
     private static readonly ShipRegistry Ships = ShipRegistry.LoadDefault();
+
+    [SetUp]
+    public void SetUp() => FieldNavTestContent.PinRepoContentRoot();
+
+    [Test]
+    public void AiEnemyCarrier_Focus_DeploysStrikeCraftViaOrderFocus()
+    {
+        var state = new GameState();
+        var bf = new BattlefieldState { battlefieldId = "bf1", timeSec = 0f };
+        const string modId = "mod_strike_wing_a_l";
+        Assert.That(Modules.Resolve(modId), Is.Not.Null);
+
+        var carrier = Enemy("ai-carrier", "CARRIER", 0f, 0f);
+        carrier.fittedModules = new Dictionary<string, string> { { "tube_1", modId } };
+        LaunchTubeStateService.InitTubeStates(carrier, Modules);
+        var target = Friendly("player-ship", 2_000f, 0f);
+        bf.units.Add(carrier);
+        bf.units.Add(target);
+
+        AiRealtimePlayerBrain.Tick(state, bf, Modules, Ships, 1f);
+
+        Assert.That(carrier.targetUnitId, Is.EqualTo("player-ship"));
+        Assert.That(carrier.explicitFocus, Is.True);
+        Assert.That(
+            bf.units.Exists(u =>
+                "STRIKE_CRAFT".Equals(u.tonnageClass, StringComparison.Ordinal)
+                && "ai-carrier".Equals(u.parentUnitId, StringComparison.Ordinal)),
+            Is.True,
+            "人机集火须走 OrderFocus → 放出舰载机");
+        Assert.That(carrier.tubeStates["tube_1"], Is.EqualTo(LaunchTubeState.Activated));
+
+        // 交战带运动可覆盖 FOCUS，但仍保持显式集火 → 不收回
+        StrikeWingRecallService.Tick(bf, Modules, new Random(1));
+        Assert.That(
+            bf.units.Exists(u =>
+                "STRIKE_CRAFT".Equals(u.tonnageClass, StringComparison.Ordinal)
+                && "ai-carrier".Equals(u.parentUnitId, StringComparison.Ordinal)),
+            Is.True,
+            "显式集火中不得因 aiOrder≠FOCUS 收回舰载机");
+    }
 
     [Test]
     public void RetargetsFleetFocusEveryThirtySeconds()

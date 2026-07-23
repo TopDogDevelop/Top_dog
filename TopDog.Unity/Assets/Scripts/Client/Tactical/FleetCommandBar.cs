@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using TopDog.App;
 using TopDog.AgentDiag;
+using TopDog.Client;
 using TopDog.Sim.Realtime;
 using TopDog.Sim.State;
 using TopDog.Sim.Vision;
@@ -42,7 +44,40 @@ public sealed class FleetCommandBar
 
         _scopeBtn = root.Q<Button>("btn-command-scope");
 
-        BindSimple(root, "btn-rally", () => WithBf((s, bf) => FleetOrderService.RallyToBattlefield(s, bf, Sel())));
+        BindSimple(root, "btn-rally", () =>
+        {
+            var selected = Sel();
+            // #region agent log
+            AgentSessionDebugLog.WriteDebugSession(
+                "R1",
+                "FleetCommandBar.cs:btn-rally",
+                "rally button invoked",
+                new
+                {
+                    selectedCount = selected?.Count ?? 0,
+                    scope = TacticalSelectionState.CommandScope.ToString(),
+                });
+            // #endregion
+            WithBf((s, bf) =>
+            {
+                var result = FleetOrderService.RallyToBattlefield(s, bf, selected);
+                // #region agent log
+                AgentSessionDebugLog.WriteDebugSession(
+                    "R1-R3",
+                    "FleetCommandBar.cs:btn-rally:result",
+                    "rally command returned",
+                    new
+                    {
+                        result,
+                        battlefieldId = bf.battlefieldId,
+                        rallyActive = s.battlefields.Sum(item =>
+                            item.units.Count(unit => unit.rallyActive)),
+                        inTransit = s.tacticalWarpInTransit.Count,
+                    });
+                // #endregion
+                return result;
+            });
+        });
         BindSimple(root, "btn-scatter", () => WithBf((s, bf) => FleetOrderService.OrderScatter(s, bf, new Random(), Sel())));
         BindSimple(root, "btn-stop", () => WithBf((s, bf) => FleetOrderService.OrderStop(s, bf, false, Sel())));
         BindSimple(root, "btn-stop-all", () => WithBf((s, bf) => FleetOrderService.OrderStop(s, bf, true, Sel())));
@@ -51,7 +86,7 @@ public sealed class FleetCommandBar
             WithBf((s, bf) => FleetOrderService.OrderCeaseFire(s, bf, Sel())));
         BindSimple(root, "btn-repair-target", () =>
             WithBf((s, bf) => FleetOrderService.OrderRepairTarget(
-                s, bf, TacticalSelectionState.SelectedTargetUnitId, Sel())));
+                s, bf, TacticalSelectionState.SelectedTargetUnitId, Sel(), _core()?.Modules)));
         BindSimple(root, "btn-command-scope", () =>
         {
             TacticalSelectionState.CommandScope = TacticalSelectionState.CommandScope == FleetCommandScope.AllInScene
@@ -137,13 +172,17 @@ public sealed class FleetCommandBar
     private string IssueWarp(GameState s, BattlefieldState bf, float? landingKm)
     {
         var sel = TacticalSelectionState.SelectedTargetUnitId;
-        var resolved = FleetOrderService.TryResolveWarpTargetScene(s, bf, sel, out _, out _);
+        // Same-scene unit / landmark targets must keep selection — do NOT overwrite with scene proxies
+        // (old auto-pick stole 同场景跃迁 targets → silent / wrong cross-scene routing).
+        var sameSceneUnitTarget = IsSameSceneWarpUnitTarget(bf, sel);
+        var resolved = !sameSceneUnitTarget
+            && FleetOrderService.TryResolveWarpTargetScene(s, bf, sel, out _, out _);
         AgentSessionDebugLog.Write(
             "H5",
             "FleetCommandBar.IssueWarp",
             "entry",
-            new { sel, bfId = bf.battlefieldId, initialResolve = resolved });
-        if (!resolved)
+            new { sel, bfId = bf.battlefieldId, sameSceneUnitTarget, initialResolve = resolved });
+        if (!sameSceneUnitTarget && !resolved)
         {
             foreach (var u in bf.units)
             {
@@ -193,7 +232,32 @@ public sealed class FleetCommandBar
     private IReadOnlyCollection<string> Sel() =>
         TacticalSelectionState.GetSelectedFriendlyUnitIds();
 
-    private static float? CommandRangeKm() => TacticalSelectionState.DefaultCommandRangeKm;
+    private static float? CommandRangeKm()
+    {
+        TacticalSelectionState.EnsureDefaultCommandRangeLoaded();
+        return TacticalSelectionState.EffectiveDefaultCommandRangeKm;
+    }
+
+    /// <summary>同场景非 proxy 单位（含友舰）作为跃迁目标，走 OrderIntraSceneWarp。</summary>
+    private static bool IsSameSceneWarpUnitTarget(BattlefieldState bf, string? unitId)
+    {
+        if (string.IsNullOrEmpty(unitId))
+        {
+            return false;
+        }
+
+        foreach (var u in bf.units)
+        {
+            if (u.unitId == null || !u.unitId.Equals(unitId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            return !BattlefieldSceneProxyService.IsSceneProxy(u) && !u.isBuilding && !u.IsDestroyed();
+        }
+
+        return false;
+    }
 
     private void WithBf(Func<GameState, BattlefieldState, string> action)
     {
@@ -323,28 +387,40 @@ public sealed class FleetCommandBar
         row.style.flexShrink = 1;
         row.style.minWidth = 140;
 
-        var label = new Label(FormatDefaultDistKm());
+        TacticalSelectionState.EnsureDefaultCommandRangeLoaded();
+        var label = new Label(FormatDefaultDistKm(TacticalSelectionState.EffectiveDefaultCommandRangeKm));
         label.name = "lbl-default-dist-km";
         label.style.minWidth = 52;
 
         var slider = new Slider(0f, 1f);
         slider.name = "slider-default-dist";
-        slider.value = TacticalRangeScale.DialTFromKm(EffectiveDefaultDistKm());
+        slider.value = TacticalRangeScale.DialTFromKm(TacticalSelectionState.EffectiveDefaultCommandRangeKm);
         slider.style.flexGrow = 1;
         slider.style.minWidth = 80;
+
+        // 拖动中只预览标签；松手（PointerUp / CaptureOut）才提交距离并写入 PlayerPrefs
         slider.RegisterValueChangedCallback(evt =>
         {
-            var km = TacticalRangeScale.KmFromDialT(evt.newValue);
-            TacticalSelectionState.DefaultCommandRangeKm = km;
-            label.text = FormatDefaultDistKm();
+            label.text = FormatDefaultDistKm(TacticalRangeScale.KmFromDialT(evt.newValue));
         });
+
+        void CommitFromSlider()
+        {
+            var km = TacticalRangeScale.KmFromDialT(slider.value);
+            ClientGameSettings.SetDefaultCommandRangeKm(km, persist: true);
+            label.text = FormatDefaultDistKm(km);
+        }
+
+        slider.RegisterCallback<PointerUpEvent>(_ => CommitFromSlider());
+        slider.RegisterCallback<PointerCaptureOutEvent>(_ => CommitFromSlider());
+        slider.RegisterCallback<FocusOutEvent>(_ => CommitFromSlider());
 
         row.Add(label);
         row.Add(slider);
 
         if (btn != null)
         {
-            btn.tooltip = "默认距离（滑块调节，用于接近/远离/环绕/跃迁）";
+            btn.tooltip = "默认距离（松手生效，0km=不限距；跨对局记忆）";
             var idx = bar.IndexOf(btn);
             if (idx >= 0)
             {
@@ -361,11 +437,6 @@ public sealed class FleetCommandBar
         }
     }
 
-    private static float EffectiveDefaultDistKm() =>
-        TacticalSelectionState.DefaultCommandRangeKm ?? TacticalRangeScale.MidKm;
-
-    private static string FormatDefaultDistKm() =>
-        TacticalSelectionState.DefaultCommandRangeKm.HasValue
-            ? $"{TacticalSelectionState.DefaultCommandRangeKm.Value:0} km"
-            : $"{EffectiveDefaultDistKm():0} km";
+    private static string FormatDefaultDistKm(float km) =>
+        km <= 0.01f ? "0 km" : $"{km:0} km";
 }

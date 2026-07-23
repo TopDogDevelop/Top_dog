@@ -13,14 +13,14 @@ using UnityEngine.UIElements;
  * 本文件: TacticalViewportPresenter.cs — 主视野 marker + 环绕 HUD + 屏外 bracket
  * 【机制要点】
  * · glyph 单位绘制；scene proxy 用 azimuth/elevation 投到视口边缘
- * · 舰标朝向：纯屏幕两点差（ShipHeadingResolver）；不读 facingRad
+ * · 舰标不随航迹旋转（固定朝向）；选中/跃迁 HUD 仍走稀疏 UITK
  * · 视野门控：ResolveViewportFocus → VisionAnchorService（不因选中 proxy 改相机）
  * 【实现逻辑】
- * · Refresh：先绘 bf.units；再 ListOffSceneLinks 补未在 units 中的 off-scene marker
+ * · Refresh：舰标统一面板批画；稀疏 marker 仅 proxy / 选中 HUD
  * · UpdateOffSceneLinkMarkerVisual：与 scene proxy 同图标/⤴ 角标；标签含 AU 距离
  * · 场景外占位：未选中无蓝框；仅选中时高亮
  * · 禁止 ResolveViewportFocus 将选中 proxy 作为相机注视点
- * 【关联】TacticalIconCatalog · ShipHeadingResolver · UnitSelectionHud · BattlefieldSceneProxyService
+ * 【关联】TacticalIconCatalog · TacticalIconBatchElement · UnitSelectionHud · BattlefieldSceneProxyService
  * ══
  */
 
@@ -46,6 +46,19 @@ public sealed class TacticalViewportPresenter
     /// <summary>跨 Refresh 保留的屏幕航迹样本（勿在 Refresh 开头 Clear）。</summary>
     private readonly Dictionary<string, IconTrailSample> _iconTrails = new();
     private readonly Dictionary<string, bool> _boardingFlashActive = new();
+    private TacticalIconBatchElement _batchIcons;
+    private readonly List<(
+        float cx,
+        float cy,
+        bool hostile,
+        string id,
+        string tonnage,
+        float motionDirX,
+        float motionDirY,
+        float speedMps)> _batchScratch = new(256);
+    private float _nextBatchSyncUnscaled;
+    private bool _didFitDenseCamera;
+    private bool _batchMode;
     private static ShipRegistry? _shipIcons;
     private GameState _lastState;
     private BattlefieldState _lastBf;
@@ -103,12 +116,63 @@ public sealed class TacticalViewportPresenter
         _hostW = hostW;
         _hostH = hostH;
 
+        var useBatch = TacticalIconGpuLayer.ShouldUseGpuPath(bf);
+        _batchMode = useBatch;
+        var dense = BattlefieldScalePolicy.IsDense(bf);
+        if (useBatch)
+        {
+            EnsureBatchLayer();
+            SyncBatchIconsThrottled(bf, fx, fy, fz, hostW, hostH);
+            RefreshSparseMarkers(state, bf, fx, fy, fz, hostW, hostH, aliveIds);
+            foreach (var link in BattlefieldSceneProxyService.ListOffSceneLinks(state, bf))
+            {
+                if (aliveIds.Contains(link.UnitId))
+                {
+                    continue;
+                }
+
+                aliveIds.Add(link.UnitId);
+                var bundle = GetOrCreateMarker(link.UnitId);
+                var placement = PositionSceneProxy(link.AzimuthRad, link.ElevationRad, hostW, hostH);
+                UpdateOffSceneLinkMarkerVisual(bundle, link);
+                ApplyPlacement(bundle, placement, link.UnitId, isSceneProxy: true);
+                _screenPositions[link.UnitId] = (placement.CenterX, placement.CenterY);
+                if (link.UnitId.Equals(TacticalSelectionState.SelectedTargetUnitId, StringComparison.Ordinal))
+                {
+                    SelectedMarkerScreenPos = (placement.CenterX, placement.CenterY);
+                }
+            }
+
+            if (!_didFitDenseCamera && dense && _camera != null)
+            {
+                TacticalIconGpuLayer.FitCameraToBattlefield(_camera, bf);
+                _didFitDenseCamera = true;
+            }
+
+            if (!dense)
+            {
+                _didFitDenseCamera = false;
+            }
+
+            PruneDeadMarkers(aliveIds);
+            return;
+        }
+
+        // 兜底：批画层不可用时逐单位稀疏绘（正常进游戏不会走到）
+        _didFitDenseCamera = false;
+        _batchIcons?.ClearIcons();
+        if (_batchIcons != null)
+        {
+            _batchIcons.style.display = DisplayStyle.None;
+        }
+
         foreach (var u in bf.units)
         {
             if (u.IsDestroyed() || !u.Arrived(bf.timeSec) || u.unitId == null)
             {
                 continue;
             }
+
             aliveIds.Add(u.unitId);
             var bundle = GetOrCreateMarker(u.unitId);
             ScreenPlacement placement;
@@ -125,12 +189,10 @@ public sealed class TacticalViewportPresenter
                 placement = PositionWorldUnit(u.x, u.y, u.z, fx, fy, fz, hostW, hostH, bundle);
             }
 
-            var isSceneProxy = BattlefieldSceneProxyService.IsSceneProxy(u);
             UpdateMarkerVisual(bundle, u, state, bf, placement.CenterX, placement.CenterY);
-            ApplyPlacement(bundle, placement, u.unitId, isSceneProxy);
+            ApplyPlacement(bundle, placement, u.unitId, BattlefieldSceneProxyService.IsSceneProxy(u));
             _screenPositions[u.unitId] = (placement.CenterX, placement.CenterY);
-
-            if (u.unitId.Equals(TacticalSelectionState.SelectedTargetUnitId, System.StringComparison.Ordinal))
+            if (u.unitId.Equals(TacticalSelectionState.SelectedTargetUnitId, StringComparison.Ordinal))
             {
                 SelectedMarkerScreenPos = (placement.CenterX, placement.CenterY);
             }
@@ -149,27 +211,9 @@ public sealed class TacticalViewportPresenter
             UpdateOffSceneLinkMarkerVisual(bundle, link);
             ApplyPlacement(bundle, placement, link.UnitId, isSceneProxy: true);
             _screenPositions[link.UnitId] = (placement.CenterX, placement.CenterY);
-            if (link.UnitId.Equals(TacticalSelectionState.SelectedTargetUnitId, System.StringComparison.Ordinal))
-            {
-                SelectedMarkerScreenPos = (placement.CenterX, placement.CenterY);
-            }
         }
 
-        var remove = new List<string>();
-        foreach (var kv in _markers)
-        {
-            if (!aliveIds.Contains(kv.Key))
-            {
-                remove.Add(kv.Key);
-            }
-        }
-        foreach (var id in remove)
-        {
-            _host.Remove(_markers[id].Container);
-            _markers.Remove(id);
-            _iconTrails.Remove(id);
-            HideEdgeMarker(id);
-        }
+        PruneDeadMarkers(aliveIds);
     }
 
     private static BattlefieldUnit? ResolveViewportFocus(GameState state, BattlefieldState bf) =>
@@ -369,8 +413,16 @@ public sealed class TacticalViewportPresenter
             return null;
         }
 
+        if (_batchMode && _batchIcons != null && _batchIcons.Count > 0)
+        {
+            var batchHit = _batchIcons.PickNearest(localPos, radiusPx);
+            if (batchHit != null)
+            {
+                return batchHit;
+            }
+        }
+
         string? bestId = null;
-        // liketocoode34e
         var bestScore = float.MinValue;
         foreach (var kv in _screenPositions)
         {
@@ -395,6 +447,11 @@ public sealed class TacticalViewportPresenter
     public bool TryGetUnitScreenCenter(string unitId, out Vector2 overlayLocalCenter)
     {
         overlayLocalCenter = default;
+        if (_batchMode && _batchIcons != null && _batchIcons.TryGetScreenCenter(unitId, out overlayLocalCenter))
+        {
+            return true;
+        }
+
         if (!_screenPositions.TryGetValue(unitId, out var pos))
         {
             return false;
@@ -737,11 +794,9 @@ public sealed class TacticalViewportPresenter
             }
             else
             {
+                // 缺图占位：中性深底；敌我只靠蓝+/红−角标，禁止整图标色块
                 icon.style.backgroundImage = StyleKeyword.None;
-                icon.style.backgroundColor = new StyleColor(
-                    u.side == UnitSide.ENEMY
-                        ? new Color(0.55f, 0.15f, 0.15f, 0.85f)
-                        : new Color(0.15f, 0.35f, 0.65f, 0.85f));
+                icon.style.backgroundColor = new StyleColor(new Color(0.18f, 0.22f, 0.28f, 0.9f));
                 if (fallback != null)
                 {
                     var tc = u.tonnageClass ?? "?";
@@ -749,17 +804,9 @@ public sealed class TacticalViewportPresenter
                     fallback.style.display = DisplayStyle.Flex;
                 }
             }
-            if (!u.isBuilding && u.unitId != null)
-            {
-                if (ResolveAndAdvanceIconTrail(u.unitId, centerX, centerY, out var trailDeg))
-                {
-                    icon.style.rotate = ShipHeadingResolver.ToRotate(trailDeg);
-                }
-            }
-            else
-            {
-                icon.style.rotate = new Rotate(new Angle(0, AngleUnit.Degree));
-            }
+
+            // 舰标固定朝向，不随移动方向旋转
+            icon.style.rotate = new Rotate(new Angle(0, AngleUnit.Degree));
         }
         if (badge != null)
         {
@@ -887,37 +934,235 @@ public sealed class TacticalViewportPresenter
         label.style.display = DisplayStyle.Flex;
     }
 
-    /// <summary>
-    /// 纯屏幕航迹。始终推进位置样本；仅当角应更新时返回 true（减少无效旋转写入）。
-    /// </summary>
-    private bool ResolveAndAdvanceIconTrail(string unitId, float centerX, float centerY, out float deg)
+    private void EnsureBatchLayer()
     {
-        _iconTrails.TryGetValue(unitId, out var sample);
-        deg = sample.Deg;
-        var shouldWrite = !sample.HasPrev;
-        if (sample.HasPrev)
+        if (_host == null)
         {
-            shouldWrite = ShipHeadingResolver.TryResolveTrailDeg(
-                sample.CenterX,
-                sample.CenterY,
-                centerX,
-                centerY,
-                sample.Deg,
-                out deg);
-            if (!shouldWrite)
+            return;
+        }
+
+        if (_batchIcons == null)
+        {
+            _batchIcons = new TacticalIconBatchElement { name = "tactical-icon-batch" };
+            _host.Insert(0, _batchIcons);
+        }
+
+        _batchIcons.style.display = DisplayStyle.Flex;
+        _batchIcons.style.position = Position.Absolute;
+        _batchIcons.style.left = 0;
+        _batchIcons.style.top = 0;
+        _batchIcons.style.right = 0;
+        _batchIcons.style.bottom = 0;
+    }
+
+    /// <summary>
+    /// 交互帧：保证批画点选面可用，并刷新选中/ proxy 稀疏 marker（不碰右栏）。
+    /// </summary>
+    public void RefreshPickSurface(GameState state, BattlefieldState bf)
+    {
+        if (_host == null || bf == null || _camera == null)
+        {
+            return;
+        }
+
+        var focus = ResolveViewportFocus(state, bf);
+        var fx = focus?.x ?? 0f;
+        var fy = focus?.y ?? 0f;
+        var fz = focus?.z ?? 0f;
+        var hostW = _hostW;
+        var hostH = _hostH;
+        if (hostW < 1f || hostH < 1f)
+        {
+            hostW = _host.worldBound.width;
+            hostH = _host.worldBound.height;
+            if (float.IsNaN(hostW) || hostW < 1f) hostW = 400f;
+            if (float.IsNaN(hostH) || hostH < 1f) hostH = 300f;
+            _hostW = hostW;
+            _hostH = hostH;
+        }
+
+        _batchMode = true;
+        EnsureBatchLayer();
+        // 批画为空时强制同步一次，否则点选永远 miss
+        if (_batchIcons == null || _batchIcons.Count == 0)
+        {
+            SyncBatchIcons(bf, fx, fy, fz, hostW, hostH);
+            _nextBatchSyncUnscaled = Time.unscaledTime + 0.05f;
+        }
+        else
+        {
+            SyncBatchIconsThrottled(bf, fx, fy, fz, hostW, hostH);
+        }
+
+        var aliveIds = new HashSet<string>();
+        RefreshSparseMarkers(state, bf, fx, fy, fz, hostW, hostH, aliveIds);
+        PruneDeadMarkers(aliveIds);
+    }
+
+    private void SyncBatchIconsThrottled(
+        BattlefieldState bf,
+        float fx,
+        float fy,
+        float fz,
+        float hostW,
+        float hostH)
+    {
+        var now = Time.unscaledTime;
+        var dense = BattlefieldScalePolicy.IsDense(bf);
+        var batchInterval = dense ? 0.2f : 0.05f;
+        if (now < _nextBatchSyncUnscaled && _batchIcons != null && _batchIcons.Count > 0)
+        {
+            return;
+        }
+
+        _nextBatchSyncUnscaled = now + batchInterval;
+        SyncBatchIcons(bf, fx, fy, fz, hostW, hostH);
+    }
+
+    private void SyncBatchIcons(
+        BattlefieldState bf,
+        float fx,
+        float fy,
+        float fz,
+        float hostW,
+        float hostH)
+    {
+        if (_batchIcons == null || _camera == null)
+        {
+            return;
+        }
+
+        _screenPositions.Clear();
+        _batchScratch.Clear();
+        foreach (var u in bf.units)
+        {
+            if (u == null || u.IsDestroyed() || !u.Arrived(bf.timeSec) || u.unitId == null
+                || BattlefieldSceneProxyService.IsSceneProxy(u) || u.IsBallisticMissile())
             {
-                deg = sample.Deg;
+                continue;
+            }
+
+            var proj = _camera.ProjectWorldOffset(
+                u.x - fx, u.y - fy, u.z - fz, hostW, hostH);
+            if (!proj.InFront)
+            {
+                continue;
+            }
+
+            // 敌我只进角标；舰体走吨位 PNG
+            var hostile = u.side == UnitSide.ENEMY;
+            var speedMps = u.SpeedMps();
+            var motionDirX = 0f;
+            var motionDirY = 0f;
+            if (speedMps >= TacticalIconBatchElement.MotionArrowMinSpeedMps)
+            {
+                if (_camera.TryProjectVelocityDirection(
+                    u.x - fx,
+                    u.y - fy,
+                    u.z - fz,
+                    u.vx,
+                    u.vy,
+                    u.vz,
+                    hostW,
+                    hostH,
+                    out var motionDirection))
+                {
+                    motionDirX = motionDirection.x;
+                    motionDirY = motionDirection.y;
+                }
+            }
+            _batchScratch.Add((
+                proj.CenterX,
+                proj.CenterY,
+                hostile,
+                u.unitId,
+                u.tonnageClass ?? "",
+                motionDirX,
+                motionDirY,
+                speedMps));
+            _screenPositions[u.unitId] = (proj.CenterX, proj.CenterY);
+        }
+
+        _batchIcons.SetIcons(_batchScratch);
+    }
+
+    private void RefreshSparseMarkers(
+        GameState state,
+        BattlefieldState bf,
+        float fx,
+        float fy,
+        float fz,
+        float hostW,
+        float hostH,
+        HashSet<string> aliveIds)
+    {
+        const int maxUitk = 8;
+        var selected = TacticalSelectionState.SelectedTargetUnitId;
+        var painted = 0;
+        foreach (var u in bf.units)
+        {
+            if (u.IsDestroyed() || !u.Arrived(bf.timeSec) || u.unitId == null)
+            {
+                continue;
+            }
+
+            var isProxy = BattlefieldSceneProxyService.IsSceneProxy(u);
+            var isSelected = selected != null
+                && selected.Equals(u.unitId, StringComparison.Ordinal);
+            if (!isProxy && !isSelected)
+            {
+                continue;
+            }
+
+            if (!isProxy && painted >= maxUitk)
+            {
+                continue;
+            }
+
+            aliveIds.Add(u.unitId);
+            var bundle = GetOrCreateMarker(u.unitId);
+            ScreenPlacement placement;
+            if (isProxy)
+            {
+                placement = PositionSceneProxy(
+                    u.sceneProxyAzimuthRad,
+                    u.sceneProxyElevationRad,
+                    hostW,
+                    hostH);
+            }
+            else
+            {
+                placement = PositionWorldUnit(u.x, u.y, u.z, fx, fy, fz, hostW, hostH, bundle);
+                painted++;
+            }
+
+            UpdateMarkerVisual(bundle, u, state, bf, placement.CenterX, placement.CenterY);
+            ApplyPlacement(bundle, placement, u.unitId, isProxy);
+            _screenPositions[u.unitId] = (placement.CenterX, placement.CenterY);
+            if (isSelected)
+            {
+                SelectedMarkerScreenPos = (placement.CenterX, placement.CenterY);
+            }
+        }
+    }
+
+    private void PruneDeadMarkers(HashSet<string> aliveIds)
+    {
+        var remove = new List<string>();
+        foreach (var kv in _markers)
+        {
+            if (!aliveIds.Contains(kv.Key))
+            {
+                remove.Add(kv.Key);
             }
         }
 
-        _iconTrails[unitId] = new IconTrailSample
+        foreach (var id in remove)
         {
-            CenterX = centerX,
-            CenterY = centerY,
-            Deg = deg,
-            HasPrev = true,
-        };
-        return shouldWrite;
+            _host.Remove(_markers[id].Container);
+            _markers.Remove(id);
+            HideEdgeMarker(id);
+        }
     }
 
     private void ClearMarkers()
@@ -926,7 +1171,8 @@ public sealed class TacticalViewportPresenter
         _edgeHost?.Clear();
         _markers.Clear();
         _edgeMarkers.Clear();
-        _iconTrails.Clear();
+        _batchIcons = null;
+        _batchMode = false;
+        _didFitDenseCamera = false;
     }
-// liketocoode3a5
 }

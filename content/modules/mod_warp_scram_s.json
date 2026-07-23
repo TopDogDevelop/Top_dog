@@ -6,6 +6,7 @@
   "slotCategory": "FUNCTION",
   "moduleSize": "SMALL",
   "moduleKind": "warp_scrambler",
-  "warpScramStrength": 2,
-  "attackRangeM": 30000
+  "warpScramStrength": 1,
+  "attackRangeM": 10000,
+  "starCoinValue": 100
 }

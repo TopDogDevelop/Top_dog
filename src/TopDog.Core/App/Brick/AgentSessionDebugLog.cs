@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 
 namespace TopDog.AgentDiag;
 
@@ -39,6 +40,45 @@ public static class AgentSessionDebugLog
         catch
         {
             // ignore IO errors in play mode
+        }
+        // #endregion
+    }
+
+    public static void WriteDebugSession(
+        string hypothesisId,
+        string location,
+        string message,
+        object? data = null)
+    {
+        // #region agent log
+        try
+        {
+            var payload = new Dictionary<string, object?>
+            {
+                ["sessionId"] = "6bac22",
+                ["runId"] = "post-fix",
+                ["hypothesisId"] = hypothesisId,
+                ["location"] = location,
+                ["message"] = message,
+                ["data"] = data,
+                ["timestamp"] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            };
+            var line = JsonSerializer.Serialize(payload) + "\n";
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                try
+                {
+                    File.AppendAllText(@"H:\debug-6bac22.log", line);
+                }
+                catch
+                {
+                    // Debug telemetry must never affect gameplay.
+                }
+            });
+        }
+        catch
+        {
+            // Debug telemetry must never affect gameplay.
         }
         // #endregion
     }

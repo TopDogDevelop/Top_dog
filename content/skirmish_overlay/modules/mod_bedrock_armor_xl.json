@@ -1,8 +1,0 @@
-{
-  "moduleId": "mod_bedrock_armor_xl",
-  "displayName": "磐石装甲 XL",
-  "slotCategory": "DEFENSE",
-  "moduleSize": "EXTRA_LARGE",
-  "damageMitigationKind": "bedrock_armor_flat",
-  "flatDamageReduction": 250
-}

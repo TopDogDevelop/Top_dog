@@ -3,11 +3,11 @@
   "displayName": "基础矛级",
   "displayNameEn": "Spear-class BC",
   "tonnageClass": "BATTLECRUISER",
-  "shieldHp": 5000,
-  "armorHp": 5000,
-  "structureHp": 3000,
-  "baseSpeedMps": 500,
-  "baseAccelMps2": 300,
+  "shieldHp": 9000,
+  "armorHp": 9000,
+  "structureHp": 5000,
+  "baseSpeedMps": 780,
+  "baseAccelMps2": 450,
   "transitSpeedLyPerHour": 5.0,
   "warpScramResist": 1,
   "attackSlots": 2,
@@ -17,5 +17,6 @@
   "launchTubeSlots": 0,
   "defaultSlotSize": "MEDIUM",
   "maxOverslots": 1,
-  "overslotAttackOnly": true
+  "overslotAttackOnly": true,
+  "starCoinValue": 20000
 }

@@ -16,11 +16,11 @@ using TopDog.Sim.Vision;
  * · Tick：逐 battlefield 积分 timeSec，调用 TickBattlefield + 胜负判定
  * · ApplyAiMovement：MANUAL/RETREAT/STOP/SCATTER/FOLLOW/APPROACH/AWAY/ORBIT/RALLY
  * · TickApproachOrAway：每 1s SnapHeadingToward/Away + 满引擎；可选 commandMaintainDistM 维持距
- * · TryFireSalvo：射程内开火；同阵营 targetUnitId 跳过；autoFireEnabled 门控友方自火
+ * · TryFireSalvo：射程内开火；§4b TryConfirmSalvoTarget（失败不进 CD）；§4c 显式集火领顺序槽
  * · CheckVictory：友敌存活 + 300s timeout
  * 【实现逻辑】
  * · TickBattlefield 不调用 BattlefieldSceneProxyService（占位已密封，见 TACTICAL_RIGHT_RAIL_SCENE_PROXY.md §3.3）
- * 【关联】ShipMotionIntegrator · FleetOrderService · SpecializedSalvoService · BattleReportService
+ * 【关联】ShipMotionIntegrator · FleetOrderService · FocusFireSequencer · SpecializedSalvoService · BattleReportService
  * ══
  */
 
@@ -60,10 +60,13 @@ public static class BattlefieldSystem
                 continue;
             }
 
-            bf.timeSec += dtSec;
-            TickBattlefield(state, bf, modules, ships, dtSec);
+            bf.timeSec += dtSec * Math.Max(0.01f, bf.timeDilation);
+            var tickBegin = SceneSimBudget.Begin();
+            TickBattlefield(
+                state, bf, modules, ships, dtSec * Math.Max(0.01f, bf.timeDilation), tickBegin);
+            SceneSimBudget.EndAndApply(bf, tickBegin);
             CombatTelemetryLog.MaybeLogPositions(bf, bf.timeSec);
-            if (!bf.finished)
+            if (!bf.finished && !bf.disableAutoVictory)
             {
                 if (bf.combatSubtype == CombatSubtype.BUILDING_ASSAULT)
                 {
@@ -93,19 +96,48 @@ public static class BattlefieldSystem
         BattlefieldState bf,
         ModuleRegistry modules,
         ShipRegistry ships,
-        float dtSec)
+        float dtSec,
+        float tickBegin)
     {
+        // 附身/指令输入优先：即使本 tick 后面超时也要应用
         PossessionInputService.ApplyPending(state, bf, dtSec);
+        var dense = BattlefieldScalePolicy.IsDense(bf);
+        bf.spatialHash ??= new BattlefieldSpatialHash();
+        bf.spatialHashTickCounter++;
+        if (!dense || bf.spatialHashTickCounter % 3 == 1)
+        {
+            bf.spatialHash.Rebuild(bf.units, cellSize: 10_000f);
+        }
+        if (bf.timeSec >= bf.runtimeEffectNextTickSec)
+        {
+            bf.runtimeEffectNextTickSec = bf.timeSec + 1f;
+            AreaModuleRuntimeService.TickOneHz(bf, modules);
+            InterdictionFieldService.TickOneHz(bf, modules);
+            DynamicModuleQuotaService.Tick(bf, ships, modules);
+        }
+
         TacticalWarpService.Tick(state, bf, dtSec);
-        AiRealtimePlayerBrain.Tick(state, bf, modules, ships, dtSec);
-        MissileProjectileService.Tick(state, bf, modules, ships, dtSec);
-        StrikeWingRecallService.Tick(bf, modules, new Random((int)bf.timeSec ^ bf.units.Count));
-        BoardingModuleService.Tick(state, bf, modules, ships, dtSec);
-        FieldAuraService.Tick(state, bf, modules, ships, dtSec);
+        if (!SceneSimBudget.IsOverBudget(bf, tickBegin))
+        {
+            AiRealtimePlayerBrain.Tick(state, bf, modules, ships, dtSec);
+        }
+
+        // 密舰队：跳过场域/登舰/后勤自动瞄准等全表服务（FLEET_SCALE_10K §5，按规模门控、非场景 ID）
+        if (!SceneSimBudget.IsOverBudget(bf, tickBegin))
+        {
+            MissileProjectileService.Tick(state, bf, modules, ships, dtSec);
+            StrikeWingRecallService.Tick(bf, modules, new Random((int)bf.timeSec ^ bf.units.Count));
+            if (!dense)
+            {
+                BoardingModuleService.Tick(state, bf, modules, ships, dtSec);
+                FieldAuraService.Tick(state, bf, modules, ships, dtSec);
+                LogisticsProducerService.Tick(bf, modules, dtSec);
+                RemoteRepairAutoTargetingService.TickAll(bf, modules);
+                RemoteRepairSalvoService.Tick(state, bf, modules, ships, dtSec);
+            }
+        }
+
         CombatMarkService.Tick(bf);
-        LogisticsProducerService.Tick(bf, modules, dtSec);
-        RemoteRepairAutoTargetingService.TickAll(bf, modules);
-        RemoteRepairSalvoService.Tick(state, bf, modules, ships, dtSec);
         TickPassiveShieldRegen(bf, dtSec);
 
         var building = BuildingService.Find(state, bf.targetBuildingId);
@@ -115,8 +147,25 @@ public static class BattlefieldSystem
         }
 
         var possessed = FindPossessedUnit(state, bf);
-        foreach (var u in bf.units)
+        var n = bf.units.Count;
+        if (n == 0)
         {
+            return;
+        }
+
+        // 密舰队：约 75% 单位/ tick 轮转；稀疏全量 —— 同一代码路径；墙钟超预算则提前结束留给 UI
+        var processBudget = BattlefieldScalePolicy.ResolveUnitProcessBudget(bf);
+        var start = dense ? bf.unitProcessLodCursor % n : 0;
+        var processed = 0;
+        for (var step = 0; step < n && processed < processBudget; step++)
+        {
+            if (SceneSimBudget.IsOverBudget(bf, tickBegin))
+            {
+                break;
+            }
+
+            var idx = (start + step) % n;
+            var u = bf.units[idx];
             if (u.IsDestroyed() || !u.Arrived(bf.timeSec) || u.inTacticalWarp
                 || u.warpPhase == TacticalWarpPhase.PrepareInitiate
                 || BattlefieldSceneProxyService.IsSceneProxy(u))
@@ -124,6 +173,7 @@ public static class BattlefieldSystem
                 continue;
             }
 
+            processed++;
             if (!u.IsBallisticMissile())
             {
                 LogisticsAutoTargetingService.Tick(bf, u, modules);
@@ -131,14 +181,22 @@ public static class BattlefieldSystem
                 DamageMitigationService.Tick(u, modules, dtSec);
                 DamageMitigationService.TickBlockLock(u, dtSec);
             }
+
             if (u.aiOrder != UnitAiOrder.MANUAL)
             {
                 AutoFireTargetingService.Tick(bf, state, u);
             }
+
             TryShieldRepairSalvo(bf, u, dtSec);
+            TryArmorRepairSalvo(bf, u, dtSec);
             MissileLaunchService.TryLaunch(state, bf, u, modules, new Random((int)(bf.timeSec * 1000) ^ u.unitId?.GetHashCode() ?? 0), dtSec);
             TryFireSalvo(bf, state, building, u, dtSec, ships, modules);
             SpecializedSalvoService.Tick(state, bf, u, dtSec, ships, modules);
+        }
+
+        if (dense)
+        {
+            bf.unitProcessLodCursor = (start + Math.Max(processed, 1)) % Math.Max(n, 1);
         }
     }
 
@@ -207,6 +265,47 @@ public static class BattlefieldSystem
             QueueHpDelta(bf, u, delta, 0f, 0f, isHeal: true);
         }
         u.shieldRepairCooldownSec = u.shieldRepairCycleSec;
+    }
+
+    private static void TryArmorRepairSalvo(BattlefieldState bf, BattlefieldUnit u, float dtSec)
+    {
+        if (u.isBuilding || u.armorSalvoRepair <= 0f || u.armorHp >= u.armorMax)
+        {
+            return;
+        }
+
+        u.armorRepairCooldownSec -= dtSec;
+        if (u.armorRepairCooldownSec > 0f)
+        {
+            return;
+        }
+
+        var before = u.armorHp;
+        u.armorHp = Math.Min(u.armorMax, u.armorHp + u.armorSalvoRepair);
+        var delta = u.armorHp - before;
+        if (delta > 0f)
+        {
+            QueueHpDelta(bf, u, 0f, delta, 0f, isHeal: true);
+            // #region agent log
+            try
+            {
+                var path = System.IO.Path.Combine(@"h:\", "debug-85a1e0.log");
+                var line = "{\"sessionId\":\"85a1e0\",\"runId\":\"post-fix\",\"hypothesisId\":\"L\",\"location\":\"BattlefieldSystem.TryArmorRepairSalvo\",\"message\":\"armor-regen\",\"data\":{"
+                           + "\"unit\":\"" + (u.unitId ?? "") + "\""
+                           + ",\"delta\":" + delta.ToString("F1")
+                           + ",\"perSalvo\":" + u.armorSalvoRepair.ToString("F1")
+                           + ",\"cycle\":" + u.armorRepairCycleSec.ToString("F1")
+                           + ",\"armorAfter\":" + u.armorHp.ToString("F1")
+                           + "},\"timestamp\":" + System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + "}\n";
+                System.IO.File.AppendAllText(path, line);
+            }
+            catch
+            {
+            }
+            // #endregion
+        }
+
+        u.armorRepairCooldownSec = u.armorRepairCycleSec;
     }
 
     // liketocoode34e
@@ -369,10 +468,12 @@ public static class BattlefieldSystem
                 var err = dist - maintain;
                 if (MathF.Abs(err) <= MaintainDeadbandM)
                 {
-                    // 死区：保持当前艏向
+                    // 死区：保持当前艏向并关油门，停在默认距离附近
+                    u.throttleOn = false;
                 }
                 else if (away)
                 {
+                    u.throttleOn = true;
                     if (err < -MaintainDeadbandM)
                     {
                         ShipMotionIntegrator.SnapHeadingAway(u, target.x, target.y, target.z);
@@ -384,10 +485,12 @@ public static class BattlefieldSystem
                 }
                 else if (err > MaintainDeadbandM)
                 {
+                    u.throttleOn = true;
                     ShipMotionIntegrator.SnapHeadingToward(u, target.x, target.y, target.z);
                 }
                 else
                 {
+                    u.throttleOn = true;
                     ShipMotionIntegrator.SnapHeadingAway(u, target.x, target.y, target.z);
                 }
             }
@@ -401,6 +504,18 @@ public static class BattlefieldSystem
             }
 
             u.approachHeadingTimerSec = ShipMotionIntegrator.ApproachHeadingIntervalSec;
+        }
+        else if (u.commandMaintainDistM > 0f)
+        {
+            // 两次对准之间也维持死区关油门，避免冲过默认距离
+            var dx = target.x - u.x;
+            var dy = target.y - u.y;
+            var dz = target.z - u.z;
+            var dist = (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
+            if (MathF.Abs(dist - u.commandMaintainDistM) <= MaintainDeadbandM)
+            {
+                u.throttleOn = false;
+            }
         }
 
         ShipMotionIntegrator.TickUnit(u, dtSec);
@@ -527,7 +642,7 @@ public static class BattlefieldSystem
             return true;
         }
 
-        if (!state.autoFireEnabled || u.side != UnitSide.FRIENDLY)
+        if (!state.autoFireEnabled)
         {
             return false;
         }
@@ -568,6 +683,18 @@ public static class BattlefieldSystem
 
     // liketocoode3e5
 
+    /// <summary>开火确认（TACTICAL_WARP §4b）：结算前目标仍存活且敌对，否则本次开火失败。</summary>
+    public static bool TryConfirmSalvoTarget(BattlefieldUnit firer, BattlefieldUnit? target)
+    {
+        if (target == null || target.IsDestroyed() || BattlefieldSceneProxyService.IsSceneProxy(target)
+            || !CombatHostility.AreHostile(firer, target))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
     private static void TryFireSalvo(
         BattlefieldState bf,
         GameState state,
@@ -583,14 +710,13 @@ public static class BattlefieldSystem
         }
 
         var target = u.targetUnitId != null ? FindUnit(bf, u.targetUnitId) : null;
-        if (target == null || target.IsDestroyed() || BattlefieldSceneProxyService.IsSceneProxy(target)
-            || target.side == u.side)
+        if (!TryConfirmSalvoTarget(u, target))
         {
             return;
         }
 
         u.fireCooldownSec -= dtSec;
-        var dx = target.x - u.x;
+        var dx = target!.x - u.x;
         var dy = target.y - u.y;
         var dz = target.z - u.z;
         var dist = (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
@@ -599,12 +725,31 @@ public static class BattlefieldSystem
             return;
         }
 
-        if (!TrySlewWeaponTowardTarget(u, dx, dy, dz, dtSec))
+        // TiDi 下用墙钟补偿转向，避免 dil=0.1 时转炮永不进射界 → salvo=0
+        var slewDt = dtSec;
+        if (bf.timeDilation > 0.01f && bf.timeDilation < 0.999f)
+        {
+            slewDt = MathF.Min(0.05f, dtSec / bf.timeDilation);
+        }
+
+        if (!TrySlewWeaponTowardTarget(u, dx, dy, dz, slewDt))
         {
             return;
         }
 
         if (u.fireCooldownSec > 0f)
+        {
+            return;
+        }
+
+        // §4b 结算前再次确认；失败不进 CD
+        if (!TryConfirmSalvoTarget(u, target))
+        {
+            return;
+        }
+
+        // §4c 显式集火顺序槽；未领到槽不进 CD
+        if (!FocusFireSequencer.TryClaimVolleySlot(bf, u))
         {
             return;
         }
@@ -616,9 +761,15 @@ public static class BattlefieldSystem
             applied = BuildingCombatRules.ClampBuildingDamage(bf, target, roundDmg);
         }
         ApplyDamage(bf, target, applied, u, state, ships, modules);
+        // 特效旁路：混伤主炮弹道（不改结算）；导弹/舰载机不发
+        if (!u.IsTemplateCarriedUnit())
+        {
+            CombatFxEmit.HybridGunTracer(bf, u, target, dist);
+        }
+
         CombatDamageDiagnostics.LogFire(u, target, dist, roundDmg, u.fireCycleSec);
         CombatTelemetryLog.LogSalvo(u, target, roundDmg, u.fireCycleSec, applied);
-        if (u.parentUnitId != null)
+        if (u.IsTemplateCarriedUnit())
         {
             var channel = "MISSILE".Equals(u.tonnageClass, StringComparison.Ordinal) ? "missile-fire" : "wing-fire";
             CombatTelemetryLog.Log(channel, $"{u.unitId}→{target.unitId} dmg={applied:0}");
@@ -699,6 +850,44 @@ public static class BattlefieldSystem
     public static void ApplyDamage(BattlefieldState? bf, BattlefieldUnit target, float dmg) =>
         ApplyDamage(bf, target, dmg, null);
 
+    public static void ApplyLayerRepair(
+        BattlefieldState battlefield,
+        BattlefieldUnit target,
+        string layer,
+        float amount)
+    {
+        if (target.IsDestroyed() || amount <= 0f)
+        {
+            return;
+        }
+
+        var shield = 0f;
+        var armor = 0f;
+        var structure = 0f;
+        switch (layer)
+        {
+            case "shield":
+                var shieldBefore = target.shieldHp;
+                target.shieldHp = Math.Min(target.shieldMax, target.shieldHp + amount);
+                shield = target.shieldHp - shieldBefore;
+                break;
+            case "armor":
+                var armorBefore = target.armorHp;
+                target.armorHp = Math.Min(target.armorMax, target.armorHp + amount);
+                armor = target.armorHp - armorBefore;
+                break;
+            case "structure":
+                var structureBefore = target.structureHp;
+                target.structureHp = Math.Min(target.structureMax, target.structureHp + amount);
+                structure = target.structureHp - structureBefore;
+                break;
+        }
+        if (shield > 0f || armor > 0f || structure > 0f)
+        {
+            QueueHpDelta(battlefield, target, shield, armor, structure, isHeal: true);
+        }
+    }
+
     /// <summary>直扣结构层，跳过盾甲（结构扰动导弹等）。</summary>
     public static void ApplyStructureOnlyDamage(
         BattlefieldState? bf,
@@ -774,11 +963,17 @@ public static class BattlefieldSystem
             if (target.structureHp <= 0f)
             {
                 target.structureHp = 0f;
+                target.alive = false;
             }
             if (bf != null)
             {
                 QueueHpDelta(bf, target, 0f, 0f, before - target.structureHp, isHeal: false);
                 CombatDamageLedger.RecordHit(bf, attacker, target, before - target.structureHp);
+            }
+
+            if (wasAlive && target.IsDestroyed() && bf != null && target.unitId != null)
+            {
+                FocusFireSequencer.OnTargetDestroyed(bf, target.unitId);
             }
 
             if (state != null && target.structureHp <= 0f && target.buildingId != null)
@@ -793,6 +988,7 @@ public static class BattlefieldSystem
             return;
         }
 
+        var shipsReg = ships ?? ShipRegistry.LoadDefault();
         var modRegistry = modules ?? ModuleRegistry.LoadDefault();
         dmg = CombatMarkService.ScaleIncomingDamage(target, dmg);
 
@@ -800,12 +996,16 @@ public static class BattlefieldSystem
         var armorBefore = target.armorHp;
         var structureBefore = target.structureHp;
 
-        var ctx = FieldAuraDamageRouter.Route(bf, target, dmg, attacker, modRegistry);
+        var ctx = FieldAuraDamageRouter.Route(bf, target, dmg, attacker, modRegistry, shipsReg);
         ctx = DamageMitigationService.ApplyMitigation(ctx, modRegistry);
+        ctx.shieldDamage *= RuntimeEffectService.EffectiveLayerDamageMultiplier(
+            target, RuntimeEffectKind.ShieldResistPct, modRegistry);
+        ctx.armorDamage *= RuntimeEffectService.EffectiveLayerDamageMultiplier(
+            target, RuntimeEffectKind.ArmorResistPct, modRegistry);
 
         if (bf != null)
         {
-            FieldAuraDamageRouter.ApplyRoutedDamage(bf, ctx, modRegistry);
+            FieldAuraDamageRouter.ApplyRoutedDamage(bf, ctx, modRegistry, shipsReg);
         }
         else
         {
@@ -844,6 +1044,15 @@ public static class BattlefieldSystem
 
         if (wasAlive && target.IsDestroyed())
         {
+            if (bf != null)
+            {
+                CarriedUnitDeploymentService.OnParentDestroyed(bf, target, modRegistry);
+            }
+            if (bf != null && target.unitId != null)
+            {
+                FocusFireSequencer.OnTargetDestroyed(bf, target.unitId);
+            }
+
             if (state != null && bf != null && SkirmishBuildingRules.IsSkirmish(state))
             {
                 SkirmishScoreService.OnUnitDestroyed(

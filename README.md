@@ -6,7 +6,7 @@
 
 | 项 | 版本 |
 |----|------|
-| Unity Editor | **6.5 (6000.5.x)** 或 **6.3 LTS (6000.3.x)** — 见下方版本说明 |
+| Unity Editor | **6.3 LTS (6000.3.x)**（默认；HybridCLR 对齐）— 见下方版本说明 |
 | .NET SDK | 8.0+（Core 单元测试） |
 | 渲染 | URP 2D |
 | UI | UI Toolkit (UXML/USS) |
@@ -14,9 +14,9 @@
 
 ## 快速开始
 
-### 1. 安装 Unity 6.3
+### 1. 安装 Unity 6.3 LTS
 
-Unity Hub → Installs → 本机已装 **6000.5.0f1**；用其打开 `TopDog.Unity`。
+Unity Hub → Installs → 本机默认 **6000.3.19f1**；用其打开 `TopDog.Unity`。（勿用 6000.5 开 HybridCLR 壳，见专文 §2.7。）
 
 ### 2. 打开工程
 
@@ -82,7 +82,9 @@ dotnet test e:\game_dev\top_dog_unity\TopDog.sln
 - Built-In RP 已 deprecated（我们使用 URP，无影响）
 - VR Module 在 6.5 移除（manifest 勿再引用 `com.unity.modules.vr`）
 
-**本仓库建议：** 你已装 **6000.5.0f1** 可继续用；若求稳可换 **6000.3 LTS**。无论哪版，工程必须打开 **`TopDog.Unity` 子目录**。
+**本仓库建议：** 默认锁定 **6000.3 LTS** + HybridCLR **8.12**（真·C# DLL 热更）。勿用 **6000.5** 打启用 HybridCLR 的壳（详见 [`docs/RELEASE_AND_HOTUPDATE.md`](docs/RELEASE_AND_HOTUPDATE.md) §2.7 · §5）。工程必须打开 **`TopDog.Unity` 子目录**。
+
+**发布 / 热更接手清单：** 打壳、HF、VS C++、HybridCLR 包版本与开关 → **[`docs/RELEASE_AND_HOTUPDATE.md` §5](docs/RELEASE_AND_HOTUPDATE.md)**。
 
 **编译 Safe Mode 常见原因：** `TopDog.Core` 使用 C# 10 语法，需在 asmdef 旁有 `csc.rsp`（`-langversion:10`）+ `GlobalUsings.cs`；勿把 `dotnet build` 生成的 `Assets/Scripts/Core/obj/` 留在 Unity 里。Unity **6.5** 勿锁定旧版 `com.unity.inputsystem@1.11`（TreeView CS0619）；当前 UI 阶段未用 Input System，已从 manifest 移除，Gate D 再加回 **1.19.0+**。
 

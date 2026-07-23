@@ -23,6 +23,12 @@ public sealed class BattlefieldUnit
     public string? unitId;
     /// <summary>舰载机归属母舰 unitId。</summary>
     public string? parentUnitId;
+    /// <summary>多层携带树的最上层载舰。</summary>
+    public string? rootCarrierUnitId;
+    /// <summary>部署该子舰的直接父舰槽。</summary>
+    public string? carriedSourceSlot;
+    public string? payloadMode;
+    public string? shipInstanceId;
     public string? memberId;
     /// <summary>所属军团（spawn 时写入，约战成团分组用）。</summary>
     public string? legionId;
@@ -32,6 +38,8 @@ public sealed class BattlefieldUnit
     public string? hullId;
     public string? tonnageClass;
     public UnitSide side;
+    /// <summary>交战阵营；&lt;0 表示按 side 回填（FRIENDLY=0 / ENEMY=1）。见 FLEET_SCALE_10K。</summary>
+    public int combatFactionId = -1;
     public float x;
     public float y;
     public float z;
@@ -42,6 +50,8 @@ public sealed class BattlefieldUnit
     public float facingRad;
     public float pitchRad;
     public bool throttleOn;
+    /// <summary>舰体与当前启用模块重算后的速度基线；来源化效果只作用于有效值。</summary>
+    public float baseMaxSpeedMps = 120f;
     public float maxSpeedMps = 120f;
     public float accelMps2 = 50f;
     public float yawRateRadPerSec = 1.2f;
@@ -66,6 +76,10 @@ public sealed class BattlefieldUnit
     public float shieldSalvoRepair;
     public float shieldRepairCycleSec = 10f;
     public float shieldRepairCooldownSec;
+    /// <summary>甲回被动：每轮加甲量（SalvoProfileService · 无瞄准）。</summary>
+    public float armorSalvoRepair;
+    public float armorRepairCycleSec = 20f;
+    public float armorRepairCooldownSec;
     /// <summary>等效 DPS，仅供 UI/估值。</summary>
     public float damagePerSec = 40f;
     public float arrivalAtSec;
@@ -128,6 +142,8 @@ public sealed class BattlefieldUnit
     /// <summary>兼容旧读法：任一场型为主导。</summary>
     public bool fieldAuraDominant => fieldAuraShieldDominant || fieldAuraArmorDominant;
     public bool fieldAuraSuppressed => fieldAuraShieldSuppressed || fieldAuraArmorSuppressed;
+    /// <summary>崩溃冷却结束后是否尝试自动重开（不绕过启用限额）。</summary>
+    public bool fieldAuraResumeAfterCooldown;
     public float fieldAuraEnabledAtSec;
     public float fieldAuraCollapseCooldownSec;
     /// <summary>场域代承池（护盾立场）。</summary>
@@ -141,6 +157,8 @@ public sealed class BattlefieldUnit
     public float fieldEntryArmorCurrent;
     /// <summary>发射管槽位三态。</summary>
     public Dictionary<string, LaunchTubeState> tubeStates = new(StringComparer.Ordinal);
+    public Dictionary<string, BayRuntimeState> bayStates = new(StringComparer.Ordinal);
+    public Dictionary<string, CarriedShipPayload> carriedShipsBySlot = new(StringComparer.Ordinal);
     /// <summary>战斗标记：受伤倍率叠乘因子。</summary>
     public float combatMarkIncomingMult = 1f;
   /// <summary>战斗标记：发出维修倍率叠乘因子。</summary>
@@ -176,6 +194,8 @@ public sealed class BattlefieldUnit
     public Dictionary<string, string> fittedModules = new();
     /// <summary>按槽位独立武器 CD（反导弹/威慑炮/射线等）。</summary>
     public Dictionary<string, float> moduleSalvoCooldownSec = new(StringComparer.Ordinal);
+    /// <summary>通用逻辑模块按槽实例独立的下一脉冲 sim time。</summary>
+    public Dictionary<string, float> modulePulseNextSec = new(StringComparer.Ordinal);
 
     /// <summary>登录模块蓄力目标 unitId；断档或离射程则清零。</summary>
     public string? boardingChargeTargetUnitId;
@@ -185,6 +205,13 @@ public sealed class BattlefieldUnit
     public bool boardingModuleEnabled;
     /// <summary>战斗内关闭的装配槽（不参与 salvo/场域/速度）。</summary>
     public HashSet<string> disabledModuleSlots = new(StringComparer.Ordinal);
+    /// <summary>玩家明确关闭的槽；配额恢复时不得自动开启。</summary>
+    public HashSet<string> playerDisabledModuleSlots = new(StringComparer.Ordinal);
+    /// <summary>仅因动态有效配额不足而关闭的槽。</summary>
+    public HashSet<string> quotaForcedDisabledSlots = new(StringComparer.Ordinal);
+    public int effectiveModuleQuota;
+    /// <summary>按来源独立记录的临时效果。</summary>
+    public Dictionary<string, RuntimeEffectRecord> runtimeEffects = new(StringComparer.Ordinal);
     /// <summary>本生命周期内曾登录夺舍敌舰（重生时回滚至 match 基准舰）。</summary>
     public bool combatSeizedHullThisLife;
 
@@ -214,6 +241,11 @@ public sealed class BattlefieldUnit
     public bool IsBallisticMissile() =>
         !string.IsNullOrEmpty(missileModuleId)
         || (missileProfileSnapshot is { } p && p.IsBallistic);
+
+    /// <summary>无人模板载荷沿用翼单位限制；真实舰实例仍参与普通舰船服务。</summary>
+    public bool IsTemplateCarriedUnit() =>
+        parentUnitId != null
+        && !"SHIP_INSTANCE".Equals(payloadMode, StringComparison.Ordinal);
 
     public bool Arrived(float battleTimeSec) => battleTimeSec >= arrivalAtSec;
 

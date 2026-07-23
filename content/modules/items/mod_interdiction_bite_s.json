@@ -1,0 +1,12 @@
+{
+  "moduleId": "mod_interdiction_bite_s",
+  "displayName": "拦截立场·撕咬",
+  "displayNameEn": "Interdiction Field: Bite",
+  "slotCategory": "FUNCTION",
+  "moduleKind": "interdiction_field_mobile",
+  "moduleSize": "SMALL",
+  "starCoinValue": 100,
+  "requiredHullLicenses": ["interdiction_field"],
+  "logicId": "logic_interdiction_field_mobile",
+  "params": {"radiusM": 30000, "durationSec": 60}
+}

@@ -1,6 +1,6 @@
 param(
-    [string]$SourceRoot = "e:\game_dev\top_dog",
-    [string]$DestRoot = "e:\game_dev\top_dog_unity"
+    [string]$SourceRoot = "H:\game_dev\top_dog",
+    [string]$DestRoot = "H:\game_dev\top_dog_unity"
 )
 
 $ErrorActionPreference = "Stop"
@@ -39,23 +39,16 @@ if (Test-Path $preserveDir) {
     Write-Host "Restored Unity starting_templates"
 }
 
-function Apply-SkirmishOverlay {
-    param([string]$ContentRoot)
-    if (-not (Test-Path $skirmishOverlayPreserve)) { return }
-    Get-ChildItem -Path $skirmishOverlayPreserve -Directory | ForEach-Object {
-        $target = Join-Path $ContentRoot $_.Name
-        New-Item -ItemType Directory -Force -Path $target | Out-Null
-        Copy-Item -Recurse -Force (Join-Path $_.FullName "*") $target
-    }
-    Write-Host "Overlay skirmish_overlay -> $ContentRoot"
+if (Test-Path $skirmishOverlayPreserve) {
+    $restoreOverlay = Join-Path $dst "skirmish_overlay"
+    Copy-Item -Recurse -Force $skirmishOverlayPreserve $restoreOverlay
+    Write-Host "Restored skirmish_overlay as isolated mode data"
 }
 
-Apply-SkirmishOverlay -ContentRoot $dst
-
-Write-Host "Sync StreamingAssets base: $src -> $streaming"
+Write-Host "Sync authoritative content: $dst -> $streaming"
 New-Item -ItemType Directory -Force -Path (Split-Path $streaming) | Out-Null
 if (Test-Path $streaming) { Remove-Item -Recurse -Force $streaming }
-Copy-Item -Recurse -Force $src $streaming
+Copy-Item -Recurse -Force $dst $streaming
 
 $unityStreamingTemplates = Join-Path $streaming "starting_templates"
 if (Test-Path $unityTemplates) {
@@ -63,8 +56,6 @@ if (Test-Path $unityTemplates) {
     Copy-Item -Force (Join-Path $unityTemplates "*") $unityStreamingTemplates
     Write-Host "Overlay Unity starting_templates -> StreamingAssets"
 }
-
-Apply-SkirmishOverlay -ContentRoot $streaming
 
 & (Join-Path $PSScriptRoot "publish_unity_templates.ps1")
 

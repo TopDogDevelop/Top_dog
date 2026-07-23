@@ -17,11 +17,12 @@ public sealed class MechanismTestCombatAiTests
     public void Catalog_ListAll_SortedByScenarioOrder()
     {
         var list = MechanismTestCatalog.ListAll();
-        Assert.That(list, Has.Count.EqualTo(10));
+        Assert.That(list, Has.Count.EqualTo(11));
         Assert.That(list[0].scenarioId, Is.EqualTo("mt_board_summon"));
         Assert.That(list[5].scenarioId, Is.EqualTo("mt_remote_repair"));
-        Assert.That(list.Select(s => s.scenarioOrder), Is.EqualTo(new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }));
+        Assert.That(list.Select(s => s.scenarioOrder), Is.EqualTo(new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 }));
         Assert.That(list[9].scenarioId, Is.EqualTo("mt_intra_scene_warp"));
+        Assert.That(list[10].scenarioId, Is.EqualTo("mt_stress_10k_icons"));
     }
 
     [Test]

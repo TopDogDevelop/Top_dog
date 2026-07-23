@@ -64,7 +64,7 @@ public static class CombatMidBattleReinforceService
         var onField = new HashSet<string>(StringComparer.Ordinal);
         foreach (var u in bf.units)
         {
-            if (u.isBuilding || u.parentUnitId != null || u.memberId == null)
+            if (u.isBuilding || u.IsTemplateCarriedUnit() || u.memberId == null)
             {
                 continue;
             }

@@ -1,0 +1,9 @@
+{
+  "logicId": "logic_command_wave",
+  "blocks": [
+    { "type": "AOE_QUERY" },
+    { "type": "FILTER_SIDE" },
+    { "type": "APPLY_STAT_AURA" }
+  ],
+  "paramSchema": ["shape", "radiusM", "stat", "operation", "value", "stackKey"]
+}

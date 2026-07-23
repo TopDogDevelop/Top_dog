@@ -1,3 +1,6 @@
+using System;
+using System.Linq;
+using TopDog.AgentDiag;
 using TopDog.App;
 using TopDog.Lobby;
 using TopDog.Net.Host;
@@ -11,17 +14,15 @@ using UnityEngine;
 using UnityEngine.UIElements;
 /*
  * ══ 设计手册嵌入 ══
- * 权威: docs/MATCH_FLOW.md · docs/UI_ARCHITECTURE.md
+ * 权威: docs/MATCH_FLOW.md · docs/UI_ARCHITECTURE.md · docs/REALTIME_COMBAT_UNIFORM.md §4
  * 本文件: GameAppHost.cs — Unity 会话宿主桥接 Core
  * 【机制要点】
- * · SimulationCore tick
+ * · SimulationCore tick（墙钟切片：重 tick 后跳帧给 UITK 交互）
  * · UI → GameState 命令
  * · phase 同步
- * 【关联】GameSceneRouter · CampaignShellController · SessionPort
+ * 【关联】GameSceneRouter · CampaignShellController · RealtimeInteractionFramePolicy
  * ══
  */
-
-
 
 // liketoc0de345
 // liketocoode3a5
@@ -29,8 +30,10 @@ namespace TopDog.Client;
 
 // liketoc0de345
 /// <summary>Unity-side session host; bridges UI to TopDog.Core SimulationCore.</summary>
+[DefaultExecutionOrder(100)]
 public sealed class GameAppHost : MonoBehaviour
 {
+    private float _nextAgentPerfLog;
     public const int DefaultTcpGamePort = 7777;
 
     public static GameAppHost? Instance { get; private set; }
@@ -159,9 +162,70 @@ public sealed class GameAppHost : MonoBehaviour
             return;
         }
         _lanClient?.PollIncoming();
-        if (!NetworkGuest)
+        if (!NetworkGuest && Core != null)
         {
-            Core?.Tick(Time.deltaTime);
+            // 重仿真后跳帧，把主线程让给 CombatRealtime 交互层 / UITK 事件
+            if (RealtimeInteractionFramePolicy.ShouldSkipSimTick)
+            {
+                // #region agent log
+                if (Time.frameCount % 30 == 0)
+                {
+                    var skipBf = Core.State.battlefields.FirstOrDefault(b =>
+                        Core.State.activeBattlefieldId != null
+                        && Core.State.activeBattlefieldId.Equals(b.battlefieldId, StringComparison.Ordinal));
+                    TopDog.Client.Tactical.CombatFxAgentLog.Write(
+                        "F",
+                        "GameAppHost.Update",
+                        "sim-skip",
+                        "{\"pending\":" + RealtimeInteractionFramePolicy.PendingSimSkipFrames
+                        + ",\"timeSec\":" + (skipBf?.timeSec ?? -1f).ToString("F1")
+                        + ",\"autoFire\":" + (Core.State.autoFireEnabled ? "true" : "false")
+                        + ",\"units\":" + (skipBf?.units.Count ?? 0)
+                        + ",\"paused\":" + (MatchPaused ? "true" : "false") + "}");
+                }
+                // #endregion
+                RealtimeInteractionFramePolicy.ConsumeSimSkipFrame();
+                return;
+            }
+
+            var stamp = RealtimeInteractionFramePolicy.BeginStamp();
+            Core.Tick(Time.deltaTime);
+            var elapsedMs = RealtimeInteractionFramePolicy.ElapsedMs(stamp);
+            RealtimeInteractionFramePolicy.NoteSimSliceMs(elapsedMs);
+            if (Time.unscaledTime >= _nextAgentPerfLog)
+            {
+                _nextAgentPerfLog = Time.unscaledTime + 1f;
+                var bf = Core.State.battlefields.FirstOrDefault(b =>
+                    Core.State.activeBattlefieldId != null
+                    && Core.State.activeBattlefieldId.Equals(b.battlefieldId, StringComparison.Ordinal));
+                // #region agent log
+                AgentSessionDebugLog.WriteDebugSession(
+                    "D1-D2-D5",
+                    "GameAppHost.cs:Update:Core.Tick",
+                    "main-thread simulation frame cost",
+                    new
+                    {
+                        frame = Time.frameCount,
+                        elapsedMs,
+                        frameMs = Time.unscaledDeltaTime * 1000f,
+                        pendingSkipFrames = RealtimeInteractionFramePolicy.PendingSimSkipFrames,
+                        battlefields = Core.State.battlefields.Count,
+                        units = Core.State.battlefields.Sum(battlefield => battlefield.units.Count),
+                    });
+                TopDog.Client.Tactical.CombatFxAgentLog.Write(
+                    "F",
+                    "GameAppHost.Update",
+                    "sim-tick",
+                    "{\"ms\":" + elapsedMs.ToString("F2")
+                    + ",\"skip\":" + RealtimeInteractionFramePolicy.PendingSimSkipFrames
+                    + ",\"dt\":" + (Time.unscaledDeltaTime * 1000f).ToString("F1")
+                    + ",\"timeSec\":" + (bf?.timeSec ?? -1f).ToString("F1")
+                    + ",\"autoFire\":" + (Core.State.autoFireEnabled ? "true" : "false")
+                    + ",\"units\":" + (bf?.units.Count ?? 0)
+                    + ",\"alive\":" + (bf?.units.Count(u => !u.IsDestroyed()) ?? 0)
+                    + ",\"paused\":" + (MatchPaused ? "true" : "false") + "}");
+                // #endregion
+            }
         }
     }
 

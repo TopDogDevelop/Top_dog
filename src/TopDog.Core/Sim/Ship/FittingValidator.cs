@@ -173,6 +173,27 @@ public static class FittingValidator
         {
             return false;
         }
+        var currentFit = MemberFittingService.Fittings(state, m);
+        var otherModules = currentFit
+            .Where(pair => !pair.Key.Equals(slotKey, StringComparison.Ordinal))
+            .Select(pair => modules.Resolve(pair.Value))
+            .Where(fitted => fitted != null)
+            .ToArray();
+        if (mod.maxPerHull > 0
+            && otherModules.Count(fitted =>
+                mod.moduleId != null
+                && mod.moduleId.Equals(fitted!.moduleId, StringComparison.Ordinal)) >= mod.maxPerHull)
+        {
+            return false;
+        }
+        if (!string.IsNullOrWhiteSpace(mod.mutualExclusionGroup)
+            && otherModules.Any(fitted =>
+                mod.mutualExclusionGroup.Equals(
+                    fitted!.mutualExclusionGroup,
+                    StringComparison.Ordinal)))
+        {
+            return false;
+        }
         if (slotKey.StartsWith("pas_", StringComparison.Ordinal) && IsGainPlugin(mod))
         {
             return true;

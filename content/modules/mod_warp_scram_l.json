@@ -1,0 +1,6 @@
+{
+  "moduleId": "mod_warp_scram_l", "displayName": "跃迁干扰器 L",
+  "displayNameEn": "Warp Scrambler L", "slotCategory": "FUNCTION",
+  "moduleKind": "warp_scrambler", "moduleSize": "LARGE",
+  "warpScramStrength": 3, "attackRangeM": 100000, "starCoinValue": 10000
+}

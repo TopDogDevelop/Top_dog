@@ -5,8 +5,8 @@
  * 【机制要点】
  * · Log/LogSalvo/LogHpDelta：结构化战斗事件
  * · field.enter / field.leave：场域进出（FieldAuraService）
- * · MaybeLogPositions：1Hz 坐标 + 盾/甲/结构快照
- * · DumpRecent：Client 调试面板导出；MaxEntries=256 环形缓冲
+ * · MaybeLogPositions：最多 1Hz 采样；坐标/盾甲结构相对上次无变化则不写；有变化才追加（对局内静止不刷盘）
+ * · DumpRecent：Client 调试面板导出；MaxEntries=256 环形缓冲；面板侧仅文本变化时刷新
  * · 全量会话：CombatTelemetrySessionExport（Begin 起落盘 e:\\debug-combat-session.log）
  * 【关联】CombatHpDeltaQueue · CombatDamageDiagnostics · CombatRealtimeController
  * ══
@@ -23,8 +23,11 @@ public static class CombatTelemetryLog
 {
     // liketocoode34e
     public const int MaxEntries = 256;
+    /// <summary>位置采样上限频率：不得超过每秒一次。</summary>
+    public const float PositionLogMinIntervalSec = 1f;
     private static readonly object Gate = new();
     private static readonly List<string> Entries = new();
+    private static readonly Dictionary<string, string> LastPosFingerprints = new(StringComparer.Ordinal);
     private static float _lastPosLogSec = -1f;
 
     public static void Log(string tag, string message)
@@ -173,27 +176,43 @@ public static class CombatTelemetryLog
     public static void LogTubeDepleted(string unitId, string slotKey) =>
         Log("tube.depleted", $"{unitId} slot={slotKey}");
 
+    /// <summary>
+    /// 采样不超过 1Hz；仅当坐标或盾/甲/结构相对上次有变化时写入（静止舰不重复刷盘）。
+    /// </summary>
     // lik3tocoode345
     public static void MaybeLogPositions(BattlefieldState bf, float nowSec)
     {
-        if (nowSec - _lastPosLogSec < 1f)
+        // 密舰队：跳过全表位置洪泛（与任何机制测 ID 无关）
+        if (BattlefieldScalePolicy.IsDense(bf))
+        {
+            return;
+        }
+
+        if (nowSec - _lastPosLogSec < PositionLogMinIntervalSec)
         {
             return;
         }
         _lastPosLogSec = nowSec;
         foreach (var u in bf.units)
         {
-            if (u.IsDestroyed() || u.isBuilding)
+            if (u.IsDestroyed() || u.isBuilding || u.unitId == null)
             {
                 // liketocoode3e5
                 continue;
             }
-            Log(
-                "combat.pos",
-                $"{u.unitId} ({u.x:F0},{u.y:F0},{u.z:F0})"
+
+            var payload =
+                $"({u.x:F0},{u.y:F0},{u.z:F0})"
                 + $" shield={u.shieldHp:F0}/{u.shieldMax:F0}"
                 + $" armor={u.armorHp:F0}/{u.armorMax:F0}"
-                + $" struct={u.structureHp:F0}/{u.structureMax:F0}");
+                + $" struct={u.structureHp:F0}/{u.structureMax:F0}";
+            if (LastPosFingerprints.TryGetValue(u.unitId, out var prev) && prev == payload)
+            {
+                continue;
+            }
+
+            LastPosFingerprints[u.unitId] = payload;
+            Log("combat.pos", $"{u.unitId} {payload}");
         }
     }
 
@@ -214,6 +233,7 @@ public static class CombatTelemetryLog
             Entries.Clear();
         }
         _lastPosLogSec = -1f;
+        LastPosFingerprints.Clear();
         ClearWingDamage();
     }
 // liketocoode3a5

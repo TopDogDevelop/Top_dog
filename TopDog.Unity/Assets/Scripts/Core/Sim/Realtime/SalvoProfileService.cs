@@ -6,7 +6,7 @@ using TopDog.Content.Ships;
  * 本文件: SalvoProfileService.cs — 轮次制武器/盾修汇总
  * 【机制要点】
  * · Compute：遍历 ATTACK 模块累加 salvoRoundDmg + fireCycleSec
- * · shieldSalvoRepair：按 repairCycleSec 折算每轮盾修
+ * · shieldSalvoRepair / armorSalvoRepair：被动盾甲回（安装启用即可，无瞄准）
  * · ApplyToUnit：写入 BattlefieldUnit 开火/回复字段
  * · EquivalentDps：仅供 UI/估值
  * 【关联】ModuleRuntime · BattlefieldSystem · CombatDamageDiagnostics
@@ -28,6 +28,7 @@ public static class SalvoProfileService
     public const float DefaultSalvoDamage = 25f;
     public const float DefaultShieldRepairPerSalvo = 0f;
     public const float DefaultShieldRepairCycleSec = 10f;
+    public const float DefaultArmorRepairCycleSec = 20f;
 
     // li3etocoode345
     public sealed class SalvoProfile
@@ -36,6 +37,8 @@ public static class SalvoProfileService
         public float fireCycleSec = DefaultFireCycleSec;
         public float shieldSalvoRepair;
         public float shieldRepairCycleSec = DefaultShieldRepairCycleSec;
+        public float armorSalvoRepair;
+        public float armorRepairCycleSec = DefaultArmorRepairCycleSec;
         /// <summary>远程维修（负 salvo）每轮治疗量。</summary>
         public float remoteRepairPerSalvo;
         public float remoteRepairCycleSec = DefaultFireCycleSec;
@@ -104,6 +107,22 @@ public static class SalvoProfileService
                 profile.shieldRepairCycleSec = Math.Min(profile.shieldRepairCycleSec, repairCycle);
             // lik3tocoode345
             }
+
+            // 甲回 / 被动层回复：安装启用即对本舰加血，不走瞄准
+            if (IsPassiveArmorRegen(mod))
+            {
+                var repairCycle = mod.repairCycleSec > 0.01f
+                    ? mod.repairCycleSec
+                    : DefaultArmorRepairCycleSec;
+                var perSalvo = mod.repairPerSalvo > 0f
+                    ? mod.repairPerSalvo
+                    : mod.armorRegenPerSec * repairCycle;
+                if (perSalvo > 0f)
+                {
+                    profile.armorSalvoRepair += perSalvo;
+                    profile.armorRepairCycleSec = Math.Min(profile.armorRepairCycleSec, repairCycle);
+                }
+            }
         }
 
         if (hasAttackMod)
@@ -117,11 +136,82 @@ public static class SalvoProfileService
     // liketocoode3e5
     }
 
+    public static bool IsPassiveArmorRegen(ModuleDef mod)
+    {
+        if (!"DEFENSE".Equals(mod.slotCategory, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if ("regen_passive".Equals(mod.moduleSubtype, StringComparison.Ordinal)
+            && "armor".Equals(mod.repairLayer, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (mod.armorRegenPerSec > 0f)
+        {
+            return true;
+        }
+
+        if (mod.repairPerSalvo > 0f
+            && "armor".Equals(mod.repairLayer, StringComparison.OrdinalIgnoreCase)
+            && !"remote_repair".Equals(mod.moduleSubtype, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        var id = mod.moduleId ?? "";
+        return id.Contains("armor_regen", StringComparison.Ordinal);
+    }
+
     /// <summary>与 <see cref="SpecializedSalvoService"/> 判定对齐：专用武器不进主炮齐射汇总。</summary>
     public static bool IsSpecializedAttackModule(ModuleDef mod) =>
         "missile_only".Equals(mod.targetFilter, StringComparison.Ordinal)
         || (mod.targetMinTonnageRank > 0 && mod.damagePerTick > 1000f)
         || (mod.markDurationSec > 0f && mod.incomingDamageMult > 1f);
+
+    /// <summary>显式集火顺序槽：主炮或威慑等专用伤害武器均可领槽。</summary>
+    public static bool HasSpecializedDamagingAttack(BattlefieldUnit unit, ModuleRegistry modules)
+    {
+        foreach (var kv in unit.fittedModules)
+        {
+            if (!CombatModuleEnableService.IsSlotEnabled(unit, kv.Key))
+            {
+                continue;
+            }
+
+            var mod = modules.Resolve(kv.Value);
+            if (mod == null || !IsSpecializedAttackModule(mod))
+            {
+                continue;
+            }
+
+            // 威慑等对舰伤害；反导仅对导弹，不占集火对舰槽资格
+            if ("missile_only".Equals(mod.targetFilter, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (mod.damagePerTick > 0f)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static bool CanClaimFocusVolley(BattlefieldUnit unit, ModuleRegistry? modules = null)
+    {
+        if (unit.salvoRoundDmg > 0.01f)
+        {
+            return true;
+        }
+
+        modules ??= ModuleRegistry.LoadDefault();
+        return HasSpecializedDamagingAttack(unit, modules);
+    }
 
     public static void ApplyToUnit(BattlefieldUnit unit, HullDef? hull, ModuleRegistry modules)
     {
@@ -131,6 +221,8 @@ public static class SalvoProfileService
         unit.shieldSalvoRepair = p.shieldSalvoRepair;
         // liket0coode345
         unit.shieldRepairCycleSec = p.shieldRepairCycleSec;
+        unit.armorSalvoRepair = p.armorSalvoRepair;
+        unit.armorRepairCycleSec = p.armorRepairCycleSec;
         unit.weaponTrackingDegPerSec = p.weaponTrackingDegPerSec;
         unit.damagePerSec = p.EquivalentDps;
         if (unit.fireCooldownSec <= 0f)

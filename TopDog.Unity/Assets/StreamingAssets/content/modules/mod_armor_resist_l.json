@@ -4,5 +4,6 @@
   "displayNameEn": "Armor Resist L",
   "slotCategory": "DEFENSE",
   "moduleSize": "LARGE",
-  "armorResistPct": 15
+  "armorResistPct": 15,
+  "starCoinValue": 10000
 }

@@ -15,9 +15,10 @@ using TopDog.Sim.Vision;
  * · OrderEnterBuilding：跨星系跳桥无延迟到对端
  * · 集体跃迁 OrderWarp：同星系 AU 伪跃迁；跨星系仅跳桥（OrderEnterBuilding）
  * · OrderWarpToSceneTarget：同场景单位目标须友好声望（UnitSide.FRIENDLY）才走 OrderIntraSceneWarp
+ * · OrderFocus：写 target/explicitFocus 后 FocusFireSequencer.Register（§4c）；不齐射
  * 【实现逻辑】
  * · EnsureCommandSceneReady：仅 SeedSceneProxies（本场景 + proxy 目标场景懒加载）；禁止 Sync/remove proxy
- * 【关联】TacticalWarpService · BattlefieldSystem · ShipMotionIntegrator · FleetCommandBar
+ * 【关联】TacticalWarpService · BattlefieldSystem · FocusFireSequencer · ShipMotionIntegrator · FleetCommandBar
  * ══
  */
 
@@ -245,11 +246,11 @@ public static class FleetOrderService
     {
         if (selectedFriendlyUnitIds != null && selectedFriendlyUnitIds.Count > 0)
         {
+            // 选中 ID = 下令方舰队（含人机敌方；禁止硬编码 UnitSide.FRIENDLY）
             foreach (var u in bf.units)
             {
                 if (u.unitId != null
                     && selectedFriendlyUnitIds.Contains(u.unitId)
-                    && u.side == UnitSide.FRIENDLY
                     && !u.IsDestroyed()
                     && !u.isBuilding)
                 {
@@ -361,11 +362,11 @@ public static class FleetOrderService
     {
         if (selectedFriendlyUnitIds != null && selectedFriendlyUnitIds.Count > 0)
         {
+            // 选中 ID = 下令方舰队（人机敌方同路径；无框选时仍默认友方全体）
             foreach (var u in bf.units)
             {
                 if (u.unitId != null
                     && selectedFriendlyUnitIds.Contains(u.unitId)
-                    && u.side == UnitSide.FRIENDLY
                     && !u.IsDestroyed()
                     && !u.isBuilding)
                 {
@@ -436,30 +437,55 @@ public static class FleetOrderService
         ships ??= ShipRegistry.LoadDefault();
         var navigateCount = 0;
         var crossCount = 0;
+        var debugRoutes = new List<object>();
 
-        foreach (var battlefield in state.battlefields)
+        var commandTargets = state.battlefields
+            .ToArray()
+            .SelectMany(battlefield => ResolveCommandTargets(state, battlefield, selectedFriendlyUnitIds)
+                .Select(unit => (Battlefield: battlefield, Unit: unit)))
+            .ToArray();
+        foreach (var (battlefield, u) in commandTargets)
         {
-            foreach (var u in ResolveCommandTargets(state, battlefield, selectedFriendlyUnitIds))
+            var unitBf = RallyNavigationPlanner.FindBattlefieldForUnit(state, u) ?? battlefield;
+            var steps = RallyNavigationPlanner.PlanRoute(state, u, anchor);
+            if (steps.Count == 0)
             {
-                var unitBf = RallyNavigationPlanner.FindBattlefieldForUnit(state, u) ?? battlefield;
-                var steps = RallyNavigationPlanner.PlanRoute(state, u, anchor);
-                if (steps.Count == 0)
+                debugRoutes.Add(new
                 {
-                    continue;
-                }
+                    u.unitId,
+                    sourceBattlefieldId = unitBf.battlefieldId,
+                    sourceSystemId = unitBf.systemId,
+                    planned = false,
+                    applied = false,
+                    steps = Array.Empty<string>(),
+                });
+                continue;
+            }
 
-                RallyNavigationService.AssignChain(state, u, anchor, steps);
-                if (RallyNavigationPlanner.ApplyFirstStep(state, u, unitBf, steps, ships))
+            RallyNavigationService.AssignChain(state, u, anchor, steps);
+            var applied = RallyNavigationPlanner.ApplyFirstStep(state, u, unitBf, steps, ships);
+            debugRoutes.Add(new
+            {
+                u.unitId,
+                sourceBattlefieldId = unitBf.battlefieldId,
+                sourceSystemId = unitBf.systemId,
+                planned = true,
+                applied,
+                steps = steps.ToArray(),
+                aiOrder = u.aiOrder.ToString(),
+                u.inTacticalWarp,
+                warpPhase = u.warpPhase.ToString(),
+            });
+            if (applied)
+            {
+                if (steps.Count == 1
+                    && steps[0].StartsWith(RallyStepCodec.PrefixNavigate, StringComparison.Ordinal))
                 {
-                    if (steps.Count == 1
-                        && steps[0].StartsWith(RallyStepCodec.PrefixNavigate, StringComparison.Ordinal))
-                    {
-                        navigateCount++;
-                    }
-                    else
-                    {
-                        crossCount++;
-                    }
+                    navigateCount++;
+                }
+                else
+                {
+                    crossCount++;
                 }
             }
         }
@@ -480,6 +506,29 @@ public static class FleetOrderService
         }
 
         var total = navigateCount + crossCount;
+        // #region agent log
+        AgentSessionDebugLog.WriteDebugSession(
+            "R2-R3",
+            "FleetOrderService.cs:RallyToAnchor",
+            "rally routes planned and first steps applied",
+            new
+            {
+                anchor = new
+                {
+                    kind = anchor.Kind.ToString(),
+                    anchor.SystemId,
+                    anchor.EventRegionId,
+                    anchor.BattlefieldId,
+                    anchor.X,
+                    anchor.Y,
+                    anchor.Z,
+                },
+                selectedCount = selectedFriendlyUnitIds?.Count ?? 0,
+                navigateCount,
+                crossCount,
+                routes = debugRoutes.ToArray(),
+            });
+        // #endregion
         CombatTelemetryLog.Log("nav.order", $"rally anchor={anchor.Kind} count={total} cross={crossCount}");
         if (total <= 0)
         {
@@ -519,10 +568,67 @@ public static class FleetOrderService
         GameState state,
         BattlefieldState bf,
         string? targetUnitId,
-        IReadOnlyCollection<string>? selectedFriendlyUnitIds = null)
+        IReadOnlyCollection<string>? selectedFriendlyUnitIds = null,
+        ModuleRegistry? modules = null)
     {
-        return RemoteRepairSalvoService.OrderRepairTarget(
-            state, bf, targetUnitId, selectedFriendlyUnitIds, ModuleRegistry.LoadDefault());
+        HideTacticalNavMarker(state);
+        var modReg = modules ?? ModuleRegistry.LoadDefault();
+        var commandTargets = ResolveCommandTargets(state, bf, selectedFriendlyUnitIds).ToList();
+        if (commandTargets.Count == 0)
+        {
+            // #region agent log
+            try
+            {
+                var path = System.IO.Path.Combine(@"h:\", "debug-85a1e0.log");
+                var line = "{\"sessionId\":\"85a1e0\",\"hypothesisId\":\"P\",\"location\":\"FleetOrderService.OrderRepairTarget\",\"message\":\"repair-no-command-targets\",\"data\":{"
+                           + "\"scope\":\"" + state.fleetCommandScope + "\""
+                           + ",\"selN\":" + (selectedFriendlyUnitIds?.Count ?? 0)
+                           + "},\"timestamp\":" + System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + "}\n";
+                System.IO.File.AppendAllText(path, line);
+            }
+            catch
+            {
+            }
+            // #endregion
+            return state.fleetCommandScope == FleetCommandScope.SelectedOnly
+                ? "请先框选舰船，或切换为全体指挥"
+                : "无可指挥舰";
+        }
+
+        var msg = RemoteRepairSalvoService.OrderRepairTarget(
+            state, bf, targetUnitId, selectedFriendlyUnitIds, modReg);
+
+        var acked = new List<BattlefieldUnit>();
+        foreach (var u in commandTargets)
+        {
+            if (u.targetUnitId != null
+                && targetUnitId != null
+                && u.targetUnitId.Equals(targetUnitId, StringComparison.Ordinal)
+                && u.pendingRepairRounds > 0
+                && RemoteRepairSalvoService.HasRemoteRepairModule(u, modReg))
+            {
+                acked.Add(u);
+            }
+        }
+
+        SetAck(acked);
+        // #region agent log
+        try
+        {
+            var path = System.IO.Path.Combine(@"h:\", "debug-85a1e0.log");
+            var line = "{\"sessionId\":\"85a1e0\",\"hypothesisId\":\"P\",\"location\":\"FleetOrderService.OrderRepairTarget\",\"message\":\"repair-order\",\"data\":{"
+                       + "\"target\":\"" + (targetUnitId ?? "") + "\""
+                       + ",\"cmdN\":" + commandTargets.Count
+                       + ",\"ackN\":" + acked.Count
+                       + ",\"msg\":\"" + (msg ?? "").Replace("\"", "'") + "\""
+                       + "},\"timestamp\":" + System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + "}\n";
+            System.IO.File.AppendAllText(path, line);
+        }
+        catch
+        {
+        }
+        // #endregion
+        return msg;
     }
 
     // liketocoo3e345
@@ -585,6 +691,57 @@ public static class FleetOrderService
             var rng = new Random(HashCode.Combine(focusId, bf.timeSec, bf.units.Count));
             StrikeWingSpawnService.DeployForFocusCommand(
                 bf, selectedFriendlyUnitIds, modReg, rng);
+
+            var firerIds = targets.Select(t => t.unitId).ToList();
+            if (possessor?.unitId != null && !firerIds.Contains(possessor.unitId, StringComparer.Ordinal))
+            {
+                firerIds.Add(possessor.unitId);
+            }
+
+            FocusFireSequencer.Register(bf, focusId, firerIds);
+            // #region agent log
+            try
+            {
+                var path = System.IO.Path.Combine(@"h:\", "debug-85a1e0.log");
+                var focusUnit = BattlefieldSystem.FindUnit(bf, focusId);
+                var mods = modReg;
+                var elig = 0;
+                var sb = new System.Text.StringBuilder();
+                sb.Append("{\"sessionId\":\"85a1e0\",\"hypothesisId\":\"K\",\"location\":\"FleetOrderService.OrderFocus\",\"message\":\"order-focus\",\"data\":{");
+                sb.Append("\"focusId\":\"").Append(focusId).Append('\"');
+                sb.Append(",\"focusName\":\"").Append(focusUnit?.displayName ?? "").Append('\"');
+                sb.Append(",\"focusHull\":\"").Append(focusUnit?.hullId ?? "").Append('\"');
+                sb.Append(",\"firerN\":").Append(firerIds.Count);
+                sb.Append(",\"queue\":[");
+                for (var i = 0; i < firerIds.Count; i++)
+                {
+                    if (i > 0) sb.Append(',');
+                    var f = BattlefieldSystem.FindUnit(bf, firerIds[i]);
+                    var canMain = f != null && f.salvoRoundDmg > 0.01f;
+                    var canSpec = f != null && SalvoProfileService.HasSpecializedDamagingAttack(f, mods);
+                    if (canMain || canSpec) elig++;
+                    sb.Append("{\"id\":\"").Append(firerIds[i] ?? "").Append('\"');
+                    sb.Append(",\"name\":\"").Append(f?.displayName ?? "").Append('\"');
+                    sb.Append(",\"salvo\":").Append((f?.salvoRoundDmg ?? 0f).ToString("F0"));
+                    sb.Append(",\"canMain\":").Append(canMain ? "true" : "false");
+                    sb.Append(",\"canSpec\":").Append(canSpec ? "true" : "false");
+                    sb.Append('}');
+                }
+                sb.Append("],\"eligByNewRule\":").Append(elig);
+                sb.Append(",\"eligByOldRule\":").Append(firerIds.Count(id =>
+                {
+                    var f = BattlefieldSystem.FindUnit(bf, id);
+                    return f != null && f.salvoRoundDmg > 0.01f;
+                }));
+                sb.Append("},\"timestamp\":").Append(System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()).Append("}\n");
+                System.IO.File.AppendAllText(path, sb.ToString());
+            }
+            catch { }
+            // #endregion
+        }
+        else
+        {
+            FocusFireSequencer.Clear(bf);
         }
 
         SetAck(targets);
@@ -636,8 +793,11 @@ public static class FleetOrderService
     public static string OrderCeaseFire(
         GameState state,
         BattlefieldState bf,
-        IReadOnlyCollection<string>? selectedFriendlyUnitIds = null) =>
-        StrikeWingOrderService.OrderCeaseFireWings(bf, selectedFriendlyUnitIds);
+        IReadOnlyCollection<string>? selectedFriendlyUnitIds = null)
+    {
+        FocusFireSequencer.Clear(bf);
+        return StrikeWingOrderService.OrderCeaseFireWings(bf, selectedFriendlyUnitIds);
+    }
 
     public static string OrderOrbit(
         GameState state,

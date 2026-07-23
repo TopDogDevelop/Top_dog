@@ -7,8 +7,9 @@
   "moduleSize": "SMALL",
   "missileStructureHp": 100,
   "missileFlightSpeedMps": 10000,
-  "missileFlightMaxSec": 40,
+  "missileFlightMaxSec": 30,
   "missileAoeBaseDamage": 30,
-  "missileAoeZeroRadiusM": 20000,
-  "missileAoeStructureOnly": true
+  "missileAoeZeroRadiusM": 5000,
+  "missileAoeStructureOnly": true,
+  "starCoinValue": 100
 }

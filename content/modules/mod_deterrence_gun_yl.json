@@ -3,10 +3,11 @@
   "displayName": "威慑炮",
   "slotCategory": "ATTACK",
   "moduleSize": "YOULIANG",
-  "damagePerTick": 30000,
+  "damagePerTick": 60000,
   "fireCycleSec": 30,
   "trackingDegPerSec": 0.1,
-  "attackRangeM": 200000,
+  "attackRangeM": 350000,
   "rangeDamageFalloffPctPerKm": 1,
-  "targetMinTonnageRank": 8
+  "targetMinTonnageRank": 8,
+  "starCoinValue": 500000
 }

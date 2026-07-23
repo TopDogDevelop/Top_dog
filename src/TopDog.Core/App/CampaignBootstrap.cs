@@ -97,6 +97,11 @@ public static class CampaignBootstrap
             MechanismIntraSceneWarpSpawnService.BootstrapBattlefields(
                 state, scenario, core.Ships, core.Modules, rng);
         }
+        else if ("stress_10k_icons".Equals(scenario.mapMode, StringComparison.Ordinal))
+        {
+            MechanismTestStressSpawnService.BootstrapBattlefields(
+                state, scenario, core.Ships, core.Modules, rng);
+        }
         else
         {
             MechanismTestSpawnService.BootstrapBattlefields(state, scenario, core.Ships, core.Modules, rng);

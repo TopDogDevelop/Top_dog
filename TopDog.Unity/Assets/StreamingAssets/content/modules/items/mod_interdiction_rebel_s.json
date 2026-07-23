@@ -1,0 +1,12 @@
+{
+  "moduleId": "mod_interdiction_rebel_s",
+  "displayName": "拦截立场生成器·反叛",
+  "displayNameEn": "Interdiction Generator: Rebel",
+  "slotCategory": "FUNCTION",
+  "moduleKind": "interdiction_field_fixed",
+  "moduleSize": "SMALL",
+  "starCoinValue": 100,
+  "requiredHullLicenses": ["interdiction_field_generator"],
+  "logicId": "logic_interdiction_field_fixed",
+  "params": {"radiusM": 20000, "durationSec": 60}
+}

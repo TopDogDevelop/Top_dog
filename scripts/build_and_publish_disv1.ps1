@@ -1,14 +1,14 @@
 param(
     [string]$UnityExe = "",
     [string]$DevelopRoot = (Split-Path $PSScriptRoot -Parent),
-    [string]$Disv1 = "e:\disv1",
+    [string]$Disv1 = "H:\disv1",
     [switch]$SkipWindows,
     [switch]$SkipAndroid
 )
 
 <#
 .SYNOPSIS
-  Build Windows + Android shells, then publish exactly two files into e:\disv1.
+  Build Windows + Android shells, then publish exactly two files into H:\disv1.
 
 .NOTES
   Run when the user explicitly asks to package EXE/APK / 套壳 / 打包到 disv1.

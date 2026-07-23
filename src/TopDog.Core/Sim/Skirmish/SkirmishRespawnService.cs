@@ -14,7 +14,7 @@ public static class SkirmishRespawnService
 {
     public static bool IsWingOrChildUnit(BattlefieldUnit unit)
     {
-        if (unit.parentUnitId != null)
+        if (unit.IsTemplateCarriedUnit())
         {
             return true;
         }

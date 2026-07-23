@@ -1,5 +1,5 @@
 param(
-    [string]$OutDir = "e:\game_dev\top_dog_unity\builds\android_logs",
+    [string]$OutDir = "H:\game_dev\top_dog_unity\builds\android_logs",
     [int]$WaitSeconds = 120
 )
 

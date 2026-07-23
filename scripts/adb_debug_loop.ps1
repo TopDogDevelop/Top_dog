@@ -1,10 +1,10 @@
 param(
     [ValidateSet("InstallAndWatch", "WatchOnly", "Devices")]
     [string]$Mode = "InstallAndWatch",
-    [string]$ApkPath = "e:\disv1\TopDog.apk",
+    [string]$ApkPath = "H:\disv1\TopDog.apk",
     [string]$Package = "com.topdogdevelop.topdog",
     [string]$Activity = "com.unity3d.player.UnityPlayerActivity",
-    [string]$OutDir = "e:\game_dev\top_dog_unity\builds\android_logs",
+    [string]$OutDir = "H:\game_dev\top_dog_unity\builds\android_logs",
     [int]$WatchSeconds = 90
 )
 
